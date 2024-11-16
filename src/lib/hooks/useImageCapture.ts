@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase'
+import { useAuth } from './useAuth'
 
 export const useImageCapture = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { user } = useAuth();
 
   const handleCamera = async () => {
     //这个函数捕获图片后,并把图片贴在了canvas上
@@ -52,17 +54,20 @@ export const useImageCapture = () => {
   // 上传图片到服务器
   const uploadImage = async () => {
     if (!selectedImage) return;
+    if (!user) {
+      alert('Please login first');
+      return;
+    }
     
     setIsLoading(true);
     try {
-      // 直接使用 base64 字符串
       const base64Data = selectedImage.split(',')[1];
       
       const { data, error } = await supabase
         .from('useruploads')
         .insert({
-          user_id: '755105012@qq.com',
-          image_data: base64Data  // 直接使用 base64 字符串
+          user_id: user.email,
+          image_data: base64Data
         })
         .select();
 
@@ -70,7 +75,7 @@ export const useImageCapture = () => {
       return data;
       
     } catch (error) {
-      console.error('上传失败:', error);
+      console.error('Upload failed:', error);
     } finally {
       setIsLoading(false);
     }
