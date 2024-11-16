@@ -7,8 +7,12 @@ export const metadata: Metadata = {
   description: "A application using to tell the price of the object",
   keywords: ["Price", "AI", "Fee"],
   authors: [{ name: "Lele" }],
-  viewport: "width=device-width, initial-scale=1",
   robots: "index, follow"
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1
 };
 
 export default function RootLayout({
