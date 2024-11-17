@@ -3,7 +3,7 @@ import Navigation from "@/components/Navigation";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PRI-CIO",
+  title: "PRICIO",
   description: "A application using to tell the price of the object",
   keywords: ["Price", "AI", "Fee"],
   authors: [{ name: "Lele" }],
