@@ -7,6 +7,7 @@ export const useImageCapture = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { user } = useAuth();
 
+  //拍照上传图片
   const handleCamera = async () => {
     //这个函数捕获图片后,并把图片贴在了canvas上
     try {
@@ -32,7 +33,7 @@ export const useImageCapture = () => {
       console.error('Camera access failed:', error);
     }
   };
-
+  //从相册中选择上传图片
   const handlePhotoUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -61,8 +62,21 @@ export const useImageCapture = () => {
     
     setIsLoading(true);
     try {
+      // 首先调用后端API处理图片
+      const response = await fetch('/api/gpt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ selectedImage })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process image');
+      }
+
+      // 然后再保存到 Supabase
       const base64Data = selectedImage.split(',')[1];
-      
       const { data, error } = await supabase
         .from('useruploads')
         .insert({
@@ -81,11 +95,18 @@ export const useImageCapture = () => {
     }
   };
 
+  // 添加删除图片函数
+  const handleDeleteImage = () => {
+    setSelectedImage(null);
+  };
+
   return {
     selectedImage,
     isLoading,
     handleCamera,
     handlePhotoUpload,
-    uploadImage
+    uploadImage,
+    handleDeleteImage 
   };
 };
+ 
