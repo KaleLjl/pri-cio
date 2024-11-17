@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
+import Image from 'next/image';
+import LogoImage from '../public/image/logo.png';
 
 interface NavItem {
   label: string;
@@ -40,7 +42,7 @@ const Navigation: React.FC<NavigationProps> = ({
         <div className="flex items-center justify-between h-16">
           <div className="flex-shrink-0">
             <Link href="/" className="text-2xl font-bold">
-              {logo}
+              <Image src={LogoImage} alt="Logo" width={50} height={50} />
             </Link>
           </div>
 
