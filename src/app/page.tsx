@@ -1,5 +1,8 @@
 'use client'
-import { useImageCapture } from '@/lib/hooks/useImageCapture';``
+import { useImageCapture } from '@/lib/hooks/useImageCapture';
+import Image from 'next/image';
+import LogoName from '../public/image/logo_name.png';
+import '../css/page.css';
 
 export default function Home() {
   const { 
@@ -13,10 +16,10 @@ export default function Home() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="flex flex-col items-center space-y-4">
-        <h1 className="text-6xl font-bold text-blue-600">PRI-CIO</h1>
+        <Image src={LogoName} alt="PRI-CIO Logo" className="logoname" />
         <h2 className="text-2xl text-gray-600">What price do you want to know?</h2>
         
-      {/* 展示图片 */}
+        {/* 展示图片 */}
         <div className="w-64 h-64 relative">
           {selectedImage ? (
             <img 

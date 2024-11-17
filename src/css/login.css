@@ -1,0 +1,99 @@
+/* login.css */
+
+/* Scope all styles under .login-page */
+.login-page {
+    background: linear-gradient(135deg, #8057f8, #a965ff);
+    color: #ffffff;
+    min-height: calc(100vh - 4rem); /* Subtract navbar height (4rem) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .login-page .container {
+    max-width: 480px;
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    color: #000000;
+  }
+  
+  /* Logo */
+  .login-page .logo-name {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem; /* Space below the logo */
+  }
+  
+  .login-page .logo-name img {
+    max-width: 200px; /* Ensure the logo doesn't exceed container width */
+    height: auto;    /* Maintain aspect ratio */
+  }
+  
+  /* Input Fields */
+  .login-page input {
+    width: 100%;
+    padding: 0.8rem;
+    margin-bottom: 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 1rem;
+    color: #111827;
+  }
+  
+  .login-page input:focus {
+    outline: none;
+    border-color: #8057f8;
+    box-shadow: 0 0 4px rgba(128, 87, 248, 0.6);
+  }
+  
+  /* Button */
+  .login-page button {
+    width: 100%;
+    padding: 0.8rem;
+    background: #8057f8;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .login-page button:hover {
+    background: #6b47e9;
+  }
+  
+  .login-page button:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+  }
+  
+  /* Error Message */
+  .login-page .error {
+    color: #f87171;
+    font-size: 0.875rem;
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+  
+  /* Footer Text */
+  .login-page .footer {
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+  
+  .login-page .footer a {
+    color: #8057f8;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  
+  
+  
