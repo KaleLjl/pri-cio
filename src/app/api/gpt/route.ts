@@ -4,7 +4,7 @@ import { z } from "zod";
 import { NextResponse } from "next/server";
 const openai = new OpenAI();
 
-const PriceDescription =z.object({
+const PriceDescription_object =z.object({
   description: z.string(),
   price: z.number()
 })
@@ -14,23 +14,20 @@ export async function POST(request: Request) {
     const { selectedImage } = await request.json()
     console.log('Received image')
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const completion = await openai.beta.chat.completions.parse({
+      model: "gpt-4o-2024-08-06",
       messages: [
-        {
-          role: "user",
+        { role: "system", content: "Identify the object in the picture and give out the price" },
+        { 
+          role: "user", 
           content: [
-            { type: "text", text: "What's in this image?" },
-            {
-              type: "image_url",
-              image_url: {
-                url: selectedImage,
-              },
-            }
-          ],
-        },
+            { type: "text", text: "Please tell me what it is shortly and give me an estimate price of it." },
+            { type: "image_url", image_url: { url: selectedImage } }
+          ]
+        }
       ],
-    })
+      response_format: zodResponseFormat(PriceDescription_object, "object"),
+    });
 
     const description = completion.choices[0]?.message?.content
     console.log(`Description: ${description}`)
