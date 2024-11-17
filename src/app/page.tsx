@@ -1,5 +1,5 @@
 'use client'
-import { useImageCapture } from '@/lib/hooks/useImageCapture';``
+import { useImageCapture } from '@/lib/hooks/useImageCapture';
 
 export default function Home() {
   const { 
@@ -7,7 +7,8 @@ export default function Home() {
     isLoading, 
     handleCamera, 
     handlePhotoUpload, 
-    uploadImage 
+    uploadImage,
+    handleDeleteImage 
   } = useImageCapture();
 
   return (
@@ -16,7 +17,7 @@ export default function Home() {
         <h1 className="text-6xl font-bold text-blue-600">PRI-CIO</h1>
         <h2 className="text-2xl text-gray-600">What price do you want to know?</h2>
         
-      {/* 展示图片 */}
+      {/* 展示图片的位置 */}
         <div className="w-64 h-64 relative">
           {selectedImage ? (
             <img 
@@ -32,8 +33,10 @@ export default function Home() {
             </div>
           )}
         </div>
-
+          
+      {/* 上传图片 */}
         <div className="flex space-x-4">
+         {/* 用相机上传图片 */}
           <button 
             onClick={handleCamera} 
             disabled={isLoading}
@@ -45,7 +48,7 @@ export default function Home() {
             </svg>
             Camera 
           </button>
-          
+        {/* 从相册上传图片 */}
           <button 
             onClick={handlePhotoUpload}
             disabled={isLoading} 
@@ -58,15 +61,25 @@ export default function Home() {
           </button>
         </div>
 
-        {/* 上传按钮 */}
+      {/* 上传与删除按钮 */}
         {selectedImage && (
-          <button
-            onClick={uploadImage}
-            disabled={isLoading}
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {isLoading ? 'Loading' : 'Price it'}
-          </button>
+          <div className="flex space-x-4">
+            <button
+              onClick={uploadImage}
+              disabled={isLoading}
+              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isLoading ? 'Loading' : 'Price it'}
+            </button>
+            
+            <button
+              onClick={handleDeleteImage}
+              disabled={isLoading}
+              className="mt-4 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              Delete
+            </button>
+          </div>
         )}
       </div>
     </div>
