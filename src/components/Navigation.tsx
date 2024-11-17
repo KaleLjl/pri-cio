@@ -2,6 +2,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
+import Image from 'next/image';
+import LogoImage from '../public/image/logo.png';
+import LogoName from '../public/image/logo_name.png';
+import '../css/navigation.css';
 
 interface NavItem {
   label: string;
@@ -38,9 +42,10 @@ const Navigation: React.FC<NavigationProps> = ({
     <nav className="bg-background border-b border-foreground/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="flex-shrink-0">
-            <Link href="/" className="text-2xl font-bold">
-              {logo}
+          <div className="flex items-center flex-shrink-0">
+            <Link href="/" className="flex items-center space-x-2">
+              <Image src={LogoImage} alt="Logo" width={50} height={50} />
+              <Image src={LogoName} alt="Logo Name" className="navigation-logo-name" />
             </Link>
           </div>
 

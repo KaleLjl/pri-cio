@@ -1,7 +1,10 @@
-'use client'
+'use client';
 import { useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import '../../../css/login.css'; // Import the scoped CSS file
+import Image from 'next/image';
+import LogoName from '../../../public/image/logo_name.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,29 +21,39 @@ export default function Login() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-sm mx-auto mt-10">
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email"
-        className="w-full p-2 border rounded mb-4 text-black"
-      />
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
-        className="w-full p-2 border rounded mb-4 text-black"
-      />
-      <button 
-        type="submit"
-        disabled={loading}
-        className="w-full bg-blue-500 text-white p-2 rounded"
-      >
-        {loading ? 'Loading...' : 'Login'}
-      </button>
-      {error && <p className="text-red-500 mt-2">{error}</p>}
-    </form>
+    <div className="login-page"> {/* Wrapper for scoping styles */}
+      <div className="container">
+        <div className="logo-name">
+          <Image src={LogoName} alt="Logo Name" className="logo-name" />
+        </div>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            required
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            required
+          />
+          <button 
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Login'}
+          </button>
+          {error && <p className="error">{error}</p>}
+        </form>
+
+        <div className="footer">
+          Don't have an account? <a href="/signup">Sign up here</a>.
+        </div>
+      </div>
+    </div>
   );
 }
