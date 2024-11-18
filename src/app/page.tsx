@@ -13,7 +13,8 @@ export default function Home() {
     handleCamera, 
     handlePhotoUpload, 
     uploadImage,
-    handleDeleteImage 
+    handleDeleteImage ,
+    processImage,
   } = useImageCapture();
 
   return (

@@ -52,7 +52,48 @@ export const useImageCapture = () => {
     input.click();
   };
 
-  // 上传图片到服务器
+  const processImage = async () => {
+    if (!selectedImage) return;
+
+    // 调用后端API处理图片
+    const response = await fetch('/api/gpt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ selectedImage })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to process image');
+    }
+
+    // 解析响应的JSON数据
+    const data = await response.json();
+    console.log('Processed image data:', data);
+
+    // 你可以在这里使用 data.Description 和 data.price
+    const { description, price } = data;
+    return { description, price }; // 使用对象返回多个值
+  };
+
+  const saveImageToSupabase = async () => {
+    if (!selectedImage || !user) return;
+
+    // 保存到 Supabase
+    const base64Data = selectedImage.split(',')[1];
+    const { data, error } = await supabase
+      .from('useruploads')
+      .insert({
+        user_id: user.email,
+        image_data: base64Data
+      })
+      .select();
+
+    if (error) throw error;
+    return data;
+  };
+
   const uploadImage = async () => {
     if (!selectedImage) return;
     if (!user) {
@@ -62,32 +103,9 @@ export const useImageCapture = () => {
     
     setIsLoading(true);
     try {
-      // 首先调用后端API处理图片
-      const response = await fetch('/api/gpt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ selectedImage })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to process image');
-      }
-
-      // 然后再保存到 Supabase
-      const base64Data = selectedImage.split(',')[1];
-      const { data, error } = await supabase
-        .from('useruploads')
-        .insert({
-          user_id: user.email,
-          image_data: base64Data
-        })
-        .select();
-
-      if (error) throw error;
+      await processImage();
+      const data = await saveImageToSupabase();
       return data;
-      
     } catch (error) {
       console.error('Upload failed:', error);
     } finally {
@@ -106,7 +124,8 @@ export const useImageCapture = () => {
     handleCamera,
     handlePhotoUpload,
     uploadImage,
-    handleDeleteImage 
+    handleDeleteImage,
+    processImage
   };
 };
  
