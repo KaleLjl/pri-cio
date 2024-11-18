@@ -24,11 +24,13 @@ const Navigation: React.FC<NavigationProps> = ({
   const { user, signOut } = useAuth();
 
   const navItems: NavItem[] = user ? [
+    {label: 'History', href:'/history'},
     { label: user.email || 'User', href: '/setting' },
     { label: 'Sign Out', href: '/login' }
   ] : [
+    {label: 'History', href:'/history'},
     { label: 'Login', href: '/login' },
-    { label: 'Signup', href: '/signup' },
+    { label: 'Signup', href: '/signup'},
   ];
 
   const handleNavClick = (item: NavItem) => {

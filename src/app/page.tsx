@@ -1,5 +1,6 @@
 'use client'
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
+import { useState } from 'react';
 
 import Image from 'next/image';
 import LogoName from '../public/image/logo_name.png';
@@ -23,7 +24,6 @@ export default function Home() {
       <div className="flex flex-col items-center space-y-4">
         <Image src={LogoName} alt="PRI-CIO Logo" className="logoname" />
         <h2 className="text-2xl text-gray-600">What price do you want to know?</h2>
-        
 
         {/* 展示图片 */}
         <div className="w-64 h-64 relative">
