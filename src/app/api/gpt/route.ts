@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 const openai = new OpenAI();
 
 const PriceDescription_object =z.object({
-  Description: z.string(),
+  description: z.string(),
   price: z.number()
 })
 
@@ -34,12 +34,12 @@ export async function POST(request: Request) {
     let price: number = 0 ;
     if (content) {
         ({ description, price } = JSON.parse(content));
-        console.log(`Description: ${description}, Price: ${price}`);
+        console.log 
     } else {
         console.error('Content is null or undefined');
     }
 
-    return NextResponse.json({ Description, price });
+    return NextResponse.json({ description, price });
   } catch (error) {
     console.error('Error processing image:', error)
     return NextResponse.json({ error: 'Failed to process image' }, { status: 500 })

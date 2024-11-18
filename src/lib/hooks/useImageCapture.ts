@@ -6,6 +6,8 @@ export const useImageCapture = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { user } = useAuth();
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
 
   //拍照上传图片
   const handleCamera = async () => {
@@ -53,7 +55,8 @@ export const useImageCapture = () => {
   };
 
   const processImage = async () => {
-    if (!selectedImage) return;
+    if (!selectedImage || !user) return;
+    
 
     // 调用后端API处理图片
     const response = await fetch('/api/gpt', {
@@ -95,17 +98,25 @@ export const useImageCapture = () => {
   };
 
   const uploadImage = async () => {
+  
     if (!selectedImage) return;
     if (!user) {
       alert('Please login first');
       return;
     }
-    
     setIsLoading(true);
     try {
-      await processImage();
-      const data = await saveImageToSupabase();
-      return data;
+      const result = await processImage();
+      if (!result) {
+        throw new Error('Image processing failed');
+      }
+      // console.log('Process Image Result:', result);
+      //更新展示description和price的钩子
+      const { description, price } = result;
+      setDescription(description);
+      setPrice(price);
+      //把信息更新到数据库
+      await saveImageToSupabase();
     } catch (error) {
       console.error('Upload failed:', error);
     } finally {
@@ -125,7 +136,8 @@ export const useImageCapture = () => {
     handlePhotoUpload,
     uploadImage,
     handleDeleteImage,
-    processImage
+    price,
+    description
   };
 };
  

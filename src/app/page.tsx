@@ -10,11 +10,12 @@ export default function Home() {
   const { 
     selectedImage, 
     isLoading, 
+    description, 
+    price, 
     handleCamera, 
     handlePhotoUpload, 
     uploadImage,
     handleDeleteImage ,
-    processImage,
   } = useImageCapture();
 
   return (
@@ -86,6 +87,14 @@ export default function Home() {
             >
               Delete
             </button>
+          </div>
+        )}
+
+        {/* 显示描述和价格 */}
+        {description && (
+          <div className="mt-4 text-center">
+            <p className="text-lg font-semibold">Description: {description}</p>
+            <p className="text-lg font-semibold">Price: {price}</p>
           </div>
         )}
       </div>
