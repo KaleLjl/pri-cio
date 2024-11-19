@@ -82,14 +82,16 @@ export const useImageCapture = () => {
 
   const saveImageToSupabase = async () => {
     if (!selectedImage || !user) return;
+    
+    // 转换base64为二进制
+    const base64Data = selectedImage.replace(/^data:image\/\w+;base64,/, '');
+    const binaryData = Buffer.from(base64Data, 'base64');
 
-    // 保存到 Supabase
-    const base64Data = selectedImage.split(',')[1];
     const { data, error } = await supabase
       .from('useruploads')
       .insert({
         user_id: user.email,
-        image_data: base64Data
+        image_data: binaryData  // 存储二进制数据
       })
       .select();
 

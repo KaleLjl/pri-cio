@@ -6,13 +6,28 @@ interface HistoryRecord {
   upload_id: number;
   upload_time: string;
   image_data: string;
-  user_id: string;
 }
 
 export function useUploadHistory(user: User | null) {
   const [records, setRecords] = useState<HistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
+
+const decodeSupabaseHexToBase64 = (hexData: string): string => {
+  try {
+    // 第一步：解码外层的十六进制 JSON 字符串
+    const jsonString = Buffer.from(hexData.replace(/\\x/g, ''), 'hex').toString();
+    // 第二步：解析 JSON 获取内部的十六进制数据
+    const jsonData = JSON.parse(jsonString);
+    // 第三步：将内部的十六进制数据转换为 二进制
+    const buffer = Buffer.from(jsonData.data, 'hex');
+    // 添加 base64 图片前缀
+    return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    console.error('Error converting nested hex to base64:', error);
+    return '';
+  }
+};
 
   const fetchHistory = async () => {
     if (!user) return;
@@ -24,16 +39,14 @@ export function useUploadHistory(user: User | null) {
         .eq('user_id', user.email)
         .order('upload_time', { ascending: false })
         .limit(20);
-
       if (error) throw error;
       
+      // 转换每条记录中的图片数据为 Base64 格式
       const formattedData = data?.map(record => ({
         ...record,
-        image_data: record.image_data.startsWith('data:image') 
-          ? record.image_data 
-          : `data:image/jpeg;base64,${record.image_data}`
+        image_data: decodeSupabaseHexToBase64(record.image_data)
       })) || [];
-      
+
       setRecords(formattedData);
     } catch (error) {
       console.error('Error fetching history:', error);

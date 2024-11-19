@@ -13,6 +13,7 @@ export default function History() {
       </div>
     );
   }
+  console.log('Upload history records:', records);
 
   return (
     <div className="container mx-auto p-4">
