@@ -6,6 +6,8 @@ interface HistoryRecord {
   upload_id: number;
   upload_time: string;
   image_data: string;
+  price: number;
+  description: string
 }
 
 export function useUploadHistory(user: User | null) {
@@ -35,7 +37,7 @@ const decodeSupabaseHexToBase64 = (hexData: string): string => {
     try {
       const { data, error } = await supabase
         .from('useruploads')
-        .select('upload_id, upload_time, image_data')
+        .select('upload_id, upload_time, image_data, price, description')
         .eq('user_id', user.email)
         .order('upload_time', { ascending: false })
         .limit(20);

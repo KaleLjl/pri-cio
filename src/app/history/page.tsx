@@ -25,6 +25,8 @@ export default function History() {
           <thead>
             <tr>
               <th className="px-4 py-2">Image</th>
+              <th className="px-4 py-2">Price</th>
+              <th className="px-4 py-2">Description</th>
               <th className="px-4 py-2">Upload Time</th>
               <th className="px-4 py-2">Actions</th>
             </tr>
@@ -43,6 +45,12 @@ export default function History() {
                       (e.target as HTMLImageElement).src = '/placeholder.png';
                     }}
                   />
+                </td>
+                <td className="px-4 py-2">
+                  ${record.price}
+                </td>
+                <td className="px-4 py-2">
+                  {record.description}
                 </td>
                 <td className="px-4 py-2">
                   {new Date(record.upload_time).toLocaleString()}
