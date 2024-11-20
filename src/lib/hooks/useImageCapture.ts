@@ -139,6 +139,8 @@ export const useImageCapture = () => {
   // 添加删除图片函数
   const handleDeleteImage = () => {
     setSelectedImage(null);
+    setPrice('');
+    setDescription('');
   };
 
   return {
