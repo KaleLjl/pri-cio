@@ -1,13 +1,18 @@
 'use client'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useUploadHistory } from '@/lib/hooks/useUploadHistory';
 
 export default function History() {
   const { user } = useAuth();
-  const { records, isLoading, isDeleting, handleDelete } = useUploadHistory(user);
+  const { records, isLoading, isFetching, isDeleting, handleDelete, refetch } = useUploadHistory(user);
   const [currentPage, setCurrentPage] = useState(1);
   
+  // 添加 useEffect 在页面加载时触发刷新
+  useEffect(() => {
+    refetch();
+  }, [refetch, user]);
+
   // 固定每页显示10条记录
   const itemsPerPage = 10;
   const totalPages = Math.ceil(records.length / itemsPerPage);
@@ -45,8 +50,25 @@ export default function History() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-purple-50 to-purple-100">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-purple-100">
+        <div className="flex flex-col items-center space-y-6 bg-white p-8 rounded-2xl shadow-lg max-w-3xl w-full mx-4">
+          <h1 className="text-2xl font-bold mb-4 text-center">History</h1>
+          <div className="w-full space-y-4">
+            {[...Array(3)].map((_, index) => (
+              <div 
+                key={index}
+                className="animate-pulse flex items-center bg-purple-50/80 p-4 rounded-lg"
+              >
+                <div className="w-20 h-20 bg-gray-200 rounded-lg"></div>
+                <div className="ml-4 flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                </div>
+                <div className="w-16 h-8 bg-gray-200 rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -55,25 +77,38 @@ export default function History() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-purple-100">
       <div className="flex flex-col items-center space-y-6 bg-white p-8 rounded-2xl shadow-lg max-w-3xl w-full mx-4">
-        <h1 className="text-2xl font-bold mb-4 text-center">Upload History</h1>
+        <div className="w-full flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-center text-gray-800 dark:text-gray-800">History</h1>
+          {isFetching && (
+            <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-600 bg-blue-50 dark:bg-blue-50 px-2.5 py-0.5 rounded-full">
+              <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+              </svg>
+              Refreshing
+            </span>
+          )}
+        </div>
         {records.length === 0 ? (
-          <p className="text-center text-gray-500">No records found</p>
+          <p className="text-center text-gray-500 dark:text-gray-500">No records found</p>
         ) : (
           <>
-            <table className="min-w-full">
-              <thead>
-                <tr>
-                  <th className="px-4 py-2">Image</th>
-                  <th className="px-4 py-2">Price</th>
-                  <th className="px-4 py-2">Description</th>
-                  <th className="px-4 py-2">Upload Time</th>
-                  <th className="px-4 py-2">Actions</th>
-                </tr>
-              </thead>
+            <table className="min-w-full border-separate border-spacing-y-3">
               <tbody>
                 {currentRecords.map((record) => (
-                  <tr key={record.upload_id} className={isDeleting === record.upload_id ? 'opacity-50' : ''}>
-                    <td className="px-4 py-2">
+                  <tr 
+                    key={record.upload_id} 
+                    className={`
+                      ${isDeleting === record.upload_id ? 'opacity-50' : ''}
+                      bg-purple-50/80
+                      backdrop-blur-sm 
+                      hover:bg-purple-100/90
+                      transition-all duration-200
+                      shadow-sm
+                      rounded-lg
+                    `}
+                  >
+                    <td className="px-4 py-3 rounded-l-lg">
                       <img 
                         src={record.image_data}
                         alt="Uploaded" 
@@ -85,16 +120,15 @@ export default function History() {
                         }}
                       />
                     </td>
-                    <td className="px-4 py-2">
-                      ${record.price}
+                    <td className="px-4 py-3">
+                      <span className="text-xl text-gray-800 dark:text-gray-800">
+                        ${record.price}
+                      </span>
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-3 text-gray-800 dark:text-gray-800">
                       {record.description}
                     </td>
-                    <td className="px-4 py-2">
-                      {new Date(record.upload_time).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-3 rounded-r-lg">
                       <button
                         onClick={() => handleDelete(record.upload_id)}
                         disabled={isDeleting === record.upload_id}
