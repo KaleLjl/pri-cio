@@ -54,32 +54,7 @@ export const useImageCapture = () => {
     input.click();
   };
 
-  const processImage = async () => {
-    if (!selectedImage || !user) return;
-    
 
-    // 调用后端API处理图片
-    const response = await fetch('/api/gpt', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ selectedImage })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to process image');
-    }
-
-    // 解析响应的JSON数据
-    const data = await response.json();
-    console.log('Processed image data:', data);
-
-    // 你可以在里使用 data.Description 和 data.price
-    const { description, price } = data;
-    
-    return { description, price }; // 使用对象返回多个值
-  };
 
   const saveImageToSupabase = async (data: { description: string, price: string }) => {
     if (!selectedImage || !user) return;
@@ -101,36 +76,39 @@ export const useImageCapture = () => {
     if (error) throw error;
     return savedData;
   };
-
-  const uploadImage = async () => {
-    if (!selectedImage) return;
-    if (!user) {
+  const processImage = async () => {
+    if (!selectedImage || !user) {
       alert('Please login first');
       return;
     }
     
     setIsLoading(true);
     try {
-      // 1. 处理图片并等待结果
-      const result = await processImage();
-      if (!result?.description || !result?.price) {
+      // 调用后端API处理图片
+      const response = await fetch('/api/gpt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ selectedImage })
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to process image');
+      }
+  
+      const data = await response.json();
+      
+      if (!data.description || !data.price) {
         throw new Error('Failed to get description or price');
       }
-
-      // 2. 保存到数据库
-      const savedData = await saveImageToSupabase({
-        description: result.description,
-        price: result.price
-      });
-
-      // 状态更新放在最后
-      setDescription(result.description);
-      setPrice(result.price);
-
-      return savedData;
+  
+      setDescription(data.description);
+      setPrice(data.price);
+      
     } catch (error) {
       console.error('Upload failed:', error);
-      throw error; // 向上传递错误
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -148,8 +126,9 @@ export const useImageCapture = () => {
     isLoading,
     handleCamera,
     handlePhotoUpload,
-    uploadImage,
+    processImage,
     handleDeleteImage,
+    saveImageToSupabase,
     price,
     description
   };

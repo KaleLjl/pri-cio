@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react';
-import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
+import Link from 'next/link';
 import Image from 'next/image';
 import LogoImage from '../public/image/logo.png';
 import LogoName from '../public/image/logo_name.png';
 import '../css/navigation.css';
+
 
 interface NavItem {
   label: string;
