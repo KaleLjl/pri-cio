@@ -5,6 +5,7 @@ import { useAuth } from './useAuth'
 export const useImageCapture = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   const { user } = useAuth();
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -78,12 +79,8 @@ export const useImageCapture = () => {
   
       if (error) throw error;
       
-      // 保存成功后
       alert('Successfully saved!');
-      // 清空所有状态
-      setSelectedImage(null);
-      setDescription('');
-      setPrice('');
+      setIsEditing(false);
       
       return savedData;
     } catch (error) {
@@ -142,13 +139,17 @@ export const useImageCapture = () => {
   return {
     selectedImage,
     isLoading,
+    isEditing,
+    setIsEditing,
     handleCamera,
     handlePhotoUpload,
     processImage,
     handleDeleteImage,
     saveImageToSupabase,
+    setPrice,
+    setDescription,
     price,
-    description
+    description,
   };
 };
  

@@ -8,15 +8,27 @@ import '../css/page.css';
 export default function Home() {
   const { 
     selectedImage, 
-    isLoading, 
+    isLoading,
+    isEditing,
+    setIsEditing, 
     description, 
     price, 
+    setDescription,  // 新增
+    setPrice,  
     handleCamera, 
     handlePhotoUpload, 
     processImage,
     handleDeleteImage ,
     saveImageToSupabase
   } = useImageCapture();
+
+  const handleSave = async () => {
+    try {
+      await saveImageToSupabase({ description, price });
+    } catch (error) {
+      console.error('Save failed:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-purple-100">
@@ -84,20 +96,79 @@ export default function Home() {
         {/* 显示描述和价格 */}
         {description && (
           <div className="mt-4 text-center">
-            <p className="text-lg text-gray-600 mb-3">{description}</p>
-            <p className="text-2xl font-semibold text-purple-600 mb-4">Price: {price}</p>
+            {/* 描述部分 */}
+            <div className="mb-3">
+              {isEditing ? (
+                <textarea
+                  ref={(textareaRef) => {
+                    if (textareaRef) {
+                      textareaRef.style.height = '0px';
+                      textareaRef.style.height = textareaRef.scrollHeight + 'px';
+                    }
+                  }}
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    e.target.style.height = '0px';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                  }}
+                  className="w-full p-2 text-lg text-gray-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  style={{
+                    minHeight: '100px',
+                    resize: 'none',
+                    overflowY: 'hidden',
+                    height: 'auto'
+                  }}
+                />
+              ) : (
+                <p 
+                  className="text-lg text-gray-600 p-2 cursor-pointer hover:bg-gray-50 rounded-lg whitespace-pre-wrap"
+                  onDoubleClick={() => setIsEditing(true)}
+                >
+                  {description}
+                </p>
+              )}
+            </div>
             
-            {/* 第三组按钮：有图片且有描述时显示的按钮 */}
+            {/* 价格部分 */}
+            <div className="mb-4 flex items-center justify-center">
+              <span className="text-2xl font-semibold text-purple-600 mr-2">Price: </span>
+              {isEditing ? (
+                <input
+                  type="number"
+                  value={price}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || Number(value) >= 0) {
+                      setPrice(value);
+                    }
+                  }}
+                  min="0"
+                  step="0.01"
+                  className="w-32 p-2 text-2xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
+                  placeholder="0.00"
+                />
+              ) : (
+                <span 
+                  className="text-2xl font-semibold text-purple-600 cursor-pointer hover:bg-gray-50 rounded-lg px-2"
+                  onDoubleClick={() => setIsEditing(true)}
+                >
+                  ${price}
+                </span>
+              )}
+            </div>
+
+            {/* 按钮部分 */}
             <div className="flex space-x-4 justify-center mt-4">
               <button 
-                onClick={() => saveImageToSupabase({ description, price })} 
+                onClick={isEditing ? handleSave : () => setIsEditing(true)} 
                 disabled={isLoading} 
                 className="flex items-center justify-start w-32 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                 </svg>
-                {isLoading ? 'Saving...' : 'Save it'}
+                {isLoading ? 'Saving...' : (isEditing ? 'Save it' : 'Edit')}
               </button>
               <button onClick={handleDeleteImage} disabled={isLoading} 
                 className="flex items-center justify-start w-32 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50">
