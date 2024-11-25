@@ -89,12 +89,15 @@ export default function Home() {
             
             {/* 第三组按钮：有图片且有描述时显示的按钮 */}
             <div className="flex space-x-4 justify-center mt-4">
-              <button onClick={() => saveImageToSupabase({ description, price })} disabled={isLoading} 
-                className="flex items-center justify-start w-32 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50">
+              <button 
+                onClick={() => saveImageToSupabase({ description, price })} 
+                disabled={isLoading} 
+                className="flex items-center justify-start w-32 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                 </svg>
-                {isLoading ? 'Loading' : 'Save it'}
+                {isLoading ? 'Saving...' : 'Save it'}
               </button>
               <button onClick={handleDeleteImage} disabled={isLoading} 
                 className="flex items-center justify-start w-32 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50">

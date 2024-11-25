@@ -59,22 +59,40 @@ export const useImageCapture = () => {
   const saveImageToSupabase = async (data: { description: string, price: string }) => {
     if (!selectedImage || !user) return;
     
-    // 转换base64为二进制
-    const base64Data = selectedImage.replace(/^data:image\/\w+;base64,/, '');
-    const binaryData = Buffer.from(base64Data, 'base64');
-
-    const { data: savedData, error } = await supabase
-      .from('useruploads')
-      .insert({
-        user_id: user.email,
-        image_data: binaryData, // 存储二进制数据
-        price: Number(data.price),
-        description: data.description
-      })
-      .select();
-
-    if (error) throw error;
-    return savedData;
+    setIsLoading(true); // 开始保存时设置loading状态
+    
+    try {
+      // 转换base64为二进制
+      const base64Data = selectedImage.replace(/^data:image\/\w+;base64,/, '');
+      const binaryData = Buffer.from(base64Data, 'base64');
+  
+      const { data: savedData, error } = await supabase
+        .from('useruploads')
+        .insert({
+          user_id: user.email,
+          image_data: binaryData,
+          price: Number(data.price),
+          description: data.description
+        })
+        .select();
+  
+      if (error) throw error;
+      
+      // 保存成功后
+      alert('Successfully saved!');
+      // 清空所有状态
+      setSelectedImage(null);
+      setDescription('');
+      setPrice('');
+      
+      return savedData;
+    } catch (error) {
+      // 保存失败时
+      alert('Failed to save: ' + (error as Error).message);
+      throw error;
+    } finally {
+      setIsLoading(false); // 无论成功失败都结束loading状态
+    }
   };
   const processImage = async () => {
     if (!selectedImage || !user) {
