@@ -2,80 +2,42 @@
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
 import Image from 'next/image';
 import LogoName from '../public/image/logo_name.png';
-import '../css/page.css';
-import html2canvas from 'html2canvas';
-
+import Webcam from 'react-webcam';
 
 export default function Home() {
   const { 
     selectedImage, 
     isLoading,
     isEditing,
+    showCamera,
+    setShowCamera,
     setIsEditing, 
     description, 
     price, 
     setDescription, 
     setPrice,  
     handleCamera, 
+    handleCameraCapture,
     handlePhotoUpload, 
     processImage,
-    handleDeleteImage ,
-    saveImageToSupabase
+    handleDeleteImage,
+    handleExport,
+    handleClickOutside,
   } = useImageCapture();
 
-  const handleSave = async () => {
-    try {
-      await saveImageToSupabase({ description, price });
-    } catch (error) {
-      console.error('Save failed:', error);
-    }
-  };
-
-  const handleExport = async () => {
-    try {
-      await saveImageToSupabase({ description, price });
-      
-      const element = document.getElementById('export-content');
-      if (!element) return;
-
-      const canvas = await html2canvas(element, {
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        scale: 2
-      });
-
-      const image = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = 'price-details.png';
-      link.href = image;
-      link.click();
-    } catch (error) {
-      console.error('Export failed:', error);
-    }
-  };
-
-  // 添加处理点击事件的函数
-  const handleClickOutside = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    // 检查点击是否在编辑区域之外
-    if (isEditing && 
-        !target.closest('textarea') && 
-        !target.closest('input') && 
-        !target.matches('.text-lg.text-gray-600') && 
-        !target.matches('.text-2xl.font-semibold.text-purple-600')) {
-      setIsEditing(false);
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 overflow-y-auto">
-      {/* Logo 区域 */}
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 overflow-y-auto pb-12 flex flex-col items-center px-4 space-y-6 pt-8">
+      {/* 标题 */}
       <div className="w-full flex justify-center pt-8 pb-4">
-        <Image src={LogoName} alt="PRI-CIO Logo" className="logoname mb-6" />
+        <Image 
+          src={LogoName} 
+          alt="PRI-CIO Logo" 
+          className="w-[400px] h-auto mb-6"
+        />
       </div>
 
-      {/* 主要内容区域 - 白色卡片 */}
-      <div className="flex flex-col items-center px-4 space-y-6">
+        {/* 卡片内容 */}
         <div 
           id="export-content"
           className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full"
@@ -85,7 +47,6 @@ export default function Home() {
             <h2 className="text-2xl text-gray-600 text-center mb-6">What price do you want to know?</h2>
           )}
 
-          {/* 图片预览区域 */}
           <div className="flex flex-col items-center">
             <div className="w-64 h-64 relative group">
               {selectedImage ? (
@@ -104,29 +65,15 @@ export default function Home() {
             {/* 描述和价格显示区域 */}
             {(description || price) && (
               <div className="mt-4 text-center w-full">
-                {/* 描述部分 */}
                 <div className="mb-3">
                   {isEditing ? (
                     <textarea
-                      ref={(textareaRef) => {
-                        if (textareaRef) {
-                          textareaRef.style.height = '0px';
-                          textareaRef.style.height = textareaRef.scrollHeight + 'px';
-                        }
-                      }}
                       value={description}
-                      placeholder="Enter description here..."
-                      onChange={(e) => {
-                        setDescription(e.target.value);
-                        e.target.style.height = '0px';
-                        e.target.style.height = e.target.scrollHeight + 'px';
-                      }}
+                      onChange={(e) => setDescription(e.target.value)}
                       className="w-full p-2 text-lg text-gray-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       style={{
                         minHeight: '100px',
                         resize: 'none',
-                        overflowY: 'hidden',
-                        height: 'auto'
                       }}
                     />
                   ) : (
@@ -139,21 +86,18 @@ export default function Home() {
                   )}
                 </div>
                 
-                {/* 价格部分 */}
                 <div className="mb-4 flex items-center justify-center">
                   <span className="text-2xl font-semibold text-purple-600 mr-2">Price: </span>
                   {isEditing ? (
                     <input
-                      type="number"
+                      type="text"
                       value={price}
                       onChange={(e) => {
                         const value = e.target.value;
-                        if (value === '' || Number(value) >= 0) {
+                        if (/^\d*\.?\d*$/.test(value) || value === '') {
                           setPrice(value);
                         }
                       }}
-                      min="0"
-                      step="0.01"
                       className="w-32 p-2 text-2xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
                       placeholder="0.00"
                     />
@@ -171,7 +115,49 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 按钮区域 - 移到卡片外部 */}
+        {/* 相机预览区域 */}
+        {showCamera && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-4 rounded-lg">
+              <Webcam
+                audio={false}
+                screenshotFormat="image/jpeg"
+                videoConstraints={{
+                  width: 720,
+                  height: 720,
+                  facingMode: "environment"  // 使用后置相机
+                }}
+                className="w-full max-w-md rounded-lg"
+              />
+              <div className="flex justify-center gap-4 mt-4">
+                <button
+                  onClick={() => {
+                    const webcamRef = document.querySelector('video');
+                    const canvas = document.createElement('canvas');
+                    if (webcamRef) {
+                      canvas.width = webcamRef.videoWidth;
+                      canvas.height = webcamRef.videoHeight;
+                      canvas.getContext('2d')?.drawImage(webcamRef, 0, 0);
+                      const imageSrc = canvas.toDataURL('image/jpeg');
+                      handleCameraCapture(imageSrc);
+                    }
+                  }}
+                  className="px-4 py-2 bg-purple-500 text-white rounded-lg"
+                >
+                  Take Photo
+                </button>
+                <button
+                  onClick={() => setShowCamera(false)}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 上传图片时的按钮 */}
         {!selectedImage && (
           <div className="flex space-x-4">
             <button onClick={handleCamera} disabled={isLoading} className="flex items-center justify-start w-32 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50">
@@ -190,6 +176,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* 处理图片时的按钮 */}
         {selectedImage && !description && !price && (
           <div className="flex space-x-4">
             <button onClick={processImage} disabled={isLoading} className="flex items-center justify-start w-32 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50">
@@ -207,6 +194,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* 导出图片时的按钮 */}
         {(description || price) && (
           <div className="flex space-x-4">
             <button 
@@ -231,7 +219,6 @@ export default function Home() {
             </button>
           </div>
         )}
-      </div>
     </div>
   );
 }

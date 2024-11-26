@@ -1,42 +1,37 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase'
 import { useAuth } from './useAuth'
+import Webcam from 'react-webcam';
+import html2canvas from 'html2canvas';
 
 export const useImageCapture = () => {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const { user } = useAuth();
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
+  // 状态管理
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);  // 存储选中的图片
+  const [isLoading, setIsLoading] = useState<boolean>(false);              // 加载状态
+  const [isEditing, setIsEditing] = useState<boolean>(false);              // 编辑状态
+  const [showCamera, setShowCamera] = useState(false);                     // 相机显示状态
+  const { user } = useAuth();                                            // 用户信息
+  const [description, setDescription] = useState('');                      // 商品描述
+  const [price, setPrice] = useState('');                                 // 商品价格
+  const [isCameraReady, setIsCameraReady] = useState(false);
 
-  //拍照上传图片
+  //  打开相机界面
   const handleCamera = async () => {
-    //这个函数捕获图片后,并把图片贴在了canvas上
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true }); //若是用户允许,则返回视频流
-      // 创建视频元素
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      await video.play();
-
-      // 创建canvas捕获图片 , 把视频流的一帧转换成图片
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0);
-
-      // 转换为base64
-      const imageData = canvas.toDataURL('image/jpeg');
-      setSelectedImage(imageData);
-
-      // 停止视频流
-      stream.getTracks().forEach(track => track.stop());
-    } catch (error) {
-      console.error('Camera access failed:', error);
-    }
+    setIsCameraReady(false);
+    setShowCamera(true);
   };
-  //从相册中选择上传图片
+
+  // 处理相机拍照后的图片
+  const handleCameraCapture = (imageSrc: string | null) => {
+    if (imageSrc) {
+      setSelectedImage(imageSrc);
+    }
+    setShowCamera(false);
+    setIsCameraReady(false);
+  };
+
+  // 处理图片上传
+  // 创建隐藏的文件输入框并触发点击事件
   const handlePhotoUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -44,26 +39,23 @@ export const useImageCapture = () => {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        // 将文件转换为base64
         const reader = new FileReader();
         reader.onload = (e) => {
           setSelectedImage(e.target?.result as string);
         };
-        reader.readAsDataURL(file); //把文件转换成base64
+        reader.readAsDataURL(file);
       }
     };
     input.click();
   };
 
-
-
+  // 将图片和相关信息保存到Supabase
   const saveImageToSupabase = async (data: { description: string, price: string }) => {
     if (!selectedImage || !user) return;
     
-    setIsLoading(true); // 开始保存时设置loading状态
+    setIsLoading(true);
     
     try {
-      // 转换base64为二进制
       const base64Data = selectedImage.replace(/^data:image\/\w+;base64,/, '');
       const binaryData = Buffer.from(base64Data, 'base64');
   
@@ -84,13 +76,14 @@ export const useImageCapture = () => {
       
       return savedData;
     } catch (error) {
-      // 保存失败时
       alert('Failed to save: ' + (error as Error).message);
       throw error;
     } finally {
-      setIsLoading(false); // 无论成功失败都结束loading状态
+      setIsLoading(false);
     }
   };
+
+  // 使用AI处理图片，获取描述和价格建议
   const processImage = async () => {
     if (!selectedImage || !user) {
       alert('Please login first');
@@ -99,7 +92,6 @@ export const useImageCapture = () => {
     
     setIsLoading(true);
     try {
-      // 调用后端API处理图片
       const response = await fetch('/api/gpt', {
         method: 'POST',
         headers: {
@@ -129,19 +121,59 @@ export const useImageCapture = () => {
     }
   };
 
-  // 添加删除图片函数
+  // 删除已选择的图片和相关信息
   const handleDeleteImage = () => {
     setSelectedImage(null);
     setPrice('');
     setDescription('');
   };
 
+  // 导出图片和信息为PNG文件
+  // 同时保存数据到Supabase
+  const handleExport = async () => {
+    try {
+      await saveImageToSupabase({ description, price });
+      
+      const element = document.getElementById('export-content');
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        scale: 2
+      });
+
+      const image = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = 'price-details.png';
+      link.href = image;
+      link.click();
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+  };
+
+  // 处理点击编辑区域外的事件 用于关闭编辑模式
+  const handleClickOutside = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (isEditing && 
+        !target.closest('textarea') && 
+        !target.closest('input') && 
+        !target.matches('.text-lg.text-gray-600') && 
+        !target.matches('.text-2xl.font-semibold.text-purple-600')) {
+      setIsEditing(false);
+    }
+  };
+
   return {
     selectedImage,
     isLoading,
     isEditing,
+    showCamera,
+    setShowCamera,
     setIsEditing,
     handleCamera,
+    handleCameraCapture,
     handlePhotoUpload,
     processImage,
     handleDeleteImage,
@@ -150,6 +182,10 @@ export const useImageCapture = () => {
     setDescription,
     price,
     description,
+    handleExport,
+    handleClickOutside,
+    isCameraReady,
+    setIsCameraReady,
   };
-};
+}
  
