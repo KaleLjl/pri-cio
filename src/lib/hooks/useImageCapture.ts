@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import Webcam from 'react-webcam';
@@ -13,26 +13,27 @@ export const useImageCapture = () => {
   const { user } = useAuth();                                            // 用户信息
   const [description, setDescription] = useState('');                      // 商品描述
   const [price, setPrice] = useState('');                                 // 商品价格
-  const [isCameraReady, setIsCameraReady] = useState(false);
+  const webcamRef = useRef<Webcam>(null);
 
   //  打开相机界面
-  const handleCamera = async () => {
-    setIsCameraReady(false);
+  const openCameraView = () => {
     setShowCamera(true);
   };
 
   // 处理相机拍照后的图片
-  const handleCameraCapture = (imageSrc: string | null) => {
+  const captureAndSaveImage = () => {
+    if (!webcamRef.current) return;
+    
+    const imageSrc = webcamRef.current.getScreenshot();
     if (imageSrc) {
       setSelectedImage(imageSrc);
+      setShowCamera(false);
     }
-    setShowCamera(false);
-    setIsCameraReady(false);
   };
 
   // 处理图片上传
   // 创建隐藏的文件输入框并触发点击事件
-  const handlePhotoUpload = () => {
+  const uploadImageFromDevice = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -50,7 +51,7 @@ export const useImageCapture = () => {
   };
 
   // 将图片和相关信息保存到Supabase
-  const saveImageToSupabase = async (data: { description: string, price: string }) => {
+  const saveImageDataToDatabase = async (data: { description: string, price: string }) => {
     if (!selectedImage || !user) return;
     
     setIsLoading(true);
@@ -84,7 +85,7 @@ export const useImageCapture = () => {
   };
 
   // 使用AI处理图片，获取描述和价格建议
-  const processImage = async () => {
+  const analyzeImageWithAI = async () => {
     if (!selectedImage || !user) {
       alert('Please login first');
       return;
@@ -122,7 +123,7 @@ export const useImageCapture = () => {
   };
 
   // 删除已选择的图片和相关信息
-  const handleDeleteImage = () => {
+  const clearImageAndData = () => {
     setSelectedImage(null);
     setPrice('');
     setDescription('');
@@ -130,23 +131,22 @@ export const useImageCapture = () => {
 
   // 导出图片和信息为PNG文件
   // 同时保存数据到Supabase
-  const handleExport = async () => {
+  const exportAndSaveAsImage = async () => {
     try {
-      await saveImageToSupabase({ description, price });
-      
       const element = document.getElementById('export-content');
       if (!element) return;
 
       const canvas = await html2canvas(element, {
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        scale: 2
+        useCORS: true,     // 允许跨域图片
+        scale: 2,          // 提高清晰度
+        backgroundColor: null,         // 透明背景
+        imageTimeout: 0,              // 图片加载超时时间
       });
-
-      const image = canvas.toDataURL('image/png');
+      
+      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = 'price-details.png';
-      link.href = image;
+      link.href = dataUrl;
       link.click();
     } catch (error) {
       console.error('Export failed:', error);
@@ -154,7 +154,7 @@ export const useImageCapture = () => {
   };
 
   // 处理点击编辑区域外的事件 用于关闭编辑模式
-  const handleClickOutside = (e: React.MouseEvent) => {
+  const closeEditModeOnOutsideClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (isEditing && 
         !target.closest('textarea') && 
@@ -172,20 +172,19 @@ export const useImageCapture = () => {
     showCamera,
     setShowCamera,
     setIsEditing,
-    handleCamera,
-    handleCameraCapture,
-    handlePhotoUpload,
-    processImage,
-    handleDeleteImage,
-    saveImageToSupabase,
+    openCameraView,
+    captureAndSaveImage,
+    uploadImageFromDevice,
+    analyzeImageWithAI,
+    clearImageAndData,
+    saveImageDataToDatabase,
     setPrice,
-    setDescription,
     price,
+    setDescription,
     description,
-    handleExport,
-    handleClickOutside,
-    isCameraReady,
-    setIsCameraReady,
+    exportAndSaveAsImage,
+    closeEditModeOnOutsideClick,
+    webcamRef,
   };
 }
  

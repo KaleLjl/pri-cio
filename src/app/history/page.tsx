@@ -72,7 +72,6 @@ export default function History() {
       </div>
     );
   }
-  console.log('Upload history records:', records);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-purple-100">
