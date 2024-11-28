@@ -28,7 +28,10 @@ export default function Home() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 overflow-y-auto pb-12 flex flex-col items-center px-4 space-y-6 pt-8">
+    <div 
+      className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 overflow-y-auto pb-12 flex flex-col items-center px-4 space-y-6 pt-8"
+      onClick={closeEditModeOnOutsideClick}
+    >
       {/* 标题 */}
       <div className="w-full flex justify-center pt-8 pb-4">
         <Image 
@@ -41,7 +44,8 @@ export default function Home() {
 
         <div 
           id="export-content"
-          className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full" onClick={closeEditModeOnOutsideClick}>
+          className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full"
+        >
           {/* 卡片内容 */}
           {!description && !price && (
             <h2 className="text-2xl text-gray-600 text-center mb-6">What price do you want to know?</h2>
@@ -54,7 +58,10 @@ export default function Home() {
                   <img src={selectedImage} alt="Selected" className="w-full h-full object-cover"/>
                 </div>
               ) : (
-                <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 flex items-center justify-center group-hover:border-blue-400 transition-colors">
+                <div 
+                  className="w-full h-full border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 flex items-center justify-center group-hover:border-blue-400 transition-colors"
+                  onClick={uploadImageFromDevice}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-gray-400">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                   </svg>
@@ -64,13 +71,13 @@ export default function Home() {
 
           {/* 描述和价格显示区域 */}
             {(description || price) && (
-              <div className="mt-4 text-center w-full">
-                <div className="flex gap-4  bg-gray-100 p-2 rounded-xl">
+              <div className="mt-2 text-center w-full">
+                <div className="flex gap-4 rounded-xl">
                   {/* 价格部分在左边 */}
                   <div className="flex-shrink-0 flex items-center justify-center">
                     {isEditing ? (
-                      <div className="relative w-24">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-3xl font-semibold text-purple-600">$</span>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-4 text-3xl font-semibold text-purple-600">$</span>
                         <input
                           type="text"
                           value={price}
@@ -80,14 +87,15 @@ export default function Home() {
                               setPrice(value);
                             }
                           }}
-                          className="w-full pl-8 p-2 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
-                          placeholder="0.00"
+                          className="w-auto pl-2 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
+                          size={Math.max(1, price?.length || 1)}
+                          placeholder="0"
                         />
                       </div>
                     ) : (
                       <div 
                         className="flex items-center text-3xl font-semibold text-purple-600 cursor-pointer hover:bg-purple-100 rounded-lg px-4 py-2"
-                        onDoubleClick={() => setIsEditing(true)}
+                        onClick={() => setIsEditing(true)}
                       >
                         <span className="mr-1">$</span>
                         <span>{price || '0.00'}</span>
@@ -100,11 +108,19 @@ export default function Home() {
                     {isEditing ? (
                       <textarea
                         value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        onChange={(e) => {
+                          const newValue = e.target.value.replace(/[\r\n]/g, '');
+                          setDescription(newValue);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                          }
+                        }}
                         className="w-full p-2 text-lg text-gray-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                         style={{
                           height: 'auto',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
                         }}
                         ref={(textArea) => {
                           if (textArea) {
@@ -121,7 +137,7 @@ export default function Home() {
                     ) : (
                       <p 
                         className="text-lg text-gray-600 p-2 cursor-pointer hover:bg-purple-100 rounded-lg whitespace-pre-wrap text-left"
-                        onDoubleClick={() => setIsEditing(true)}
+                        onClick={() => setIsEditing(true)}
                       >
                         {description || 'Enter description here...'}
                       </p>
@@ -208,7 +224,14 @@ export default function Home() {
         {(description || price) && (
           <div className="flex space-x-4">
             <button 
-              onClick={exportAndSaveAsImage} 
+             onClick={() => {
+              setIsEditing(false); // 设置为只读模式
+                
+                setTimeout(() => {
+                  exportAndSaveAsImage();
+                }, 100); // 100ms 延迟
+              }} 
+              
               disabled={isLoading} 
               className="flex items-center justify-start w-32 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
             >
