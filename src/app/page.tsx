@@ -83,7 +83,12 @@ export default function Home() {
                           value={price}
                           onChange={(e) => {
                             const value = e.target.value;
-                            if (/^\d*\.?\d*$/.test(value) || value === '') {
+                            if (/^\d*\.?\d{0,2}$/.test(value)) {
+                              const wholeNumber = parseInt(value.split('.')[0] || '0');
+                              if (wholeNumber > 99999) {
+                                alert('Price cannot exceed 99999');
+                                return;
+                              }
                               setPrice(value);
                             }
                           }}
@@ -109,8 +114,13 @@ export default function Home() {
                       <textarea
                         value={description}
                         onChange={(e) => {
-                          const newValue = e.target.value.replace(/[\r\n]/g, '');
-                          setDescription(newValue);
+                          const currentWord = e.target.value.split(/\s+/).pop() || '';
+                          const consecutiveSpaces = e.target.value.match(/\s+/g);
+                          const maxSpaces = consecutiveSpaces ? Math.max(...consecutiveSpaces.map(s => s.length)) : 0;
+                          
+                          if (currentWord.length <= 15 && maxSpaces <= 5) {
+                            setDescription(e.target.value.replace(/[\r\n]/g, ''));
+                          }
                         }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
