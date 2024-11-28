@@ -86,8 +86,8 @@ export const useImageCapture = () => {
 
   // 使用AI处理图片，获取描述和价格建议
   const analyzeImageWithAI = async () => {
-    if (!selectedImage || !user) {
-      alert('Please login first');
+    if (!selectedImage) {
+      alert('Please select an image first');
       return;
     }
     
@@ -115,8 +115,8 @@ export const useImageCapture = () => {
       setPrice(data.price);
       
     } catch (error) {
-      console.error('Upload failed:', error);
-      throw error;
+      console.error('Analysis failed:', error);
+      alert('Failed to analyze image');
     } finally {
       setIsLoading(false);
     }
@@ -137,19 +137,26 @@ export const useImageCapture = () => {
       if (!element) return;
 
       const canvas = await html2canvas(element, {
-        useCORS: true,     // 允许跨域图片
-        scale: 2,          // 提高清晰度
-        backgroundColor: null,         // 透明背景
-        imageTimeout: 0,              // 图片加载超时时间
+        useCORS: true,
+        scale: 2,
+        backgroundColor: null,
+        imageTimeout: 0,
       });
       
+      // 导出图片
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = 'price-details.png';
       link.href = dataUrl;
       link.click();
+
+      // 如果用户已登录，则同时保存到数据库
+      if (user) {
+        await saveImageDataToDatabase({ description, price });
+      }
     } catch (error) {
       console.error('Export failed:', error);
+      alert('Failed to export image');
     }
   };
 

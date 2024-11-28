@@ -29,27 +29,43 @@ export default function Home() {
 
   return (
     <div 
-      className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 overflow-y-auto pb-12 flex flex-col items-center px-4 space-y-6 pt-8"
+      className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 overflow-y-auto pb-12 flex flex-col items-center px-4 space-y-4 pt-4"
       onClick={closeEditModeOnOutsideClick}
     >
-      {/* 标题 */}
-      <div className="w-full flex justify-center pt-8 pb-4">
+      {/* Logo */}
+      <div className="w-full flex justify-center pt-4 pb-2">
         <Image 
           src={LogoName} 
           alt="PRI-CIO Logo" 
-          className="w-[400px] h-auto mb-6"
+          className="w-[400px] h-auto mb-1"
         />
       </div>
-  
-
+      
+      <div className="h-12">
+        {!description && !price && (
+          <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
+            What price do you want to know?
+          </h2>
+        )}
+        {(description || price) && !isEditing && (
+          <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
+            Click  to edit
+          </h2>
+        )}
+      </div>
         <div 
           id="export-content"
-          className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full"
+          className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full cursor-pointer"
+          onClick={(e) => {
+            if (!isEditing && (description || price)) {
+              e.stopPropagation();
+              setIsEditing(true);
+            }
+          }}
         >
+
           {/* 卡片内容 */}
-          {!description && !price && (
-            <h2 className="text-2xl text-gray-600 text-center mb-6">What price do you want to know?</h2>
-          )}
+      
           {/* 图片显示区域 */}
           <div className="flex flex-col items-center">
             <div className="w-96 h-96 relative group">
