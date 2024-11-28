@@ -3,7 +3,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import LogoImage from '../public/image/logo.png';
 import LogoName from '../public/image/logo_name.png';
-import '../css/navigation.css';
 
 
 interface NavigationProps {
