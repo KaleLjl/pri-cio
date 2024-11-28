@@ -89,7 +89,7 @@ export default function Home() {
                                 alert('Price cannot exceed 99999');
                                 return;
                               }
-                              setPrice(value);
+                              setPrice(value || '0');
                             }
                           }}
                           className="w-auto pl-2 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
@@ -146,8 +146,9 @@ export default function Home() {
                       />
                     ) : (
                       <p 
-                        className="text-lg text-gray-600 p-2 cursor-pointer hover:bg-purple-100 rounded-lg whitespace-pre-wrap text-left"
+                        className="text-lg p-2 cursor-pointer hover:bg-purple-100 rounded-lg whitespace-pre-wrap text-left"
                         onClick={() => setIsEditing(true)}
+                        style={{ color: description ? '#4B5563' : 'rgba(75, 85, 99, 0.5)' }}
                       >
                         {description || 'Enter description here...'}
                       </p>
