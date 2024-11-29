@@ -41,7 +41,7 @@ export default function Home() {
         />
       </div>
       
-      <div className="h-12">
+      <div className="h-16">
         {!description && !price && (
           <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
             What price do you want to know?
@@ -49,7 +49,7 @@ export default function Home() {
         )}
         {(description || price) && !isEditing && (
           <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
-            Click  to edit
+            Click to edit
           </h2>
         )}
       </div>
@@ -68,7 +68,7 @@ export default function Home() {
       
           {/* 图片显示区域 */}
           <div className="flex flex-col items-center">
-            <div className="w-96 h-96 relative group">
+            <div className="w-full max-w-96 aspect-square relative group">
               {selectedImage ? (
                 <div className="relative w-full h-full rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                   <Image 
@@ -114,7 +114,7 @@ export default function Home() {
                               setPrice(value || '0');
                             }
                           }}
-                          className="w-auto pl-2 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
+                          className="w-auto min-w-[80px] pl-10 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
                           size={Math.max(1, price?.length || 1)}
                           placeholder="0"
                         />
