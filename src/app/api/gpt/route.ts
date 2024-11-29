@@ -34,7 +34,6 @@ export async function POST(request: Request) {
     let price: number = 0 ;
     if (content) {
         ({ description, price } = JSON.parse(content));
-        console.log 
     } else {
         console.error('Content is null or undefined');
     }

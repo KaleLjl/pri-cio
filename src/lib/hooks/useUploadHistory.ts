@@ -47,8 +47,7 @@ export function useUploadHistory(user: User | null) {
     queryKey: ['uploadHistory', user?.email],
     queryFn: () => fetchHistory(user),
     enabled: !!user,
-    staleTime: 0,                    // 修改为0，使得每次都认为数据是陈旧的
-    keepPreviousData: true,          
+    staleTime: 0,                    // 修改为0，使得每次都认为数据是陈旧的        
     refetchOnMount: 'always',        // 确保每次挂载都重新获取
     refetchOnWindowFocus: true,      
     refetchInterval: 1000 * 60,      

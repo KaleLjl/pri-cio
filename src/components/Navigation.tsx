@@ -10,7 +10,6 @@ interface NavigationProps {
 }
 
 const Navigation: React.FC<NavigationProps> = ({ 
-  logo = "Logo"
 }) => {
   return (
     <nav className="bg-background border-b border-foreground/10">

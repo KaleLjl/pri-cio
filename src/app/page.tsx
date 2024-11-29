@@ -71,7 +71,13 @@ export default function Home() {
             <div className="w-96 h-96 relative group">
               {selectedImage ? (
                 <div className="relative w-full h-full rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                  <img src={selectedImage} alt="Selected" className="w-full h-full object-cover"/>
+                  <Image 
+                    src={selectedImage} 
+                    alt="Selected" 
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
                 </div>
               ) : (
                 <div 
