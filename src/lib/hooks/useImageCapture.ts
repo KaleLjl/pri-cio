@@ -34,19 +34,32 @@ export const useImageCapture = () => {
   // 处理图片上传
   // 创建隐藏的文件输入框并触发点击事件
   const uploadImageFromDevice = () => {
+    // 创建新的input元素
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    
+    // 添加样式确保input是隐藏的
+    input.style.display = 'none';
+    document.body.appendChild(input);  // 添加到DOM中
+    
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-          setSelectedImage(e.target?.result as string);
+          const result = e.target?.result;
+          if (typeof result === 'string') {
+            setSelectedImage(result);
+          }
         };
         reader.readAsDataURL(file);
       }
+      // 清理DOM
+      document.body.removeChild(input);
     };
+    
+    // 触发点击
     input.click();
   };
 
