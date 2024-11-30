@@ -3,6 +3,7 @@ import Navigation from "@/components/Navigation";
 import Providers from "@/components/Providers";
 import Footer from "@/components/Footer";
 import "./globals.css";
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: "PRI-CIO",
@@ -12,6 +13,17 @@ export const metadata: Metadata = {
   robots: "index, follow",
   verification: {
     google: "YsLcwUzgOpc9pNg_Bn01y5qWF5KVw2Uup4FHQXA2Enc"
+  },
+  openGraph: {
+    title: 'PRI-CIO',
+    description: 'AI powered price estimation tool',
+    images: ['/og-image.jpg'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PRI-CIO',
+    description: 'AI powered price estimation tool',
+    images: ['/twitter-image.jpg'],
   }
 };
 
@@ -31,6 +43,7 @@ export default function RootLayout({
         <Providers>
           <Navigation />
           {children}
+          <Analytics />
           <Footer />
         </Providers>
       </body>
