@@ -9,7 +9,10 @@ export const metadata: Metadata = {
   description: "A application using to tell the price of the object",
   keywords: ["Price", "AI", "Fee"],
   authors: [{ name: "Lele" }],
-  robots: "index, follow"
+  robots: "index, follow",
+  verification: {
+    google: "YsLcwUzgOpc9pNg_Bn01y5qWF5KVw2Uup4FHQXA2Enc"
+  }
 };
 
 export const viewport = {
