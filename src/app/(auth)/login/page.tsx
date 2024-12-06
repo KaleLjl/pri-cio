@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import LogoName from '../../../public/image/logo_name.png';
 import GoogleIcon from '../../../public/image/google-icon.svg';
@@ -10,7 +10,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
 
   const handleGoogleSignIn = async () => {
     setLoading(true);

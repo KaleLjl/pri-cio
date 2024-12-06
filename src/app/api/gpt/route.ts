@@ -2,6 +2,7 @@ import OpenAI from "openai"
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth"
 const openai = new OpenAI();
 
 const PriceDescription_object =z.object({
@@ -11,6 +12,11 @@ const PriceDescription_object =z.object({
 
 export async function POST(request: Request) {
   try {
+    const session = await auth()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { selectedImage } = await request.json()
     console.log('Received image')
 
