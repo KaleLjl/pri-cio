@@ -6,7 +6,7 @@ export default async function DashboardPage() {
   
   if (!session) {
     redirect('/login')
-  }
+  }``
 
   return (
     <div className="p-4">
