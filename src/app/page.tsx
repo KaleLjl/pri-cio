@@ -18,10 +18,10 @@ export default function Home() {
     analyzeImageWithAI,
     clearImageAndData,
     setPrice,
+    exportAsImage,
     price,
     setDescription,
     description,
-    exportAndSaveAsImage,
     closeEditModeOnOutsideClick,
     webcamRef,
   } = useImageCapture();
@@ -257,21 +257,19 @@ export default function Home() {
         {(description || price) && (
           <div className="flex space-x-4">
             <button 
-             onClick={() => {
-              setIsEditing(false); // 设置为只读模式
-                
+              onClick={() => {
+                setIsEditing(false);
                 setTimeout(() => {
-                  exportAndSaveAsImage();
-                }, 100); // 100ms 延迟
+                  exportAsImage();
+                }, 100);
               }} 
-              
               disabled={isLoading} 
               className="flex items-center justify-start w-32 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
-              {isLoading ? 'Exporting...' : 'Export'}
+              Export
             </button>
             <button 
               onClick={clearImageAndData} 

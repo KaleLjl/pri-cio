@@ -1,8 +1,8 @@
 'use client'
 import { useState } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSession, signOut } from 'next-auth/react';
 import LogoImage from '../public/image/logo.png';
 import LogoName from '../public/image/logo_name.png';
 
@@ -17,20 +17,19 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
-  const { user, signOut } = useAuth();
+  const { data: session } = useSession();
 
-  const navItems: NavItem[] = user ? [
-    {label: 'History', href:'/history'},
-    { label: user.email || 'User', href: '/setting' },
-    { label: 'Sign Out', href: '/login' }
+  const navItems: NavItem[] = session ? [
+    { label: session.user?.email || 'Dashboard', href: '/dashboard' },
+    { label: 'History', href: '/history' },
+    { label: 'Sign out', href: '/' },
   ] : [
-    { label: 'Login', href: '/login' },
-    { label: 'Signup', href: '/signup'},
+    { label: 'Sign in', href: '/login' },
   ];
-
-  const handleNavClick = (item: NavItem) => {
-    if (item.label === 'Sign Out') {
-      signOut();
+  const handleNavClick = async (item: NavItem) => {
+    if (item.label === 'Sign out') {
+      await signOut();
+      return;
     }
     setIsOpen(false);
   };

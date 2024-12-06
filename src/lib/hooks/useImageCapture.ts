@@ -1,18 +1,15 @@
 import { useState, useRef } from 'react';
-import { supabase } from '@/lib/supabase'
-import { useAuth } from './useAuth'
 import Webcam from 'react-webcam';
 import html2canvas from 'html2canvas';
 
 export const useImageCapture = () => {
   // 状态管理
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);  // 存储选中的图片
-  const [isLoading, setIsLoading] = useState<boolean>(false);              // 加载状态
-  const [isEditing, setIsEditing] = useState<boolean>(false);              // 编辑状态
-  const [showCamera, setShowCamera] = useState(false);                     // 相机显示状态
-  const { user } = useAuth();                                            // 用户信息
-  const [description, setDescription] = useState('');                      // 商品描述
-  const [price, setPrice] = useState('');                                 // 商品价格
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
   const webcamRef = useRef<Webcam>(null);
 
   //  打开相机界面
@@ -63,40 +60,6 @@ export const useImageCapture = () => {
     input.click();
   };
 
-  // 将图片和相关信息保存到Supabase
-  const saveImageDataToDatabase = async (data: { description: string, price: string }) => {
-    if (!selectedImage || !user) return;
-    
-    setIsLoading(true);
-    
-    try {
-      const base64Data = selectedImage.replace(/^data:image\/\w+;base64,/, '');
-      const binaryData = Buffer.from(base64Data, 'base64');
-  
-      const { data: savedData, error } = await supabase
-        .from('useruploads')
-        .insert({
-          user_id: user.email,
-          image_data: binaryData,
-          price: Number(data.price),
-          description: data.description
-        })
-        .select();
-  
-      if (error) throw error;
-      
-      alert('Successfully saved!');
-      setIsEditing(false);
-      
-      return savedData;
-    } catch (error) {
-      alert('Failed to save: ' + (error as Error).message);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // 使用AI处理图片，获取描述和价格建议
   const analyzeImageWithAI = async () => {
     if (!selectedImage) {
@@ -142,9 +105,8 @@ export const useImageCapture = () => {
     setDescription('');
   };
 
-  // 导出图片和信息为PNG文件
-  // 同时保存数据到Supabase
-  const exportAndSaveAsImage = async () => {
+  // 导出图片为PNG文件
+  const exportAsImage = async () => {
     try {
       const element = document.getElementById('export-content');
       if (!element) return;
@@ -156,17 +118,11 @@ export const useImageCapture = () => {
         imageTimeout: 0,
       });
       
-      // 导出图片
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = 'price-details.png';
       link.href = dataUrl;
       link.click();
-
-      // 如果用户已登录，则同时保存到数据库
-      if (user) {
-        await saveImageDataToDatabase({ description, price });
-      }
     } catch (error) {
       console.error('Export failed:', error);
       alert('Failed to export image');
@@ -197,12 +153,11 @@ export const useImageCapture = () => {
     uploadImageFromDevice,
     analyzeImageWithAI,
     clearImageAndData,
-    saveImageDataToDatabase,
     setPrice,
     price,
     setDescription,
     description,
-    exportAndSaveAsImage,
+    exportAsImage,
     closeEditModeOnOutsideClick,
     webcamRef,
   };
