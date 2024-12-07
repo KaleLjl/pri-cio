@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
-import LogoName from '@/public/image/logo_name.png';
+import LogoName from '/public/image/logo_name.png';
 import ImageCapture from '@/components/ImageCapture';
 
 export default async function Home() {

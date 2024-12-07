@@ -3,8 +3,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import LogoImage from '../public/image/logo.png';
-import LogoName from '../public/image/logo_name.png';
+import LogoImage from '/public/image/logo.png';
+import LogoName from '/public/image/logo_name.png';
 
 interface NavItem {
   label: string;

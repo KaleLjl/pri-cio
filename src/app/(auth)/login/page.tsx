@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import LogoName from '../../../public/image/logo_name.png';
-import GoogleIcon from '../../../public/image/google-icon.svg';
+import LogoName from '/public/image/logo_name.png';
+import GoogleIcon from '/public/image/google-icon.svg';
 import { signIn } from 'next-auth/react';
 
 export default function Login() {
