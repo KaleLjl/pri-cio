@@ -1,31 +1,28 @@
-'use client'
+'use client';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import LogoImage from '/public/image/logo.png';
-import LogoName from '/public/image/logo_name.png';
 
 interface NavItem {
   label: string;
   href: string;
 }
 
-interface NavigationProps {
-  logo?: string;
-}
-
-const Navigation: React.FC<NavigationProps> = ({ }) => {
+const Navigation: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const { data: session } = useSession();
 
-  const navItems: NavItem[] = session ? [
-    { label: session.user?.email || 'Dashboard', href: '/dashboard' },
-    { label: 'History', href: '/history' },
-    { label: 'Sign out', href: '/' },
-  ] : [
-    { label: 'Sign in', href: '/login' },
-  ];
+  const navItems: NavItem[] = session
+    ? [
+        { label: session.user?.email || 'Dashboard', href: '/dashboard' },
+        { label: 'History', href: '/history' },
+        { label: 'Sign out', href: '/' },
+      ]
+    : [{ label: 'Sign in', href: '/login' }];
+
   const handleNavClick = async (item: NavItem) => {
     if (item.label === 'Sign out') {
       await signOut();
@@ -35,17 +32,16 @@ const Navigation: React.FC<NavigationProps> = ({ }) => {
   };
 
   return (
-    <nav className="bg-background border-b border-foreground/10">
+    <nav className="fixed top-0 left-0 w-full z-50 bg-black bg-opacity-50 backdrop-blur-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
+          {/* Logo Section */}
           <div className="flex items-center flex-shrink-0">
             <Link href="/" className="flex items-center space-x-2">
               <Image src={LogoImage} alt="Logo" width={50} height={50} />
-              <Image 
-                src={LogoName} 
-                alt="Logo Name" 
-                className="w-[100px] h-[20px]" 
-              />
+              <span className="text-2xl font-bold text-white">
+                PRICIO AI
+              </span>
             </Link>
           </div>
 
@@ -56,7 +52,7 @@ const Navigation: React.FC<NavigationProps> = ({ }) => {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="hover:text-foreground/70 transition-colors duration-200"
+                  className="text-white hover:text-gray-300 transition-colors duration-200"
                   onClick={() => handleNavClick(item)}
                 >
                   {item.label}
@@ -69,7 +65,7 @@ const Navigation: React.FC<NavigationProps> = ({ }) => {
           <div className="md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md hover:text-foreground/70"
+              className="inline-flex items-center justify-center p-2 rounded-md text-white hover:text-gray-300"
             >
               <svg
                 className="block h-6 w-6"
@@ -82,7 +78,11 @@ const Navigation: React.FC<NavigationProps> = ({ }) => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d={isOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
+                  d={
+                    isOpen
+                      ? 'M6 18L18 6M6 6l12 12'
+                      : 'M4 6h16M4 12h16M4 18h16'
+                  }
                 />
               </svg>
             </button>
@@ -98,7 +98,7 @@ const Navigation: React.FC<NavigationProps> = ({ }) => {
               <Link
                 key={item.href}
                 href={item.href}
-                className="block px-3 py-2 rounded-md hover:bg-foreground/10 transition-colors duration-200"
+                className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200"
                 onClick={() => handleNavClick(item)}
               >
                 {item.label}
@@ -112,3 +112,6 @@ const Navigation: React.FC<NavigationProps> = ({ }) => {
 };
 
 export default Navigation;
+
+
+
