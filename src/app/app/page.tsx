@@ -5,12 +5,6 @@ import LogoName from '/public/image/logo_name.png';
 import ImageCapture from '@/components/ImageCapture';
 
 export default async function Home() {
-  const session = await auth();
-  
-  if (!session) {
-    redirect('/login');
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 overflow-y-auto pb-12 flex flex-col items-center px-4 space-y-4 pt-4">
       {/* Logo */}
