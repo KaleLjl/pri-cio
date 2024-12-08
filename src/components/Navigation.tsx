@@ -21,7 +21,7 @@ const Navigation: React.FC = () => {
         { label: 'History', href: '/history' },
         { label: 'Sign out', href: '/' },
       ]
-    : [{ label: 'Sign in', href: '/login' }];
+    : [{ label: 'Sign in', href: '/app' }];
 
   const handleNavClick = async (item: NavItem) => {
     if (item.label === 'Sign out') {

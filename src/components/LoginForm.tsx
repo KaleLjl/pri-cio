@@ -17,7 +17,10 @@ export default function LoginForm() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await signIn('google', { callbackUrl });
+      await signIn('google', { 
+        callbackUrl,
+        prompt: 'select_account'
+      });
     } catch (err) {
       setError('Google login failed');
     } finally {
