@@ -21,7 +21,6 @@ export default function ImageCapture() {
     price,
     setDescription,
     description,
-    closeEditModeOnOutsideClick,
     webcamRef,
   } = useImageCapture();
 
