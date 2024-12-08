@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Navigation from "@/components/Navigation";
 import Providers from "@/components/Providers";
-import Footer from "@/components/Footer";
-import LayoutWrapper from "@/components/LayoutWrapper";
+import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import "./globals.css";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';

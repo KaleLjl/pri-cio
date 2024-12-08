@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 export default async function HistoryPage() {
   const session = await auth()
   if (!session) {
-    redirect('/login')
+    redirect('/signin')
   }
   return (
     <div className="p-4">

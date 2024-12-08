@@ -18,7 +18,13 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     }),
   ],
   pages: {
-    signIn: '/login',
+    signIn: '/signin',
+  },
+  callbacks: {
+    async redirect({ baseUrl }) {
+      // 登录成功后重定向到 /app
+      return `${baseUrl}/app`;
+    },
   },
   adapter: MongoDBAdapter(clientPromise),
   secret: process.env.AUTH_SECRET,

@@ -21,11 +21,12 @@ const Navigation: React.FC = () => {
         { label: 'History', href: '/history' },
         { label: 'Sign out', href: '/' },
       ]
-    : [{ label: 'Sign in', href: '/app' }];
+    : [{ label: 'Sign in', href: '/signin' }];
 
   const handleNavClick = async (item: NavItem) => {
     if (item.label === 'Sign out') {
       await signOut();
+      window.location.href = '/';
       return;
     }
     setIsOpen(false);

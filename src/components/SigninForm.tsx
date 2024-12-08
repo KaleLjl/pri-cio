@@ -1,5 +1,4 @@
 'use client';
-
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -8,7 +7,7 @@ import LogoImage from '/public/image/logo.png';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 
-export default function LoginForm() {
+export default function SigninForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
