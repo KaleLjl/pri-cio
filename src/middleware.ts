@@ -1,20 +1,32 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
- 
-export default auth((req) => {
-  const publicPaths = ['/', '/login', '/api/auth']
+import { NextResponse, NextRequest } from 'next/server'
+
+const publicPaths = ['/','/login', '/api/auth']
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  
   const isPublicPath = publicPaths.some(path => 
-    req.nextUrl.pathname === path || 
-    req.nextUrl.pathname.startsWith(path)
+    pathname === path || pathname.startsWith(path)
   )
+
+  // 检查两种可能的 session token
+  const sessionToken = 
+    request.cookies.get('__Secure-authjs.session-token')?.value || 
+    request.cookies.get('authjs.session-token')?.value
   
-  if (!req.auth && !isPublicPath) {
-    return NextResponse.redirect(new URL('/login', req.url))
+  if (!sessionToken && !isPublicPath) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
-  
+
+  if (sessionToken && pathname === '/login') {
+    return NextResponse.redirect(new URL('/app', request.url))
+  }
+
   return NextResponse.next()
-})
+}
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.png$).*)'
+  ]
 }

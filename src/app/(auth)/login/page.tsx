@@ -2,15 +2,15 @@
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import LogoName from '../../../public/image/logo_name.png';
-import GoogleIcon from '../../../public/image/google-icon.svg';
+import LogoName from '/public/image/logo_name.png';
+import GoogleIcon from '/public/image/google-icon.svg';
 import { signIn } from 'next-auth/react';
 
-export default function Login() {
+export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const callbackUrl = searchParams.get('callbackUrl') || '/app';
 
   const handleGoogleSignIn = async () => {
     setLoading(true);

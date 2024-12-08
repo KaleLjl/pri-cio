@@ -1,4 +1,6 @@
 import NextAuth from 'next-auth';
+import { MongoDBAdapter } from "@auth/mongodb-adapter"
+import clientPromise from '@/lib/mongodb';
 import google from 'next-auth/providers/google';
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
@@ -11,4 +13,6 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
   pages: {
     signIn: '/login',
   },
+  adapter: MongoDBAdapter(clientPromise),
+  secret: process.env.AUTH_SECRET,
 });
