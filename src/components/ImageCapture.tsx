@@ -1,5 +1,6 @@
 'use client'
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
+import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
 import Webcam from 'react-webcam';
 
@@ -18,11 +19,27 @@ export default function ImageCapture() {
     clearImageAndData,
     setPrice,
     exportAsImage,
-    price,
     setDescription,
+    price,
     description,
     webcamRef,
   } = useImageCapture();
+  const { saveToHistory, isSaving } = useHistory();
+
+  //这个function用来在导出图片的时候同时也把数据存在后端服务器中
+  const handleExport = async () => {
+    try {
+      setIsEditing(false);
+      await saveToHistory({
+        price,
+        description,
+      });
+      await exportAsImage();
+    } catch (error) {
+      console.error('Failed to save history:', error);
+      // 可以添加错误提示
+    }
+  };
 
   return (
     <>
@@ -231,19 +248,14 @@ export default function ImageCapture() {
       {(description || price) && (
         <div className="flex space-x-4">
           <button 
-            onClick={() => {
-              setIsEditing(false);
-              setTimeout(() => {
-                exportAsImage();
-              }, 100);
-            }} 
-            disabled={isLoading} 
+            onClick={handleExport} 
+            disabled={isLoading || isSaving} 
             className="flex items-center justify-start w-32 px-4 py-2 bg-white text-black rounded-lg hover:bg-purple-500 hover:text-white disabled:opacity-50 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
-            Export
+            {isSaving ? 'Saving...' : 'Export'}
           </button>
           <button 
             onClick={clearImageAndData} 
