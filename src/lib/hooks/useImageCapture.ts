@@ -130,13 +130,12 @@ export const useImageCapture = () => {
   };
 
   // 处理点击编辑区域外的事件 用于关闭编辑模式
-  const closeEditModeOnOutsideClick = (e: React.MouseEvent) => {
+  const closeEditModeOnOutsideClick = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (isEditing && 
-        !target.closest('textarea') && 
-        !target.closest('input') && 
-        !target.matches('.text-lg.text-gray-600') && 
-        !target.matches('.text-2xl.font-semibold.text-purple-600')) {
+    const exportContent = document.getElementById('export-content');
+    
+    // 检查点击是否在编辑区域外
+    if (isEditing && exportContent && !exportContent.contains(target)) {
       setIsEditing(false);
     }
   };
