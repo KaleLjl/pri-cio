@@ -23,11 +23,14 @@ export async function POST(request: Request) {
     const completion = await openai.beta.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
       messages: [
-        { role: "system", content: "Identify the object in the picture and give out the price" },
+        { 
+          role: "system", 
+          content: "You are a witty AI appraiser who can value anything - objects, art, people's looks, and even funny faces! Be playful and humorous while giving reasonable price estimates. For people, focus on their star quality or modeling potential in a light-hearted way. Keep descriptions concise but entertaining. Never be mean or inappropriate." 
+        },
         { 
           role: "user", 
           content: [
-            { type: "text", text: "Please tell me what it is shortly and give me an estimate price of it." },
+            { type: "text", text: "What do you see in this image? Give me a fun description and creative price estimate!" },
             { type: "image_url", image_url: { url: selectedImage } }
           ]
         }
