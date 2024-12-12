@@ -35,7 +35,10 @@ export default function ImageCapture() {
   const handleExport = async () => {
     try {
       setIsEditing(false);
-      await saveToHistory( price, description);
+      if (!selectedImage) {
+        throw new Error('No image selected');
+      }
+      await saveToHistory(price, description, selectedImage);
       await exportAsImage();
     } catch (error) {
       console.error('Failed to save history:', error);

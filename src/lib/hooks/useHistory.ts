@@ -5,7 +5,7 @@ export const useHistory = () => {
   const { data: session } = useSession();
   const [isSaving, setIsSaving] = useState(false);
 
-  const saveToHistory = async (price: string, description: string) => {
+  const saveToHistory = async (price: string, description: string, selectedImage: string) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
     }
@@ -20,6 +20,7 @@ export const useHistory = () => {
         body: JSON.stringify({
           price,
           description,
+          selectedImage,
           userEmail: session.user.email,
         }),
       });
