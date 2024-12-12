@@ -3,6 +3,30 @@ import clientPromise from '@/lib/mongodb';
 import { uploadToS3 } from '@/lib/s3';
 import { auth } from '@/lib/auth';
 
+export async function GET() {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("pri-cio");
+    const histories = await db.collection("histories")
+      .find({ userEmail: session.user.email })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    return NextResponse.json(histories);
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch histories' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -21,7 +45,7 @@ export async function POST(request: Request) {
     const client = await clientPromise;
     const db = client.db("pri-cio");
     
-    // 保存记录到 MongoDB，包括图片 URL
+    // 保存记录到 MongoDB
     const result = await db.collection("histories").insertOne({
       price,
       description,
