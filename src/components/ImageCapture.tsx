@@ -322,13 +322,8 @@ export default function ImageCapture() {
       {(description || price) && (
         <div className="flex space-x-4">
           <button 
-            onClick={() => {
-              setIsEditing(false);
-              setTimeout(() => {
-                exportAsImage();
-              }, 100);
-            }} 
-            disabled={isLoading} 
+            onClick={handleExport} 
+            disabled={isLoading || isSaving} 
             className="flex items-center justify-start w-32 px-4 py-2 bg-white text-black rounded-lg hover:bg-purple-500 hover:text-white disabled:opacity-50 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
