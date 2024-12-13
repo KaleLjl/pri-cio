@@ -23,14 +23,21 @@ export async function POST(request: Request) {
     const completion = await openai.beta.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
       messages: [
-        { 
-          role: "system", 
-          content: "You are a witty AI appraiser who can value anything - objects, art, people's looks, and even funny faces! Be playful and humorous while giving reasonable price estimates. For people, focus on their star quality or modeling potential in a light-hearted way. Keep descriptions concise but entertaining. Never be mean or inappropriate." 
+        {
+          role: "system",
+          content: `
+            Identify the object in the picture and give out the price
+            - For **human faces**, be humorous and playful. Focus on their charm, star quality, or unique features in a fun and light-hearted way. Use witty phrases and a touch of humor.
+            - For **food**, describe it with precision and vivid sensory details. Mention flavors, presentation, or its unique appeal in a straightforward, yet engaging manner.
+            - For **objects or other things**, provide a concise and creative description that highlights their functionality, value, or distinctiveness.
+            - Always provide a reasonable and imaginative price estimate alongside the description.
+            - Keep descriptions concise and entertaining, avoiding anything inappropriate or overly critical.
+          `,
         },
         { 
           role: "user", 
           content: [
-            { type: "text", text: "What do you see in this image? Give me a fun description and creative price estimate!" },
+            { type: "text", text: "What do you see in this image? Give me a fun description and creative price estimate! Just a short one sentence." },
             { type: "image_url", image_url: { url: selectedImage } }
           ]
         }
