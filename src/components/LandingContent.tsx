@@ -114,12 +114,6 @@ export default function LandingContent() {
             >
               Get Started
             </button>
-            <button
-              className="px-6 py-3 border border-white text-white font-semibold rounded-lg hover:bg-white hover:text-black transition"
-              onClick={() => handleNavigation('/learn-more')}
-            >
-              Learn More
-            </button>
           </div>
         </div>
       </div>

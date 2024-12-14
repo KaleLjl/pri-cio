@@ -39,20 +39,13 @@ export default function SigninForm() {
 
       {/* Left Section: Visuals */}
       <div className="w-1/2 bg-black flex items-center justify-center">
-        <div className="relative grid grid-cols-2 gap-4">
-          {/* Example Images */}
-          <div className="w-48 h-32 bg-gray-700 rounded-lg overflow-hidden">
-            <Image src="/image/sample1.jpg" alt="Sample 1" fill className="object-cover" />
-          </div>
-          <div className="w-48 h-32 bg-gray-700 rounded-lg overflow-hidden">
-            <Image src="/image/sample2.jpg" alt="Sample 2" fill className="object-cover" />
-          </div>
-          <div className="w-48 h-32 bg-gray-700 rounded-lg overflow-hidden">
-            <Image src="/image/sample3.jpg" alt="Sample 3" fill className="object-cover" />
-          </div>
-          <div className="w-48 h-32 bg-gray-700 rounded-lg overflow-hidden">
-            <Image src="/image/sample4.jpg" alt="Sample 4" fill className="object-cover" />
-          </div>
+        <div className="relative w-full h-full">
+          <Image 
+            src="/image/signin_image.jpg" 
+            alt="Sample 1" 
+            fill 
+            className="object-cover" 
+          />
         </div>
       </div>
 

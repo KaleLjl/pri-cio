@@ -23,5 +23,9 @@ export default async function HistoryPage() {
 
   const histories = await getHistoryData(session.user.email);
 
-  return <DisplayHistory histories={histories} />;
+  return (
+    <div className="bg-black min-h-screen flex flex-col">
+      <DisplayHistory histories={histories} />
+    </div>
+  );
 }
