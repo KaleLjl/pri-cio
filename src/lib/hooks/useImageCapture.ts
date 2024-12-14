@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react';
-import Webcam from 'react-webcam';
 import html2canvas from 'html2canvas';
 
 export const useImageCapture = () => {
@@ -7,38 +6,18 @@ export const useImageCapture = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [showCamera, setShowCamera] = useState(false);
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const webcamRef = useRef<Webcam>(null);
-
-  //  打开相机界面
-  const openCameraView = () => {
-    setShowCamera(true);
-  };
-
-  // 处理相机拍照后的图片
-  const captureAndSaveImage = () => {
-    if (!webcamRef.current) return;
-    
-    const imageSrc = webcamRef.current.getScreenshot();
-    if (imageSrc) {
-      setSelectedImage(imageSrc);
-      setShowCamera(false);
-    }
-  };
+  const [currency, setCurrency] = useState<string>('USD');
 
   // 处理图片上传
-  // 创建隐藏的文件输入框并触发点击事件
   const uploadImageFromDevice = () => {
-    // 创建新的input元素
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     
-    // 添加样式确保input是隐藏的
     input.style.display = 'none';
-    document.body.appendChild(input);  // 添加到DOM中
+    document.body.appendChild(input);
     
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
@@ -52,21 +31,14 @@ export const useImageCapture = () => {
         };
         reader.readAsDataURL(file);
       }
-      // 清理DOM
       document.body.removeChild(input);
     };
     
-    // 触发点击
     input.click();
   };
 
-  // 使用AI处理图片，获取描述和价格建议
+  // 使用AI处理图片
   const analyzeImageWithAI = async () => {
-    if (!selectedImage) {
-      alert('Please select an image first');
-      return;
-    }
-    
     setIsLoading(true);
     try {
       const response = await fetch('/api/gpt', {
@@ -74,25 +46,21 @@ export const useImageCapture = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ selectedImage })
+        body: JSON.stringify({
+          selectedImage,
+          currency
+        }),
       });
-  
+
       if (!response.ok) {
-        throw new Error('Failed to process image');
+        throw new Error('Failed to analyze image');
       }
-  
+
       const data = await response.json();
-      
-      if (!data.description || !data.price) {
-        throw new Error('Failed to get description or price');
-      }
-  
       setDescription(data.description);
-      setPrice(data.price);
-      
+      setPrice(data.price.toString());
     } catch (error) {
-      console.error('Analysis failed:', error);
-      alert('Failed to analyze image');
+      console.error('Error analyzing image:', error);
     } finally {
       setIsLoading(false);
     }
@@ -129,12 +97,11 @@ export const useImageCapture = () => {
     }
   };
 
-  // 处理点击编辑区域外的事件 用于关闭编辑模式
+  // 处理点击编辑区域外的事件
   const closeEditModeOnOutsideClick = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
     const exportContent = document.getElementById('export-content');
     
-    // 检查点击是否在编辑区域外
     if (isEditing && exportContent && !exportContent.contains(target)) {
       setIsEditing(false);
     }
@@ -144,11 +111,7 @@ export const useImageCapture = () => {
     selectedImage,
     isLoading,
     isEditing,
-    showCamera,
-    setShowCamera,
     setIsEditing,
-    openCameraView,
-    captureAndSaveImage,
     uploadImageFromDevice,
     analyzeImageWithAI,
     clearImageAndData,
@@ -158,7 +121,8 @@ export const useImageCapture = () => {
     description,
     exportAsImage,
     closeEditModeOnOutsideClick,
-    webcamRef,
+    currency,
+    setCurrency,
   };
 }
  

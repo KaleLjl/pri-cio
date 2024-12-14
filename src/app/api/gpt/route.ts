@@ -17,8 +17,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { selectedImage } = await request.json()
-    console.log('Received image')
+    const { selectedImage, currency } = await request.json()
+    console.log('Received image and currency:', currency)
 
     const completion = await openai.beta.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
@@ -26,11 +26,11 @@ export async function POST(request: Request) {
         {
           role: "system",
           content: `
-            Identify the object in the picture and give out the price
+            Identify the object in the picture and give out the price in ${currency}
             - For **human faces**, be humorous and playful. Focus on their charm, star quality, or unique features in a fun and light-hearted way. Use witty phrases and a touch of humor.
             - For **food**, describe it with precision and vivid sensory details. Mention flavors, presentation, or its unique appeal in a straightforward, yet engaging manner.
             - For **objects or other things**, provide a concise and creative description that highlights their functionality, value, or distinctiveness.
-            - Always provide a reasonable and imaginative price estimate alongside the description.
+            - Always provide a reasonable and imaginative price estimate in ${currency} alongside the description.
             - Keep descriptions concise and entertaining, avoiding anything inappropriate or overly critical.
           `,
         },
