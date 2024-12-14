@@ -1,18 +1,27 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import clientPromise from '@/lib/mongodb'
+import DisplayHistory from '@/components/DisplayHistory'
+import { HistoryItem } from '@/types/history'
+
+async function getHistoryData(email: string) {
+  const client = await clientPromise;
+  const db = client.db("pri-cio");
+  const histories = await db.collection("histories")
+    .find({ userEmail: email })
+    .sort({ createdAt: -1 })
+    .toArray();
+  
+  return JSON.parse(JSON.stringify(histories));
+}
 
 export default async function HistoryPage() {
   const session = await auth()
-  if (!session) {
+  if (!session?.user?.email) {
     redirect('/signin')
   }
-  return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">历史记录</h1>
-      <div className="bg-white rounded-lg shadow p-6">
-        <p>欢迎, {session?.user?.name}</p>
-        {/* 这里可以添加历史记录的具体内容 */}
-      </div>
-    </div>
-  )
+
+  const histories = await getHistoryData(session.user.email);
+
+  return <DisplayHistory histories={histories} />;
 }

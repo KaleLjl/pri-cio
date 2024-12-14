@@ -1,9 +1,7 @@
 'use client';
-
 import { useEffect, useRef, useState } from 'react';
 import { FaUsers, FaMapMarkerAlt, FaImages, FaClock } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
-
 export default function LandingContent() {
   const router = useRouter();
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
@@ -112,7 +110,7 @@ export default function LandingContent() {
           <div className={isExiting ? 'flex gap-4 animate-fadeOut' : 'flex gap-4 animate-fadeIn animate-delay-1000'}>
             <button
               className="px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition"
-              onClick={() => handleNavigation('/login')}
+              onClick={() => handleNavigation('/app')}
             >
               Get Started
             </button>

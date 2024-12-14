@@ -1,7 +1,10 @@
 'use client'
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
+import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
 import Webcam from 'react-webcam';
+import { useEffect } from 'react';
+
 
 export default function ImageCapture() {
   const { 
@@ -24,6 +27,34 @@ export default function ImageCapture() {
     closeEditModeOnOutsideClick,
     webcamRef,
   } = useImageCapture();
+
+  
+  const { saveToHistory, isSaving } = useHistory();
+
+  //这个function用来在导出图片的时候同时也把数据存在后端服务器中
+  const handleExport = async () => {
+    try {
+      setIsEditing(false);
+      if (!selectedImage) {
+        throw new Error('No image selected');
+      }
+      await saveToHistory(price, description, selectedImage);
+      await exportAsImage();
+    } catch (error) {
+      console.error('Failed to save history:', error);
+      // 可以添加错误提示
+    }
+  };
+
+  //这个hook是用来实现点击外部区域后退出编辑模式用的
+  useEffect(() => {
+    if (isEditing) {
+      document.addEventListener('mousedown', closeEditModeOnOutsideClick);
+      return () => {
+        document.removeEventListener('mousedown', closeEditModeOnOutsideClick);
+      };
+    }
+  }, [isEditing, closeEditModeOnOutsideClick]);
 
   return (
     <>
@@ -291,13 +322,8 @@ export default function ImageCapture() {
       {(description || price) && (
         <div className="flex space-x-4">
           <button 
-            onClick={() => {
-              setIsEditing(false);
-              setTimeout(() => {
-                exportAsImage();
-              }, 100);
-            }} 
-            disabled={isLoading} 
+            onClick={handleExport} 
+            disabled={isLoading || isSaving} 
             className="flex items-center justify-start w-32 px-4 py-2 bg-white text-black rounded-lg hover:bg-purple-500 hover:text-white disabled:opacity-50 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
