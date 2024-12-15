@@ -75,7 +75,7 @@ export default function ImageCapture() {
   return (
     <>
     {/* 给标题和货币选择器的容器设置固定高度 */}
-    <div className="h-32 flex flex-col justify-center mb-4">
+    <div className="flex flex-col justify-center mb-4">
       <div className="flex flex-col space-y-4">
         <div className="px-4">
           {!description && !price && (

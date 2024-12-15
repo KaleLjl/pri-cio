@@ -31,7 +31,7 @@ export async function POST(request: Request) {
             - For **food**, describe it with precision and vivid sensory details. Mention flavors, presentation, or its unique appeal in a straightforward, yet engaging manner.
             - For **objects or other things**, provide a concise and creative description that highlights their functionality, value, or distinctiveness.
             - Always provide a reasonable and imaginative price estimate in ${currency} alongside the description.
-            - Keep descriptions concise and entertaining, avoiding anything inappropriate or overly critical.
+            - Keep descriptions concise under 100 characters and entertaining, avoiding anything inappropriate or overly critical.
           `,
         },
         { 
