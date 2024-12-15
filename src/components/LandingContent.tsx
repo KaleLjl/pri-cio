@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { FaUsers, FaMapMarkerAlt, FaImages, FaClock } from 'react-icons/fa';
+import { FaUsers, FaUtensils, FaChair} from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+
 export default function LandingContent() {
   const router = useRouter();
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
@@ -77,15 +78,6 @@ export default function LandingContent() {
         .animate-fadeOut {
           animation: fadeOut 1s ease-out forwards;
         }
-        .animate-delay-0 {
-          animation-delay: 0s;
-        }
-        .animate-delay-500 {
-          animation-delay: 0.5s;
-        }
-        .animate-delay-1000 {
-          animation-delay: 1s;
-        }
         .animate-on-scroll {
           opacity: 0;
         }
@@ -101,13 +93,11 @@ export default function LandingContent() {
         </video>
 
         <div className={`relative z-10 min-h-screen flex flex-col justify-center items-center text-center text-white bg-black bg-opacity-50`}>
-          <h1 className={isExiting ? 'text-6xl font-bold mb-4 animate-fadeOut' : 'text-6xl font-bold mb-4 animate-fadeIn animate-delay-0'}>
-            Price it, Sell Smart
-          </h1>
-          <p className={isExiting ? 'text-xl font-light mb-8 max-w-lg animate-fadeOut' : 'text-xl font-light mb-8 max-w-lg animate-fadeIn animate-delay-500'}>
-            Leverage the power of AI to price your products and connect with local buyers effortlessly.
+          <h1 className='text-6xl font-bold mb-4'>Price it</h1>
+          <p className='text-xl font-light mb-8 max-w-lg'>
+            Curious what your face, food, or gadgets are worth? Snap a pic and I’ll give you a fun and fast price estimate!
           </p>
-          <div className={isExiting ? 'flex gap-4 animate-fadeOut' : 'flex gap-4 animate-fadeIn animate-delay-1000'}>
+          <div className='flex gap-4'>
             <button
               className="px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition"
               onClick={() => handleNavigation('/app')}
@@ -120,65 +110,37 @@ export default function LandingContent() {
 
       <div ref={descriptionSectionRef} className="min-h-screen bg-black text-white flex flex-col justify-center items-center px-8">
         <div className="max-w-4xl text-center mb-12 animate-on-scroll">
-          <h2 className="text-4xl font-bold mb-6">How We Simplify Buying and Selling</h2>
+          <h2 className="text-4xl font-bold mb-6">Turn Images Into Value</h2>
           <p className="text-gray-300 text-lg">
-            Our company leverages advanced AI technology to simplify buying and selling. We generate accurate pricing
-            for sellers based on the pictures they provide and automatically post their items to location-specific groups.
+            Discover the value of anything! Upload photos of faces, objects, or food and let our AI deliver prices that
+            are both entertaining and precise.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full max-w-6xl">
-          <div>
-            <ul className="space-y-6">
-              <li className="flex items-start animate-on-scroll">
-                <FaUsers className="text-purple-500 w-6 h-6 mr-4" />
-                <div>
-                  <h3 className="text-lg font-semibold">Tailored Groups for Local Connections</h3>
-                  <p className="text-gray-300">
-                    Automatically post items to location-specific groups for face-to-face transactions.
-                  </p>
-                </div>
-              </li>
-              <li className="flex items-start animate-on-scroll">
-                <FaMapMarkerAlt className="text-purple-500 w-6 h-6 mr-4" />
-                <div>
-                  <h3 className="text-lg font-semibold">Location-Specific Selling</h3>
-                  <p className="text-gray-300">
-                    Easily connect with buyers nearby and sell items anytime, anywhere.
-                  </p>
-                </div>
-              </li>
-              <li className="flex items-start animate-on-scroll">
-                <FaImages className="text-purple-500 w-6 h-6 mr-4" />
-                <div>
-                  <h3 className="text-lg font-semibold">AI-Powered Pricing</h3>
-                  <p className="text-gray-300">
-                    Generate accurate pricing by simply uploading pictures of your products.
-                  </p>
-                </div>
-              </li>
-              <li className="flex items-start animate-on-scroll">
-                <FaClock className="text-purple-500 w-6 h-6 mr-4" />
-                <div>
-                  <h3 className="text-lg font-semibold">24/7 Availability</h3>
-                  <p className="text-gray-300">
-                    Enjoy round-the-clock access to our platform for effortless selling.
-                  </p>
-                </div>
-              </li>
-            </ul>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-center w-full max-w-6xl">
+          <div className="flex flex-col items-center animate-on-scroll">
+            <FaUsers className="text-purple-500 w-10 h-10 mb-4" />
+            <h3 className="text-lg font-semibold">Fun Face Pricing</h3>
+            <p className="text-gray-300">
+              Upload your face (or a friend's) and let our AI rate it with entertaining prices based on personality,
+              looks, and star potential.
+            </p>
           </div>
-
-          <div className="relative animate-on-scroll">
-            <div className="aspect-w-16 aspect-h-9">
-              <iframe
-                className="rounded-lg shadow-lg"
-                src="https://www.youtube.com/embed/sample-video"
-                title="Explainer Video"
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-              ></iframe>
-            </div>
+          <div className="flex flex-col items-center animate-on-scroll">
+            <FaChair className="text-purple-500 w-10 h-10 mb-4" />
+            <h3 className="text-lg font-semibold">Object Estimates</h3>
+            <p className="text-gray-300">
+              Want to know the price of your electronics, gadgets, or art? Upload an image and let our AI calculate the
+              estimated value instantly.
+            </p>
+          </div>
+          <div className="flex flex-col items-center animate-on-scroll">
+            <FaUtensils className="text-purple-500 w-10 h-10 mb-4" />
+            <h3 className="text-lg font-semibold">Food Pricing</h3>
+            <p className="text-gray-300">
+              Curious about how much your meal costs? Snap a picture of your food and get an accurate AI-generated
+              price estimate.
+            </p>
           </div>
         </div>
       </div>
