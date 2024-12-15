@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, S3ServiceException } from "@aws-sdk/client-s3";
 
 // 创建 S3 客户端时添加配置日志
 const s3Config = {
@@ -66,30 +66,38 @@ export async function uploadToS3(
     console.log('Generated image URL:', imageUrl);
 
     return imageUrl;
-  } catch (error: any) {
-    console.error('Detailed S3 upload error:', {
-      errorName: error.name,
-      errorMessage: error.message,
-      errorCode: error.code,
-      errorRequestId: error.$metadata?.requestId,
-      errorStack: error.stack,
-      errorDetails: error.details,
-      bucketName: process.env.AWS_BUCKET_NAME,
-      region: process.env.AWS_REGION,
-    });
+  } catch (error) {
+    // 首先进行类型收窄
+    if (error instanceof S3ServiceException) {
+      console.error('Detailed S3 upload error:', {
+        errorName: error.name,
+        errorMessage: error.message,
+        errorCode: error.$metadata?.httpStatusCode,
+        errorRequestId: error.$metadata?.requestId,
+        errorStack: error.stack,
+        bucketName: process.env.AWS_BUCKET_NAME,
+        region: process.env.AWS_REGION,
+      });
 
-    // 根据错误类型返回更具体的错误信息
-    if (error.code === 'NoSuchBucket') {
-      throw new Error(`Bucket ${process.env.AWS_BUCKET_NAME} does not exist`);
-    } else if (error.code === 'AccessDenied') {
-      throw new Error('Access denied to S3 bucket - check IAM permissions');
-    } else if (error.code === 'InvalidAccessKeyId') {
-      throw new Error('Invalid AWS access key - check credentials');
-    } else if (error.code === 'SignatureDoesNotMatch') {
-      throw new Error('Invalid AWS secret key - check credentials');
-    } else {
+      // 处理具体的 AWS 错误
+      if (error.name === 'NoSuchBucket') {
+        throw new Error(`Bucket ${process.env.AWS_BUCKET_NAME} does not exist`);
+      } else if (error.name === 'AccessDenied') {
+        throw new Error('Access denied to S3 bucket - check IAM permissions');
+      } else if (error.name === 'InvalidAccessKeyId') {
+        throw new Error('Invalid AWS access key - check credentials');
+      } else if (error.name === 'SignatureDoesNotMatch') {
+        throw new Error('Invalid AWS secret key - check credentials');
+      }
+    }
+    
+    // 处理其他类型的错误
+    if (error instanceof Error) {
       throw new Error(`Failed to upload image to S3: ${error.message}`);
     }
+
+    // 处理未知类型的错误
+    throw new Error('An unknown error occurred during S3 upload');
   }
 }
 
@@ -109,8 +117,24 @@ export async function deleteFromS3(imageUrl: string): Promise<void> {
 
     await s3Client.send(new DeleteObjectCommand(params));
     console.log('Successfully deleted file from S3:', key);
-  } catch (error: any) {
-    console.error('Error deleting file from S3:', error);
-    throw error;
+  } catch (error) {
+    if (error instanceof S3ServiceException) {
+      console.error('Detailed S3 delete error:', {
+        errorName: error.name,
+        errorMessage: error.message,
+        errorCode: error.$metadata?.httpStatusCode,
+        errorRequestId: error.$metadata?.requestId,
+      });
+      throw new Error(`S3 deletion error: ${error.message}`);
+    }
+    
+    if (error instanceof Error) {
+      console.error('Error deleting file from S3:', error);
+      throw new Error(`Failed to delete file from S3: ${error.message}`);
+    }
+    
+    // 处理未知类型的错误
+    console.error('Unknown error during S3 deletion:', error);
+    throw new Error('An unknown error occurred during S3 deletion');
   }
 }

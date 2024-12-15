@@ -1,12 +1,11 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef} from 'react';
 import { FaUsers, FaUtensils, FaChair} from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
 export default function LandingContent() {
   const router = useRouter();
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
-  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -32,7 +31,6 @@ export default function LandingContent() {
   }, []);
 
   const handleNavigation = (path: string) => {
-    setIsExiting(true);
     setTimeout(() => {
       router.push(path);
     }, 1000);
@@ -95,7 +93,7 @@ export default function LandingContent() {
         <div className={`relative z-10 min-h-screen flex flex-col justify-center items-center text-center text-white bg-black bg-opacity-50`}>
           <h1 className='text-6xl font-bold mb-4'>Price it</h1>
           <p className='text-xl font-light mb-8 max-w-lg'>
-            Curious what your face, food, or gadgets are worth? Snap a pic and I’ll give you a fun and fast price estimate!
+            Curious what your face, food, or gadgets are worth? Snap a pic and I&apos;ll give you a fun and fast price estimate!
           </p>
           <div className='flex gap-4'>
             <button
@@ -122,7 +120,7 @@ export default function LandingContent() {
             <FaUsers className="text-purple-500 w-10 h-10 mb-4" />
             <h3 className="text-lg font-semibold">Fun Face Pricing</h3>
             <p className="text-gray-300">
-              Upload your face (or a friend's) and let our AI rate it with entertaining prices based on personality,
+              Upload your face (or a friend&apos;s) and let our AI rate it with entertaining prices based on personality,
               looks, and star potential.
             </p>
           </div>
