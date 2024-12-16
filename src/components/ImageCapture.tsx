@@ -2,7 +2,7 @@
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
 import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 // 提取常量
 const CURRENCIES = [
@@ -54,24 +54,24 @@ export default function ImageCapture() {
   const priceEditRef = useRef<HTMLDivElement>(null);
   const descriptionEditRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (state.isEditing) {
-        const target = event.target as Node;
-        const isPriceEdit = priceEditRef.current?.contains(target);
-        const isDescriptionEdit = descriptionEditRef.current?.contains(target);
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (state.isEditing) {
+      const target = event.target as Node;
+      const isPriceEdit = priceEditRef.current?.contains(target);
+      const isDescriptionEdit = descriptionEditRef.current?.contains(target);
 
-        if (!isPriceEdit && !isDescriptionEdit) {
-          actions.setIsEditing(false);
-        }
+      if (!isPriceEdit && !isDescriptionEdit) {
+        actions.setIsEditing(false);
       }
-    };
+    }
+  }, [state.isEditing, actions.setIsEditing]);
 
+  useEffect(() => {
     if (state.isEditing) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [state.isEditing, actions.setIsEditing]);
+  }, [state.isEditing, handleClickOutside]);
 
   const handleExport = async () => {
     try {

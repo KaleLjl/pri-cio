@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 
 interface ImageCaptureState {
@@ -28,10 +28,10 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   // 状态管理
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [currency, setCurrency] = useState<string>('USD');
+  const [isEditing, setIsEditingState] = useState<boolean>(false);
+  const [description, setDescriptionState] = useState('');
+  const [price, setPriceState] = useState('');
+  const [currency, setCurrencyState] = useState<string>('USD');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -77,8 +77,8 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
         throw new Error('Unable to analyze this image. Please try another one.');
       }
 
-      setDescription(data.description);
-      setPrice(data.price.toString());
+      setDescriptionState(data.description);
+      setPriceState(data.price.toString());
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to analyze this image');
       setShowErrorModal(true);
@@ -89,8 +89,8 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
 
   const clearImageAndData = () => {
     setSelectedImage(null);
-    setPrice('');
-    setDescription('');
+    setPriceState('');
+    setDescriptionState('');
   };
 
   const exportAsImage = async () => {
@@ -111,14 +111,44 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
       link.href = dataUrl;
       link.click();
     } catch (error) {
+      console.error('Export failed:', error);
       setErrorMessage('Failed to export image');
       setShowErrorModal(true);
     }
   };
 
-  const closeErrorModal = () => {
+  const closeErrorModal = useCallback(() => {
     setShowErrorModal(false);
     setErrorMessage('');
+  }, []);
+
+  // 使用 useCallback 记忆化 actions
+  const setIsEditing = useCallback((value: boolean) => {
+    setIsEditingState(value);
+  }, []);
+
+  const setPrice = useCallback((value: string) => {
+    setPriceState(value);
+  }, []);
+
+  const setDescription = useCallback((value: string) => {
+    setDescriptionState(value);
+  }, []);
+
+  const setCurrency = useCallback((value: string) => {
+    setCurrencyState(value);
+  }, []);
+
+  const actions = {
+    setIsEditing,
+    setPrice,
+    setDescription,
+    setCurrency,
+    uploadImageFromDevice,
+    analyzeImageWithAI,
+    clearImageAndData,
+    exportAsImage,
+    closeErrorModal,
   };
 
   return [
@@ -134,17 +164,7 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
       errorMessage,
     },
     // 动作
-    {
-      setIsEditing,
-      setPrice,
-      setDescription,
-      setCurrency,
-      uploadImageFromDevice,
-      analyzeImageWithAI,
-      clearImageAndData,
-      exportAsImage,
-      closeErrorModal,
-    }
+    actions
   ];
 };
  
