@@ -8,7 +8,7 @@ export default async function Home() {
     redirect('/signin')
   }
   return (
-    <div className="h-screen bg-black flex flex-col items-center px-4 space-y-4 pt-4 justify-center">
+    <div className="min-h-screen bg-black flex flex-col items-center px-4 space-y-4 pt-4 justify-center">
       <div className="w-full flex justify-center pt-4 pb-2">
       </div>
       <ImageCapture />
