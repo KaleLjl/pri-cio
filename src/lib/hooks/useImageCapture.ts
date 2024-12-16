@@ -1,7 +1,30 @@
 import { useState } from 'react';
 import html2canvas from 'html2canvas';
 
-export const useImageCapture = () => {
+interface ImageCaptureState {
+  selectedImage: string | null;
+  isLoading: boolean;
+  isEditing: boolean;
+  description: string;
+  price: string;
+  currency: string;
+  showErrorModal: boolean;
+  errorMessage: string;
+}
+
+interface ImageCaptureActions {
+  setIsEditing: (value: boolean) => void;
+  setPrice: (value: string) => void;
+  setDescription: (value: string) => void;
+  setCurrency: (value: string) => void;
+  uploadImageFromDevice: () => void;
+  analyzeImageWithAI: () => Promise<void>;
+  clearImageAndData: () => void;
+  exportAsImage: () => Promise<void>;
+  closeErrorModal: () => void;
+}
+
+export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   // 状态管理
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -9,13 +32,14 @@ export const useImageCapture = () => {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [currency, setCurrency] = useState<string>('USD');
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // 处理图片上传
+  // 业务逻辑
   const uploadImageFromDevice = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    
     input.style.display = 'none';
     document.body.appendChild(input);
     
@@ -37,43 +61,38 @@ export const useImageCapture = () => {
     input.click();
   };
 
-  // 使用AI处理图片
   const analyzeImageWithAI = async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/gpt', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          selectedImage,
-          currency
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selectedImage, currency }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to analyze image');
-      }
+      if (!response.ok) throw new Error('Failed to analyze image');
 
       const data = await response.json();
+      if (!data.description || !data.price) {
+        throw new Error('Unable to analyze this image. Please try another one.');
+      }
+
       setDescription(data.description);
       setPrice(data.price.toString());
     } catch (error) {
-      console.error('Error analyzing image:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to analyze this image');
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 删除已选择的图片和相关信息
   const clearImageAndData = () => {
     setSelectedImage(null);
     setPrice('');
     setDescription('');
   };
 
-  // 导出图片为PNG文件
   const exportAsImage = async () => {
     try {
       const element = document.getElementById('export-content');
@@ -92,37 +111,40 @@ export const useImageCapture = () => {
       link.href = dataUrl;
       link.click();
     } catch (error) {
-      console.error('Export failed:', error);
-      alert('Failed to export image');
+      setErrorMessage('Failed to export image');
+      setShowErrorModal(true);
     }
   };
 
-  // 处理点击编辑区域外的事件
-  const closeEditModeOnOutsideClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const exportContent = document.getElementById('export-content');
-    
-    if (isEditing && exportContent && !exportContent.contains(target)) {
-      setIsEditing(false);
-    }
+  const closeErrorModal = () => {
+    setShowErrorModal(false);
+    setErrorMessage('');
   };
 
-  return {
-    selectedImage,
-    isLoading,
-    isEditing,
-    setIsEditing,
-    uploadImageFromDevice,
-    analyzeImageWithAI,
-    clearImageAndData,
-    setPrice,
-    price,
-    setDescription,
-    description,
-    exportAsImage,
-    closeEditModeOnOutsideClick,
-    currency,
-    setCurrency,
-  };
-}
+  return [
+    // 状态
+    {
+      selectedImage,
+      isLoading,
+      isEditing,
+      description,
+      price,
+      currency,
+      showErrorModal,
+      errorMessage,
+    },
+    // 动作
+    {
+      setIsEditing,
+      setPrice,
+      setDescription,
+      setCurrency,
+      uploadImageFromDevice,
+      analyzeImageWithAI,
+      clearImageAndData,
+      exportAsImage,
+      closeErrorModal,
+    }
+  ];
+};
  
