@@ -2,7 +2,7 @@
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
 import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 
 export default function ImageCapture() {
@@ -62,15 +62,31 @@ export default function ImageCapture() {
     }
   };
 
-  //这个hook是用来实现点击外部区域后退出编辑模式用的
+  // 添加 refs 用于识别编辑区域
+  const priceEditRef = useRef<HTMLDivElement>(null);
+  const descriptionEditRef = useRef<HTMLDivElement>(null);
+
+  // 修改 useEffect 中的点击处理逻辑
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isEditing) {
+        const target = event.target as Node;
+        const isPriceEdit = priceEditRef.current?.contains(target);
+        const isDescriptionEdit = descriptionEditRef.current?.contains(target);
+
+        if (!isPriceEdit && !isDescriptionEdit) {
+          setIsEditing(false);
+        }
+      }
+    };
+
     if (isEditing) {
-      document.addEventListener('mousedown', closeEditModeOnOutsideClick);
+      document.addEventListener('click', handleClickOutside);
       return () => {
-        document.removeEventListener('mousedown', closeEditModeOnOutsideClick);
+        document.removeEventListener('click', handleClickOutside);
       };
     }
-  }, [isEditing, closeEditModeOnOutsideClick]);
+  }, [isEditing, setIsEditing]);
 
   return (
     <>
@@ -161,7 +177,7 @@ export default function ImageCapture() {
         {/* 这是价格与描述的显示区域 */}
         {(description || price) && (
           <div className="mt-2 text-center w-full space-y-4">
-            <div className="flex justify-center">
+            <div ref={priceEditRef} className="flex justify-center">
               {isEditing ? (
                 <div className="relative flex items-center">
                   <span className="absolute left-4 text-3xl font-semibold text-purple-600">
@@ -202,7 +218,10 @@ export default function ImageCapture() {
               ) : (
                 <div
                   className="flex items-center text-3xl font-semibold text-purple-600 cursor-pointer hover:bg-purple-100 rounded-lg px-4 py-2"
-                  onClick={() => setIsEditing(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditing(true);
+                  }}
                 >
                   <span className="mr-1">{getCurrencySymbol(currency)}</span>
                   <span>
@@ -212,7 +231,7 @@ export default function ImageCapture() {
               )}
             </div>
 
-            <div className="w-full">
+            <div ref={descriptionEditRef} className="w-full">
               {isEditing ? (
                 <textarea
                   value={description}
@@ -244,11 +263,15 @@ export default function ImageCapture() {
                     target.style.height = target.scrollHeight + 'px';
                   }}
                   placeholder="Enter description here..."
+                  onClick={(e) => e.stopPropagation()}
                 />
               ) : (
                 <p 
                   className="text-lg p-2 cursor-pointer hover:bg-purple-100 rounded-lg whitespace-pre-wrap text-left"
-                  onClick={() => setIsEditing(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditing(true);
+                  }}
                   style={{ color: description ? '#4B5563' : 'rgba(75, 85, 99, 0.5)' }}
                 >
                   {description || 'Enter description here...'}
