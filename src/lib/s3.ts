@@ -2,13 +2,11 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand, S3ServiceException } f
 
 // 创建 S3 客户端时添加配置日志
 const s3Config = {
-  region: process.env.AWS_REGION,
+  region: 'eu-west-2',
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
-  endpoint: `https://s3.${process.env.AWS_REGION}.amazonaws.com`,
-  forcePathStyle: false
 };
 
 console.log('Initializing S3 client with config:', {
