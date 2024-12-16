@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  env: {
+    AWS_REGION: 'eu-west-2',
+  },
   images: {
     remotePatterns: [
       {
