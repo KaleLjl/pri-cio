@@ -24,7 +24,7 @@ function SignInContent() {
   };
 
   return (
-    <div className="w-1/2 bg-white flex flex-col justify-center px-16">
+    <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-8 md:px-16">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-black">Continue to PRICIO AI</h1>
       </div>
@@ -49,12 +49,12 @@ export default function SigninForm() {
       <div className="absolute top-4 left-4 flex items-center space-x-2 z-50">
         <Link href="/" className="flex items-center space-x-2">
           <Image src={LogoImage} alt="Logo" width={40} height={40} />
-          <span className="text-2xl font-bold text-white">PRICIO AI</span>
+          <span className="text-2xl font-bold text-white md:text-white text-black">PRICIO AI</span>
         </Link>
       </div>
 
-      {/* Left Section: Visuals */}
-      <div className="w-1/2 bg-black flex items-center justify-center">
+      {/* Left Section: Visuals - Hidden on mobile */}
+      <div className="hidden md:flex w-1/2 bg-black items-center justify-center">
         <div className="relative w-full h-full">
           <Image 
             src="/image/signin_image.jpg" 
@@ -65,7 +65,7 @@ export default function SigninForm() {
         </div>
       </div>
 
-      {/* Right Section: Login Form */}
+      {/* Right Section: Login Form - Full width on mobile */}
       <Suspense fallback={<div>Loading...</div>}>
         <SignInContent />
       </Suspense>
