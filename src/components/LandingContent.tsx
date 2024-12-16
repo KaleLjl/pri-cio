@@ -82,10 +82,46 @@ export default function LandingContent() {
         .animate-on-scroll.animate-fadeIn {
           animation: fadeInContent 1.5s ease-out forwards;
         }
+        video::-webkit-media-controls {
+          display: none !important;
+        }
+        video::-webkit-media-controls-panel {
+          display: none !important;
+        }
+        video::-webkit-media-controls-play-button {
+          display: none !important;
+        }
+        video::-webkit-media-controls-timeline {
+          display: none !important;
+        }
+        video::-webkit-media-controls-current-time-display {
+          display: none !important;
+        }
+        video::-webkit-media-controls-time-remaining-display {
+          display: none !important;
+        }
+        video::-webkit-media-controls-mute-button {
+          display: none !important;
+        }
+        video::-webkit-media-controls-volume-slider {
+          display: none !important;
+        }
+        video::-webkit-media-controls-fullscreen-button {
+          display: none !important;
+        }
       `}</style>
 
       <div className="relative min-h-screen">
-        <video className="absolute top-0 left-0 w-full h-full object-cover" autoPlay loop muted>
+        <video 
+          className="absolute top-0 left-0 w-full h-full object-cover pointer-events-none" 
+          autoPlay 
+          loop 
+          muted 
+          playsInline
+          disablePictureInPicture
+          controlsList="nodownload noplaybackrate"
+          onContextMenu={(e) => e.preventDefault()}
+        >
           <source src="/video/bg1.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
