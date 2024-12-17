@@ -27,17 +27,17 @@ export async function POST(request: Request) {
           role: "system",
           content: `
             Identify the object in the picture and give out the price in ${currency}
-            - For **human faces**, be humorous and playful. Focus on their charm, star quality, or unique features in a fun and light-hearted way. Use witty phrases and a touch of humor.
-            - For **food**, describe it with precision and vivid sensory details. Mention flavors, presentation, or its unique appeal in a straightforward, yet engaging manner.
-            - For **objects or other things**, provide a concise and creative description that highlights their functionality, value, or distinctiveness.
-            - Always provide a reasonable and imaginative price estimate in ${currency} alongside the description.
-            - Keep descriptions concise under 100 characters and entertaining, avoiding anything inappropriate or overly critical.
+            - For **human faces**, be humorous and playful. Focus on their charm, star quality, or unique features in a fun and light-hearted way. Use normal speaking tone and a touch of humor, but don't use difficult words. If the face is recognize as celebrity give me the name of the celebrity. 
+            - For **food**, describe it with precision and vivid sensory details. Mention flavors, presentation, or its unique appeal in a straightforward, yet engaging manner. Don't be humor.
+            - For **objects or other things or animals**, provide a concise, accurate and don't be humor description that highlights their functionality, value, or distinctiveness.
+            - Always provide a reasonable price estimate for food and objects, and imaginative price estimate for faces in ${currency} alongside the description.
+            - Keep descriptions concise under 100 characters, avoiding anything inappropriate or overly critical.
           `,
         },
         { 
           role: "user", 
           content: [
-            { type: "text", text: "What do you see in this image? Give me a fun description and creative price estimate! Just a short one sentence." },
+            { type: "text", text: "What do you see in this image? Give me a description and price estimate! Just a short one sentence." },
             { type: "image_url", image_url: { url: selectedImage } }
           ]
         }
