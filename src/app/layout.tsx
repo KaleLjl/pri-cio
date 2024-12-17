@@ -15,6 +15,11 @@ export const metadata: Metadata = {
   verification: {
     google: "YsLcwUzgOpc9pNg_Bn01y5qWF5KVw2Uup4FHQXA2Enc"
   },
+  icons: {
+    icon: 'image/favicon.ico',
+    // shortcut: 'image/favicon-16x16.png',
+    apple: 'image/apple-touch-icon.png',
+  },
   openGraph: {
     title: 'PRICIO AI',
     description: 'AI powered price estimation tool',
