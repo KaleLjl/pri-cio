@@ -16,9 +16,11 @@ export const metadata: Metadata = {
     google: "YsLcwUzgOpc9pNg_Bn01y5qWF5KVw2Uup4FHQXA2Enc"
   },
   icons: {
-    icon: 'image/favicon.ico',
-    // shortcut: 'image/favicon-16x16.png',
-    apple: 'image/apple-touch-icon.png',
+    icon: [
+      { url: '/image/favicon.ico' },
+      { url: '/image/favicon.svg' },
+    ],
+    apple: '/image/apple-touch-icon.png',
   },
   openGraph: {
     title: 'PRICIO AI',
