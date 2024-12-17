@@ -25,13 +25,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'PRICIO AI',
     description: 'AI powered price estimation tool',
-    images: ['/og-image.jpg'],
+    images: ['/logo.png'],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'PRICIO AI',
     description: 'AI powered price estimation tool',
-    images: ['/twitter-image.jpg'],
+    images: ['/logo.png'],
   }
 };
 
