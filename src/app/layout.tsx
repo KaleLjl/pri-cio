@@ -30,14 +30,14 @@ export const metadata: Metadata = {
     locale: 'en_GB',
     url: process.env.NEXT_PUBLIC_APP_URL || 'https://pri-cio.co.uk',
     siteName: 'PRICIO AI',
-    title: 'AI Powered Price Estimation',
+    title: 'PRICIO AI - AI Powered Price Estimation',
     description: 'Upload photos and get instant AI-powered price estimates for faces, objects, and food. Fast, fun, and accurate pricing tool.',
     images: [
       {
-        url: '/image/logo.png', // 确保在 public 目录下有这个图片
+        url: '/image/logo.png',
         width: 1200,
         height: 630,
-        alt: 'PRICIO AI Preview',
+        alt: 'PRICIO AI Logo',
       }
     ],
   },

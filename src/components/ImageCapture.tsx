@@ -2,7 +2,7 @@
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
 import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
-import { useEffect, useRef, useCallback } from 'react';
+import {  useRef,  } from 'react';
 
 // 提取常量
 const CURRENCIES = [
@@ -54,25 +54,6 @@ export default function ImageCapture() {
   const priceEditRef = useRef<HTMLDivElement>(null);
   const descriptionEditRef = useRef<HTMLDivElement>(null);
 
-  const handleClickOutside = useCallback((event: MouseEvent) => {
-    if (state.isEditing) {
-      const target = event.target as Node;
-      const isPriceEdit = priceEditRef.current?.contains(target);
-      const isDescriptionEdit = descriptionEditRef.current?.contains(target);
-
-      if (!isPriceEdit && !isDescriptionEdit) {
-        actions.setIsEditing(false);
-      }
-    }
-  }, [state.isEditing, actions.setIsEditing]);
-
-  useEffect(() => {
-    if (state.isEditing) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [state.isEditing, handleClickOutside]);
-
   const handleExport = async () => {
     try {
       actions.setIsEditing(false);
@@ -100,6 +81,11 @@ export default function ImageCapture() {
             {(state.description || state.price) && !state.isEditing && (
               <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
                 Click to edit
+              </h2>
+            )}
+            {(state.description || state.price) && state.isEditing && (
+              <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
+                Press Enter to confirm
               </h2>
             )}
           </div>
@@ -140,13 +126,7 @@ export default function ImageCapture() {
       {/* 这是图片,价格描述显示区域 */}
       <div 
         id="export-content"
-        className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full cursor-pointer bg-gray-800"
-        onClick={(e) => {
-          if (!state.isEditing && (state.description || state.price)) {
-            e.stopPropagation();
-            actions.setIsEditing(true);
-          }
-        }}
+        className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full bg-gray-800"
       >
         {/* 这是图片的显示区域 */}
         <div className="flex flex-col items-center">
@@ -208,7 +188,13 @@ export default function ImageCapture() {
                           actions.setPrice(value);
                         }
                       }}
-                      className="w-auto min-w-[120px] pl-10 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          actions.setIsEditing(false);
+                        }
+                      }}
+                      className="w-auto min-w-[120px] pl-8 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
                       style={{ width: `${Math.max(120, (state.price?.length || 1) * 20)}px` }}
                       placeholder="0"
                     />
@@ -240,8 +226,9 @@ export default function ImageCapture() {
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
+                        actions.setIsEditing(false);
                       }
                     }}
                     className="w-full p-2 text-lg text-gray-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
