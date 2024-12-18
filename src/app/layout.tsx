@@ -17,10 +17,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: '/image/web-app-manifest-512x512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/image/web-app-manifest-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/image/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
       { url: '/image/favicon.ico' },
-      { url: '/image/favicon.svg' },
     ],
     apple: '/image/apple-touch-icon.png',
+    shortcut: '/image/favicon.ico',
   },
   openGraph: {
     type: 'website',
@@ -40,7 +43,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-  }
+  },
+  manifest: '/image/site.webmanifest',
 };
 
 export const viewport = {
