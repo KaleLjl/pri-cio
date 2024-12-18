@@ -133,6 +133,7 @@ export default function LandingContent() {
             loop 
             muted 
             playsInline
+            poster="/video/bg1-poster.jpg"
             disablePictureInPicture
             controlsList="nodownload noplaybackrate"
             onContextMenu={(e) => e.preventDefault()}
