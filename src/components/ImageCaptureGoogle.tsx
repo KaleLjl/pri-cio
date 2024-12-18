@@ -14,7 +14,7 @@ const ImageCaptureGoogle = () => {
   } = useImageCaptureGoogle();
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: '20px', color: 'white'}}>
       <h1>Test Google API</h1>
       <input
         type="file"
@@ -25,10 +25,10 @@ const ImageCaptureGoogle = () => {
           }
         }}
       />
-      <button onClick={analyzeImage} disabled={isLoading || !selectedImage}>
+      <button onClick={analyzeImage} disabled={isLoading || !selectedImage} style={{color: 'white'}}>
         {isLoading ? 'Analyzing...' : 'Analyze Image'}
       </button>
-      <button onClick={clearImage} disabled={isLoading}>
+      <button onClick={clearImage} disabled={isLoading} style={{color: 'white'}}>
         Clear
       </button>
 
