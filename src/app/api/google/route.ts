@@ -52,6 +52,7 @@ export async function POST(request: Request) {
     // Step 5: Send search contexts to OpenAI for analysis
     const contexts = searchResults.map((result: any) => result.snippet).join('\n\n');
     const analyzedPrice = await analyzePricesWithOpenAI(detailedDescription, contexts);
+    console.log('Search Results:', contexts);
 
     return NextResponse.json({
       detailedDescription,
@@ -108,12 +109,28 @@ const analyzeImageWithOpenAI = async (base64Image: string): Promise<string> => {
 };
 
 // Function to fetch search results using Google Custom Search
+// const fetchSearchResults = async (query: string) => {
+//   const dynamicQuery = `${query} price cost`; // Add more keywords dynamically
+//   const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(dynamicQuery)}&key=${CUSTOM_SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}`;
+  
+//   console.log(`Fetching search results for: ${dynamicQuery}`);
+  
+//   const response = await fetch(url);
+//   const data = await response.json();
+
+//   if (!response.ok || !data.items) {
+//     console.error('Google Custom Search API Error:', data);
+//     throw new Error('Failed to fetch search results.');
+//   }
+
+//   return data.items;
+// };
 const fetchSearchResults = async (query: string) => {
-  const dynamicQuery = `${query} price cost`; // Add more keywords dynamically
+  const dynamicQuery = `${query} price cost`;
   const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(dynamicQuery)}&key=${CUSTOM_SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}`;
-  
+
   console.log(`Fetching search results for: ${dynamicQuery}`);
-  
+
   const response = await fetch(url);
   const data = await response.json();
 
@@ -122,13 +139,117 @@ const fetchSearchResults = async (query: string) => {
     throw new Error('Failed to fetch search results.');
   }
 
-  return data.items;
+  const pricePattern = /(?:[£$€¥]\s?\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?|\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?\s?[£$€¥])/g;
+
+  const resultsWithPrices = data.items
+    .map((item) => {
+      const text = `${item.title} ${item.snippet}`;
+      const prices = text.match(pricePattern);
+      return prices
+        ? {
+            title: item.title,
+            snippet: item.snippet,
+            prices,
+          }
+        : null;
+    })
+    .filter((item) => item !== null);
+
+  if (resultsWithPrices.length === 0) {
+    console.log('No prices found in search results.');
+    return [];
+  }
+
+  console.log(`Extracted Prices from Search Results:`, resultsWithPrices);
+  return resultsWithPrices;
 };
+
+
+
+const analyzePricesWithOpenAI = async (query: string, contexts: string): Promise<string> => {
+  const prompt = `
+You are an assistant tasked with extracting the most accurate and reliable price of an object.
+The object description is: "${query}".
+
+Below are contexts extracted from search results that mention prices. 
+Please analyze them carefully and provide the most relevant price based on reliability and context.
+
+Contexts:
+${contexts}
+
+Your response should contain ONLY the most accurate price, including its currency symbol (e.g., £2,570.00 or $400).
+If you cannot find a price, respond with "No relevant prices found".
+`;
+
+  const payload = {
+    model: 'gpt-4o-2024-08-06',
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: 100,
+  };
+
+  const response = await fetch(OPENAI_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('OpenAI API Error Response:', errorText);
+    throw new Error(`Failed to process prices with OpenAI: ${response.status} ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  const analyzedPrice = result.choices[0]?.message?.content || 'No relevant prices found';
+  console.log(`🎯 OpenAI Processed Price: ${analyzedPrice}`);
+  return analyzedPrice.trim();
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Function to find the most relevant price
 const findMostRelevantPrice = (searchResults: any[], query: string) => {
   // Improved price regex
-  const pricePattern = /(?:[£$€¥]\s?)?\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?(?:\s?[£$€¥]| USD| GBP| EUR| JPY)?/g;
+  const pricePattern = /(?:[£$€¥]\s?\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?|\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?\s?[£$€¥])/g;
 
   const keywords = ['price', 'cost', 'starting at', 'from', 'retail', 'worth'];
 
@@ -195,46 +316,4 @@ const findMostRelevantPrice = (searchResults: any[], query: string) => {
 
   console.log(`\n🚨 No relevant prices found.`);
   return 'No relevant prices found';
-};
-
-const analyzePricesWithOpenAI = async (query: string, contexts: string): Promise<string> => {
-  const prompt = `
-You are an assistant tasked with extracting the most accurate and reliable price of an object.
-The object description is: "${query}".
-
-Below are contexts extracted from search results that mention prices. 
-Please analyze them carefully and provide the most relevant price based on reliability and context.
-
-Contexts:
-${contexts}
-
-Your response should contain ONLY the most accurate price, including its currency symbol (e.g., £2,570.00 or $400).
-If you cannot find a price, respond with "No relevant prices found".
-`;
-
-  const payload = {
-    model: 'gpt-4o-2024-08-06',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 100,
-  };
-
-  const response = await fetch(OPENAI_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('OpenAI API Error Response:', errorText);
-    throw new Error(`Failed to process prices with OpenAI: ${response.status} ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  const analyzedPrice = result.choices[0]?.message?.content || 'No relevant prices found';
-  console.log(`🎯 OpenAI Processed Price: ${analyzedPrice}`);
-  return analyzedPrice.trim();
 };
