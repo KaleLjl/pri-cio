@@ -108,23 +108,6 @@ const analyzeImageWithOpenAI = async (base64Image: string): Promise<string> => {
   return description;
 };
 
-// Function to fetch search results using Google Custom Search
-// const fetchSearchResults = async (query: string) => {
-//   const dynamicQuery = `${query} price cost`; // Add more keywords dynamically
-//   const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(dynamicQuery)}&key=${CUSTOM_SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}`;
-  
-//   console.log(`Fetching search results for: ${dynamicQuery}`);
-  
-//   const response = await fetch(url);
-//   const data = await response.json();
-
-//   if (!response.ok || !data.items) {
-//     console.error('Google Custom Search API Error:', data);
-//     throw new Error('Failed to fetch search results.');
-//   }
-
-//   return data.items;
-// };
 const fetchSearchResults = async (query: string) => {
   const dynamicQuery = `${query} price cost`;
   const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(dynamicQuery)}&key=${CUSTOM_SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}`;

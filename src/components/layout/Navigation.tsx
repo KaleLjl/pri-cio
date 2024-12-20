@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 import LogoImage from '/public/image/logo.png';
+import { FaSearch } from 'react-icons/fa';
 
 interface NavItem {
   label: string;
@@ -14,6 +16,7 @@ interface NavItem {
 const Navigation: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const { data: session } = useSession();
+  const pathname = usePathname();
 
   const navItems: NavItem[] = session
     ? [
@@ -26,7 +29,6 @@ const Navigation: React.FC = () => {
         { label: 'Explore', href: '/explore' },
         { label: 'Sign in', href: '/signin' }
       ];
-
 
   const handleNavClick = async (item: NavItem) => {
     if (item.label === 'Sign out') {
@@ -50,6 +52,20 @@ const Navigation: React.FC = () => {
               </span>
             </Link>
           </div>
+
+          {/* Search Bar - Only on Explore Page */}
+          {pathname === '/explore' && (
+            <div className="flex-grow flex justify-center">
+              <div className="relative w-full max-w-md">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="pl-10 px-4 py-2 rounded-md border border-gray-300 bg-transparent focus:outline-none focus:border-gray-500 w-full"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Desktop Navigation */}
           <div className="hidden md:block">
