@@ -33,7 +33,6 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // 业务逻辑
   const uploadImageFromDevice = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -91,7 +90,6 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
     setDescriptionState('');
   };
 
-
   const closeErrorModal = useCallback(() => {
     setShowErrorModal(false);
     setErrorMessage('');
@@ -113,18 +111,6 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const setCurrency = useCallback((value: string) => {
     setCurrencyState(value);
   }, []);
-
-  const actions = {
-    setIsEditing,
-    setPrice,
-    setDescription,
-    setCurrency,
-    uploadImageFromDevice,
-    analyzeImageWithAI,
-    clearImageAndData,
-    closeErrorModal,
-  };
-
   return [
     // 状态
     {
@@ -138,7 +124,14 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
       errorMessage,
     },
     // 动作
-    actions
+   {setIsEditing,
+    setPrice,
+    setDescription,
+    setCurrency,
+    uploadImageFromDevice,
+    analyzeImageWithAI,
+    clearImageAndData,
+    closeErrorModal,}
   ];
 };
  

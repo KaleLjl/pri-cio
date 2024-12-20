@@ -2,7 +2,7 @@
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
 import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
-import {  useRef,  } from 'react';
+import { useShareCard } from '@/lib/hooks/useShareCard';
 
 // 提取常量
 const CURRENCIES = [
@@ -15,7 +15,7 @@ const CURRENCIES = [
   label: `  ${curr.label}  `
 }));
 
-// 提取子组件
+// 提取子组件, 无法识别时候报错的弹窗
 const ErrorModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
@@ -50,9 +50,8 @@ const ErrorModal = ({ message, onClose }: { message: string; onClose: () => void
 export default function ImageCapture() {
   const [state, actions] = useImageCapture();
   const { saveToHistory, isSaving } = useHistory();
+  const { generateShareCard } = useShareCard();
 
-  const priceEditRef = useRef<HTMLDivElement>(null);
-  const descriptionEditRef = useRef<HTMLDivElement>(null);
 
   const handleExport = async () => {
     try {
@@ -60,12 +59,36 @@ export default function ImageCapture() {
       if (!state.selectedImage) {
         throw new Error('No image selected');
       }
-      await saveToHistory(state.price, state.description, state.selectedImage);
+
+      // 并行执行两个操作
+      const [shareCardUrl] = await Promise.all([
+        // 1. 生成分享卡片
+        generateShareCard({
+          imageUrl: state.selectedImage,  // 直接使用前端的图片
+          price: state.price,
+          description: state.description,
+          currency: state.currency
+        }),
+        // 2. 保存到历史记录
+        saveToHistory(
+          state.price, 
+          state.description, 
+          state.selectedImage
+        )
+      ]);
+
+      // 3. 下载分享卡片
+      const link = document.createElement('a');
+      link.href = shareCardUrl;
+      link.download = 'pricio-share.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(shareCardUrl);
     } catch (error) {
-      console.error('Failed to save history:', error);
+      console.error('Failed to export:', error);
     }
   };
-
   return (
     <>
       {/* 给标题和货币选择器的容器设置固定高度 */}
@@ -153,7 +176,7 @@ export default function ImageCapture() {
           {/* 这是价格与描述的显示区域 */}
           {(state.description || state.price) && (
             <div className="mt-2 text-center w-full space-y-4">
-              <div ref={priceEditRef} className="flex justify-center">
+              <div  className="flex justify-center">
                 {state.isEditing ? (
                   <div className="relative flex items-center">
                     <span className="absolute left-4 text-3xl font-semibold text-purple-600">
@@ -213,7 +236,7 @@ export default function ImageCapture() {
                 )}
               </div>
 
-              <div ref={descriptionEditRef} className="w-full">
+              <div className="w-full">
                 {state.isEditing ? (
                   <textarea
                     value={state.description}
