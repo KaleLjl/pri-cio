@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import html2canvas from 'html2canvas';
 
 interface ImageCaptureState {
   selectedImage: string | null;
@@ -20,7 +19,6 @@ interface ImageCaptureActions {
   uploadImageFromDevice: () => void;
   analyzeImageWithAI: () => Promise<void>;
   clearImageAndData: () => void;
-  exportAsImage: () => Promise<void>;
   closeErrorModal: () => void;
 }
 
@@ -93,29 +91,6 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
     setDescriptionState('');
   };
 
-  const exportAsImage = async () => {
-    try {
-      const element = document.getElementById('export-content');
-      if (!element) return;
-
-      const canvas = await html2canvas(element, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: null,
-        imageTimeout: 0,
-      });
-      
-      const dataUrl = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = 'price-details.png';
-      link.href = dataUrl;
-      link.click();
-    } catch (error) {
-      console.error('Export failed:', error);
-      setErrorMessage('Failed to export image');
-      setShowErrorModal(true);
-    }
-  };
 
   const closeErrorModal = useCallback(() => {
     setShowErrorModal(false);
@@ -147,7 +122,6 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
     uploadImageFromDevice,
     analyzeImageWithAI,
     clearImageAndData,
-    exportAsImage,
     closeErrorModal,
   };
 

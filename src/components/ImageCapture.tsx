@@ -61,7 +61,6 @@ export default function ImageCapture() {
         throw new Error('No image selected');
       }
       await saveToHistory(state.price, state.description, state.selectedImage);
-      await actions.exportAsImage();
     } catch (error) {
       console.error('Failed to save history:', error);
     }
@@ -125,7 +124,6 @@ export default function ImageCapture() {
 
       {/* 这是图片,价格描述显示区域 */}
       <div 
-        id="export-content"
         className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full bg-gray-800"
       >
         {/* 这是图片的显示区域 */}
