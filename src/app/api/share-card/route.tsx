@@ -8,6 +8,11 @@ export async function POST(request: Request) {
   try {
     const { imageUrl, price, description, currency } = await request.json();
 
+    // 加载字体
+    const interFont = await fetch(
+      new URL('/fonts/Inter-VariableFont_opsz,wght.ttf', process.env.NEXT_PUBLIC_BASE_URL)
+    ).then((res) => res.arrayBuffer());
+
     const imageResponse = new ImageResponse(
       (
         // 最外层容器 - 整个卡片的背景
@@ -16,10 +21,10 @@ export async function POST(request: Request) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            width: '1200px',
-            minHeight: '1600px',
+            width: '2400px',
+            minHeight: '3200px',
             backgroundColor: '#F3F4F6', // 浅灰色背景
-            padding: '64px',
+            padding: '128px',
           }}
         >
           {/* 主要内容区域 - 白色卡片容器 */}
@@ -29,8 +34,8 @@ export async function POST(request: Request) {
               flexDirection: 'column',
               width: '100%',
               backgroundColor: 'white',
-              padding: '64px',
-              borderRadius: '64px',
+              padding: '128px',
+              borderRadius: '128px',
               marginBottom: '80px',
             }}
           >
@@ -39,8 +44,8 @@ export async function POST(request: Request) {
               style={{
                 display: 'flex',
                 width: '100%',
-                height: '900px',
-                borderRadius: '48px',
+                height: '1800px',
+                borderRadius: '96px',
                 overflow: 'hidden',
                 marginBottom: '64px',
               }}
@@ -69,9 +74,9 @@ export async function POST(request: Request) {
               <span
                 style={{
                   color: '#9333EA',
-                  fontSize: '128px',
+                  fontSize: '256px',
                   fontWeight: 'bold',
-                  fontFamily: 'Arial, Helvetica, sans-serif',
+                  fontFamily: 'sans-serif',
                 }}
               >
                 {currency === 'USD' ? '$' : 
@@ -86,11 +91,11 @@ export async function POST(request: Request) {
             <p
               style={{
                 color: '#4B5563',
-                fontSize: '48px',
+                fontSize: '96px',
                 textAlign: 'center',
                 margin: '0',
                 lineHeight: '1.5',
-                fontFamily: 'Arial, Helvetica, sans-serif',
+                fontFamily: 'sans-serif',
               }}
             >
               {description}
@@ -104,56 +109,82 @@ export async function POST(request: Request) {
               alignItems: 'center',
               justifyContent: 'center',
               background: '#000000',
-              borderRadius: '32px',
-              padding: '24px 48px',
-              minWidth: '320px',
+              borderRadius: '64px',
+              padding: '64px 96px',
+              width: '100%',
+              minHeight: '320px',
             }}
           >
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '32px',
+                justifyContent: 'space-between',
+                width: '100%',
               }}
             >
-              <img
-                src="https://pri-cio.co.uk/image/logo.png"
-                alt="Logo"
-                style={{
-                  width: '64px',
-                  height: '64px',
-                }}
-              />
-              <span
-                style={{
-                  color: '#FFFFFF',
-                  fontSize: '36px',
-                  fontWeight: 'bold',
-                  fontFamily: 'Arial, Helvetica, sans-serif',
-                }}
-              >
-                PRICIO AI
-              </span>
-              <img
-                src="https://pri-cio.co.uk/image/qrcode.png"
-                alt="QR Code"
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  marginLeft: '16px',
-                }}
-              />
+              {/* 左侧品牌区域 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '48px',
+                flex: 1,
+              }}>
+                <img
+                  src="https://pri-cio.co.uk/image/logo.png"
+                  alt="Logo"
+                  style={{
+                    width: '180px',
+                    height: '180px',
+                  }}
+                />
+                <span
+                  style={{
+                    color: '#FFFFFF',
+                    fontSize: '100px',
+                    fontWeight: 'bold',
+                    fontFamily: 'Inter Variable, system-ui, sans-serif',
+                    display: 'block',
+                  }}
+                >
+                  PRICIO AI
+                </span>
+              </div>
+
+              {/* 右侧二维码区域 */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                flex: 1,
+              }}>
+                <img
+                  src="https://pri-cio.co.uk/image/qrcode.png"
+                  alt="QR Code"
+                  style={{
+                    width: '240px',
+                    height: '240px',
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
       ),
       {
-        width: 1200,
-        height: 2000,
+        width: 2400,
+        height: 4000,
         headers: {
           'Content-Type': 'image/png',
           'Cache-Control': 'public, max-age=31536000, immutable',
-        }
+        },
+        fonts: [
+          {
+            name: 'Inter Variable',
+            data: interFont,
+            weight: 400,
+            style: 'normal',
+          }
+        ],
       }
     );
 
