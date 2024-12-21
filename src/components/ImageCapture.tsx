@@ -62,19 +62,42 @@ export default function ImageCapture() {
 
       // 并行执行两个操作
       const [shareCardUrl] = await Promise.all([
-        // 1. 生成分享卡片
+        // 1. 生成分��卡片
         generateShareCard({
           imageUrl: state.selectedImage,  // 直接使用前端的图片
           price: state.price,
           description: state.description,
           currency: state.currency
+        }).catch(error => {
+          console.error('Failed to generate share card:', {
+            error: error.message,
+            details: error,
+            requestData: {
+              imageUrl: state.selectedImage,
+              price: state.price,
+              description: state.description,
+              currency: state.currency
+            }
+          });
+          throw error;
         }),
         // 2. 保存到历史记录
         saveToHistory(
           state.price, 
           state.description, 
           state.selectedImage
-        )
+        ).catch(error => {
+          console.error('Failed to save to history:', {
+            error: error.message,
+            details: error,
+            requestData: {
+              price: state.price,
+              description: state.description,
+              imageUrl: state.selectedImage
+            }
+          });
+          throw error;
+        })
       ]);
 
       // 3. 下载分享卡片
@@ -86,7 +109,11 @@ export default function ImageCapture() {
       document.body.removeChild(link);
       URL.revokeObjectURL(shareCardUrl);
     } catch (error) {
-      console.error('Failed to export:', error);
+      console.error('Export operation failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      });
     }
   };
   return (
