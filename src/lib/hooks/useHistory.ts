@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 
-interface HistoryItem {
+export interface HistoryItem {
   _id: string;
   imageUrl: string;
   price: string;
