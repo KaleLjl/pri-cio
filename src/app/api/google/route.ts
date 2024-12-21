@@ -3,7 +3,6 @@ import formidable from 'formidable';
 import fs from 'fs/promises';
 import { Readable } from 'stream';
 import dotenv from 'dotenv';
-import { GoogleAuth } from 'google-auth-library';
 
 dotenv.config(); // Load environment variables
 
@@ -11,7 +10,6 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // OpenAI API Key
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const CUSTOM_SEARCH_API_KEY = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY;
 const SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
-const SERVICE_ACCOUNT_KEY_PATH = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH;
 
 export const config = {
   api: {
@@ -250,90 +248,4 @@ Humorous Price: <Numerical price here>
   const humorousPrice = humorousPriceMatch ? `$${humorousPriceMatch[1]}` : '$0';
 
   return [funnyDescription, humorousPrice];
-};
-
-// Function to analyze the image with Google Vision API
-const analyzeWithGoogleVision = async (filepath: string): Promise<string[]> => {
-  try {
-    const credentials = JSON.parse(
-      await fs.readFile(SERVICE_ACCOUNT_KEY_PATH as string, 'utf-8')
-    );
-
-    const auth = new GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-    });
-
-    const client = await auth.getClient();
-    const visionApiUrl = 'https://vision.googleapis.com/v1/images:annotate';
-
-    const base64Image = await encodeImageToBase64(filepath);
-
-    const requestBody = {
-      requests: [
-        {
-          image: { content: base64Image },
-          features: [
-            { type: 'FACE_DETECTION', maxResults: 15 },
-            { type: 'WEB_DETECTION', maxResults: 15 },
-            { type: 'LABEL_DETECTION', maxResults: 15 },
-            { type: 'OBJECT_LOCALIZATION', maxResults: 10 },
-          ],
-        },
-      ],
-    };
-
-    const response = await client.request({
-      url: visionApiUrl,
-      method: 'POST',
-      data: requestBody,
-    });
-
-    const result = response.data.responses[0];
-
-    if (!result) {
-      console.error('No response from Google Vision API');
-      return ['Unable to analyze'];
-    }
-
-    // Collect possible names from various features
-    const webEntities = result.webDetection?.webEntities || [];
-    const labelAnnotations = result.labelAnnotations || [];
-    const objectAnnotations = result.localizedObjectAnnotations || [];
-
-    const possibleNames: string[] = [];
-
-    // Extract names/descriptions from web entities
-    webEntities.forEach((entity: any) => {
-      if (entity.description && /^[A-Za-z\s]+$/.test(entity.description)) {
-        possibleNames.push(entity.description);
-      }
-    });
-
-    // Extract names/descriptions from label annotations
-    labelAnnotations.forEach((label: any) => {
-      if (label.description && /^[A-Za-z\s]+$/.test(label.description)) {
-        possibleNames.push(label.description);
-      }
-    });
-
-    // Extract names/descriptions from object annotations
-    objectAnnotations.forEach((object: any) => {
-      if (object.name && /^[A-Za-z\s]+$/.test(object.name)) {
-        possibleNames.push(object.name);
-      }
-    });
-
-    // Remove duplicates and filter out irrelevant terms
-    const uniqueNames = [...new Set(possibleNames)].filter((name) => 
-      name.split(' ').length >= 2 // Likely a full name
-    );
-
-    console.log('Possible names detected:', uniqueNames);
-
-    return uniqueNames.length > 0 ? uniqueNames : ['Unable to analyze'];
-  } catch (error) {
-    console.error('Error analyzing with Google Vision API:', error);
-    return ['Unable to analyze'];
-  }
 };
