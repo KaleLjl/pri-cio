@@ -10,127 +10,150 @@ export async function POST(request: Request) {
 
     const imageResponse = new ImageResponse(
       (
+        // 最外层容器 - 整个卡片的背景
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
-            width: '600px',
-            height: '800px',
-            backgroundColor: 'white',
-            padding: '32px',
-            borderRadius: '32px',
+            alignItems: 'center',
+            width: '1200px',
+            minHeight: '1600px',
+            backgroundColor: '#F3F4F6', // 浅灰色背景
+            padding: '64px',
           }}
         >
-          {/* 图片区域 */}
+          {/* 主要内容区域 - 白色卡片容器 */}
           <div
             style={{
               display: 'flex',
+              flexDirection: 'column',
               width: '100%',
-              height: '500px',
-              borderRadius: '24px',
-              overflow: 'hidden',
-              marginBottom: '32px',
+              backgroundColor: 'white',
+              padding: '64px',
+              borderRadius: '64px',
+              marginBottom: '80px',
             }}
           >
-            <img
-              src={imageUrl}
-              alt={description}
+            {/* 图片区域 */}
+            <div
               style={{
+                display: 'flex',
                 width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          </div>
-
-          {/* 价格 */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              marginBottom: '24px',
-            }}
-          >
-            <span
-              style={{
-                color: '#9333EA',
-                fontSize: '64px',
-                fontWeight: 'bold',
-                fontFamily: 'system-ui',
+                height: '900px',
+                borderRadius: '48px',
+                overflow: 'hidden',
+                marginBottom: '64px',
               }}
             >
-              {currency === 'USD' ? '$' : 
-               currency === 'GBP' ? '£' : 
-               currency === 'EUR' ? '€' : 
-               currency === 'CNY' ? '¥' : 
-               currency}{price}
-            </span>
+              <img
+                src={imageUrl}
+                alt={description}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  transform: 'rotate(90deg)',
+                  imageOrientation: 'from-image',
+                }}
+              />
+            </div>
+
+            {/* 价格显示区域 */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginBottom: '48px',
+              }}
+            >
+              <span
+                style={{
+                  color: '#9333EA',
+                  fontSize: '128px',
+                  fontWeight: 'bold',
+                  fontFamily: 'Arial, Helvetica, sans-serif',
+                }}
+              >
+                {currency === 'USD' ? '$' : 
+                 currency === 'GBP' ? '£' : 
+                 currency === 'EUR' ? '€' : 
+                 currency === 'CNY' ? '¥' : 
+                 currency}{price}
+              </span>
+            </div>
+
+            {/* 描述文本区域 */}
+            <p
+              style={{
+                color: '#4B5563',
+                fontSize: '48px',
+                textAlign: 'center',
+                margin: '0',
+                lineHeight: '1.5',
+                fontFamily: 'Arial, Helvetica, sans-serif',
+              }}
+            >
+              {description}
+            </p>
           </div>
 
-          {/* 描述 */}
-          <p
-            style={{
-              color: '#4B5563',
-              fontSize: '24px',
-              textAlign: 'center',
-              margin: '0',
-              lineHeight: '1.5',
-              fontFamily: 'system-ui',
-              marginBottom: '60px',
-            }}
-          >
-            {description}
-          </p>
-
-          {/* 底部品牌信息 */}
+          {/* 底部品牌标识区域 */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              position: 'absolute',
-              bottom: '32px',
-              left: '32px',
-              right: '32px',
               background: '#000000',
-              borderRadius: '16px',
-              padding: '12px 24px',
+              borderRadius: '32px',
+              padding: '24px 48px',
+              minWidth: '320px',
             }}
           >
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '32px',
               }}
             >
-              {/* Logo */}
               <img
                 src="https://pri-cio.co.uk/image/logo.png"
                 alt="Logo"
                 style={{
-                  width: '32px',
-                  height: '32px',
+                  width: '64px',
+                  height: '64px',
                 }}
               />
-              {/* 品牌名 */}
               <span
                 style={{
                   color: '#FFFFFF',
-                  fontSize: '18px',
+                  fontSize: '36px',
                   fontWeight: 'bold',
-                  fontFamily: 'system-ui',
+                  fontFamily: 'Arial, Helvetica, sans-serif',
                 }}
               >
                 PRICIO AI
               </span>
+              <img
+                src="https://pri-cio.co.uk/image/qrcode.png"
+                alt="QR Code"
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  marginLeft: '16px',
+                }}
+              />
             </div>
           </div>
         </div>
       ),
       {
-        width: 600,
-        height: 800,
+        width: 1200,
+        height: 2000,
+        headers: {
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        }
       }
     );
 
