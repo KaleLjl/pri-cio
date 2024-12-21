@@ -64,6 +64,11 @@ const Navigation: React.FC = () => {
                   className="pl-10 px-4 py-2 rounded-md border border-gray-300 bg-transparent focus:outline-none focus:border-gray-500 w-full"
                 />
               </div>
+              <Link href="/around" className="ml-4">
+                <button className="px-4 py-2 rounded-md bg-transparent border text-white hover:bg-gray-500">
+                  Around
+                </button>
+              </Link>
             </div>
           )}
 
