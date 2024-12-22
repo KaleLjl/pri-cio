@@ -108,7 +108,6 @@ export async function POST(request: Request) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 100%)',
               borderRadius: '64px',
               padding: '64px 96px',
               width: '100%',
@@ -165,8 +164,8 @@ export async function POST(request: Request) {
                   src="https://pri-cio.co.uk/image/qrcode.png"
                   alt="QR Code"
                   style={{
-                    width: '240px',
-                    height: '240px',
+                    width: '300px',
+                    height: '300px',
                   }}
                 />
               </div>
