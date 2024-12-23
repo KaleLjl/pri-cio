@@ -16,11 +16,10 @@ export async function POST(request: Request) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            width: '2400px',
-            minHeight: '3200px',
+            width: '1200px',
+            minHeight: '1600px',
             backgroundColor: '#000000',
-            padding: '128px',
-            // 若需要进一步兼容，可尝试把 padding 改为数值，如 padding: 128
+            padding: '64px',
           }}
         >
           {/* 主要内容区域 - 白色卡片容器 */}
@@ -30,19 +29,19 @@ export async function POST(request: Request) {
               flexDirection: 'column',
               width: '100%',
               background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)',
-              padding: '128px',
-              borderRadius: '128px',
+              padding: '64px',
+              borderRadius: '64px',
               marginBottom: '80px',
               boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
             }}
           >
-            {/* 图片区域 */}
+            {/* 图片区�� */}
             <div
               style={{
                 display: 'flex',
                 width: '100%',
-                height: '1800px',
-                borderRadius: '96px',
+                height: '900px',
+                borderRadius: '48px',
                 overflow: 'hidden',
                 marginBottom: '64px',
               }}
@@ -71,7 +70,7 @@ export async function POST(request: Request) {
               <span
                 style={{
                   color: '#9333EA',
-                  fontSize: '256px',
+                  fontSize: '128px',
                   fontWeight: 'bold',
                   fontFamily: 'sans-serif',
                 }}
@@ -91,7 +90,7 @@ export async function POST(request: Request) {
             <p
               style={{
                 color: '#4B5563',
-                fontSize: '96px',
+                fontSize: '48px',
                 textAlign: 'center',
                 margin: '0',
                 lineHeight: '1.5',
@@ -108,10 +107,10 @@ export async function POST(request: Request) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: '64px',
-              padding: '64px 96px',
+              borderRadius: '32px',
+              padding: '32px 48px',
               width: '100%',
-              minHeight: '320px',
+              minHeight: '160px',
               fontFamily: 'sans-serif',
             }}
           >
@@ -128,24 +127,22 @@ export async function POST(request: Request) {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '32px',
-                  flex: 1,
+                  gap: '16px',
                 }}
               >
                 <img
                   src="https://pri-cio.co.uk/image/logo.png"
                   alt="Logo"
                   style={{
-                    width: '200px',
-                    height: '200px',
+                    width: '100px',
+                    height: '100px',
                   }}
                 />
                 <span
                   style={{
                     color: '#FFFFFF',
-                    fontSize: '96px',
+                    fontSize: '48px',
                     fontWeight: 'bold',
-                    // fontFamily: 'sans-serif',
                   }}
                 >
                   PRICIO AI
@@ -153,19 +150,13 @@ export async function POST(request: Request) {
               </div>
 
               {/* 右侧二维码区域 */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  flex: 1,
-                }}
-              >
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <img
                   src="https://pri-cio.co.uk/image/qrcode.png"
                   alt="QR Code"
                   style={{
-                    width: '300px',
-                    height: '300px',
+                    width: '150px',
+                    height: '150px',
                   }}
                 />
               </div>
@@ -174,9 +165,8 @@ export async function POST(request: Request) {
         </div>
       ),
       {
-        // 你可以根据需要调整宽高
-        width: 2400,
-        height: 4000,
+        width: 1200,
+        height: 2000,
       }
     );
 

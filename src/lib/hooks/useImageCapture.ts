@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import imageCompression from 'browser-image-compression';
-import heic2any from 'heic2any';
 
 interface ImageCaptureState {
   selectedImage: string | null;
@@ -34,27 +33,6 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const [currency, setCurrencyState] = useState<string>('USD');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
-
-
-  const convertHeicToJpeg = async (blob: Blob): Promise<Blob> => {
-    try {
-      console.log('Checking image type:', blob.type);
-      if (blob.type === 'image/heic' || blob.type === 'image/heif') {
-        console.log('Converting HEIC/HEIF to JPEG...');
-        const convertedBlob = await heic2any({
-          blob,
-          toType: 'image/jpeg',
-          quality: 0.8
-        });
-        return convertedBlob as Blob;
-      }
-      return new File([blob], "original.jpg", { type: blob.type });
-    } catch (error) {
-      console.error('HEIC conversion failed:', error);
-      throw error;
-    }
-  };
 
   const compressImageIfNeeded = async (blob: Blob): Promise<Blob> => {
     console.log('Original size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB');
@@ -124,15 +102,9 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
         throw new Error('No image selected');
       }
 
-      // Step 1: Convert base64 to blob for HEIC check
+      // 直接获取 blob 并压缩
       const initialBlob = await (await fetch(selectedImage)).blob();
-
-      
-      // Step 2: Convert HEIC to JPEG if needed
-      const heicProcessed = await convertHeicToJpeg(initialBlob);
-      
-      // Step 3: Compress if needed
-      const finalProcessed = await compressImageIfNeeded(heicProcessed);
+      const finalProcessed = await compressImageIfNeeded(initialBlob);
       
       // Convert final blob back to base64 for API request
       const finalBase64 = await imageCompression.getDataUrlFromFile(new File([finalProcessed], "processed.jpg", { type: finalProcessed.type }));
