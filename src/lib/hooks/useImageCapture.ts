@@ -35,8 +35,11 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const convertHeicToJpeg = async (blob: Blob): Promise<string> => {
+
+
+  const convertHeicToJpeg = async (blob: Blob): Promise<Blob> => {
     try {
+      console.log('Checking image type:', blob.type);
       if (blob.type === 'image/heic' || blob.type === 'image/heif') {
         console.log('Converting HEIC/HEIF to JPEG...');
         const convertedBlob = await heic2any({
@@ -44,40 +47,49 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
           toType: 'image/jpeg',
           quality: 0.8
         });
-        return await imageCompression.getDataUrlFromFile(convertedBlob as File);
+        return convertedBlob as Blob;
       }
-      return await imageCompression.getDataUrlFromFile(new File([blob], "original.jpg", { type: blob.type }));
+      return new File([blob], "original.jpg", { type: blob.type });
     } catch (error) {
       console.error('HEIC conversion failed:', error);
       throw error;
     }
   };
 
-  const compressImageIfNeeded = async (imageDataUrl: string): Promise<string> => {
-    const response = await fetch(imageDataUrl);
-    const blob = await response.blob();
+  const compressImageIfNeeded = async (blob: Blob): Promise<Blob> => {
+    console.log('Original size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB');
     
-    console.log('Checking image size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB');
-    
-    if (blob.size > 4.5 * 1024 * 1024) {
-      console.log('Image size before compression:', (blob.size / 1024 / 1024).toFixed(2) + 'MB');
+    if (blob.size > 1 * 1024 * 1024) {
+      console.log('Starting compression...');
       const options = {
-        maxSizeMB: 4,
+        maxSizeMB: 1,
         maxWidthOrHeight: 1920,
-        useWebWorker: true
+        useWebWorker: false,
+        initialQuality: 0.7
       };
       
       try {
-        const compressedBlob = await imageCompression(new File([blob], "compressed.jpg", { type: blob.type }), options);
-        console.log('Image size after compression:', (compressedBlob.size / 1024 / 1024).toFixed(2) + 'MB');
-        return await imageCompression.getDataUrlFromFile(compressedBlob);
+        const file = new File([blob], "compressed.jpg", { type: 'image/jpeg' });
+        console.log('Pre-compression size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+        
+        let compressedBlob;
+        try {
+          compressedBlob = await imageCompression(file, options);
+          console.log('Post-compression size:', (compressedBlob.size / 1024 / 1024).toFixed(2) + 'MB');
+          console.log('Compression ratio:', ((1 - compressedBlob.size / file.size) * 100).toFixed(1) + '%');
+        } catch (compressionError) {
+          console.error('Compression operation failed:', compressionError);
+          return blob;
+        }
+
+        return compressedBlob;
       } catch (error) {
-        console.error('Image compression failed:', error);
-        return imageDataUrl;
+        console.error('Overall compression process failed:', error);
+        return blob;
       }
     }
     
-    return imageDataUrl;
+    return blob;
   };
 
   const uploadImageFromDevice = () => {
@@ -113,8 +125,8 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
       }
 
       // Step 1: Convert base64 to blob for HEIC check
-      const initialResponse = await fetch(selectedImage);
-      const initialBlob = await initialResponse.blob();
+      const initialBlob = await (await fetch(selectedImage)).blob();
+
       
       // Step 2: Convert HEIC to JPEG if needed
       const heicProcessed = await convertHeicToJpeg(initialBlob);
@@ -122,10 +134,13 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
       // Step 3: Compress if needed
       const finalProcessed = await compressImageIfNeeded(heicProcessed);
       
+      // Convert final blob back to base64 for API request
+      const finalBase64 = await imageCompression.getDataUrlFromFile(new File([finalProcessed], "processed.jpg", { type: finalProcessed.type }));
+      
       const response = await fetch('/api/gpt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedImage: finalProcessed, currency }),
+        body: JSON.stringify({ selectedImage: finalBase64, currency }),
       });
 
       if (!response.ok) throw new Error('Failed to analyze image');
