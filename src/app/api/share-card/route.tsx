@@ -16,10 +16,10 @@ export async function POST(request: Request) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            width: '1200px',
-            minHeight: '1600px',
+            width: '900px',
+            minHeight: '1200px',
             backgroundColor: '#000000',
-            padding: '64px',
+            padding: '48px',
           }}
         >
           {/* 主要内容区域 - 白色卡片容器 */}
@@ -29,21 +29,21 @@ export async function POST(request: Request) {
               flexDirection: 'column',
               width: '100%',
               background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)',
-              padding: '64px',
-              borderRadius: '64px',
-              marginBottom: '80px',
+              padding: '48px',
+              borderRadius: '48px',
+              marginBottom: '40px',
               boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
             }}
           >
-            {/* 图片区�� */}
+            {/* 图片区域 */}
             <div
               style={{
                 display: 'flex',
                 width: '100%',
-                height: '900px',
-                borderRadius: '48px',
+                height: '675px',
+                borderRadius: '36px',
                 overflow: 'hidden',
-                marginBottom: '64px',
+                marginBottom: '48px',
               }}
             >
               <img
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
               <span
                 style={{
                   color: '#9333EA',
-                  fontSize: '128px',
+                  fontSize: '96px',
                   fontWeight: 'bold',
                   fontFamily: 'sans-serif',
                 }}
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
             <p
               style={{
                 color: '#4B5563',
-                fontSize: '48px',
+                fontSize: '36px',
                 textAlign: 'center',
                 margin: '0',
                 lineHeight: '1.5',
@@ -107,10 +107,10 @@ export async function POST(request: Request) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: '32px',
-              padding: '32px 48px',
+              borderRadius: '24px',
+              padding: '24px 36px',
               width: '100%',
-              minHeight: '160px',
+              minHeight: '120px',
               fontFamily: 'sans-serif',
             }}
           >
@@ -127,21 +127,21 @@ export async function POST(request: Request) {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '16px',
+                  gap: '12px',
                 }}
               >
                 <img
                   src="https://pri-cio.co.uk/image/logo.png"
                   alt="Logo"
                   style={{
-                    width: '100px',
-                    height: '100px',
+                    width: '75px',
+                    height: '75px',
                   }}
                 />
                 <span
                   style={{
                     color: '#FFFFFF',
-                    fontSize: '48px',
+                    fontSize: '36px',
                     fontWeight: 'bold',
                   }}
                 >
@@ -155,8 +155,8 @@ export async function POST(request: Request) {
                   src="https://pri-cio.co.uk/image/qrcode.png"
                   alt="QR Code"
                   style={{
-                    width: '150px',
-                    height: '150px',
+                    width: '112px',
+                    height: '112px',
                   }}
                 />
               </div>
@@ -165,8 +165,8 @@ export async function POST(request: Request) {
         </div>
       ),
       {
-        width: 1200,
-        height: 2000,
+        width: 900,
+        height: 1500,
       }
     );
 
