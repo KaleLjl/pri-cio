@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+import imageCompression from 'browser-image-compression';
+import heic2any from 'heic2any';
 
 interface ImageCaptureState {
   selectedImage: string | null;
@@ -33,6 +35,51 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const convertHeicToJpeg = async (blob: Blob): Promise<string> => {
+    try {
+      if (blob.type === 'image/heic' || blob.type === 'image/heif') {
+        console.log('Converting HEIC/HEIF to JPEG...');
+        const convertedBlob = await heic2any({
+          blob,
+          toType: 'image/jpeg',
+          quality: 0.8
+        });
+        return await imageCompression.getDataUrlFromFile(convertedBlob as File);
+      }
+      return await imageCompression.getDataUrlFromFile(new File([blob], "original.jpg", { type: blob.type }));
+    } catch (error) {
+      console.error('HEIC conversion failed:', error);
+      throw error;
+    }
+  };
+
+  const compressImageIfNeeded = async (imageDataUrl: string): Promise<string> => {
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    
+    console.log('Checking image size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB');
+    
+    if (blob.size > 4.5 * 1024 * 1024) {
+      console.log('Image size before compression:', (blob.size / 1024 / 1024).toFixed(2) + 'MB');
+      const options = {
+        maxSizeMB: 4,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true
+      };
+      
+      try {
+        const compressedBlob = await imageCompression(new File([blob], "compressed.jpg", { type: blob.type }), options);
+        console.log('Image size after compression:', (compressedBlob.size / 1024 / 1024).toFixed(2) + 'MB');
+        return await imageCompression.getDataUrlFromFile(compressedBlob);
+      } catch (error) {
+        console.error('Image compression failed:', error);
+        return imageDataUrl;
+      }
+    }
+    
+    return imageDataUrl;
+  };
+
   const uploadImageFromDevice = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -61,10 +108,24 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const analyzeImageWithAI = async () => {
     setIsLoading(true);
     try {
+      if (!selectedImage) {
+        throw new Error('No image selected');
+      }
+
+      // Step 1: Convert base64 to blob for HEIC check
+      const initialResponse = await fetch(selectedImage);
+      const initialBlob = await initialResponse.blob();
+      
+      // Step 2: Convert HEIC to JPEG if needed
+      const heicProcessed = await convertHeicToJpeg(initialBlob);
+      
+      // Step 3: Compress if needed
+      const finalProcessed = await compressImageIfNeeded(heicProcessed);
+      
       const response = await fetch('/api/gpt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedImage, currency }),
+        body: JSON.stringify({ selectedImage: finalProcessed, currency }),
       });
 
       if (!response.ok) throw new Error('Failed to analyze image');
@@ -77,6 +138,7 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
       setDescriptionState(data.description);
       setPriceState(data.price.toString());
     } catch (error) {
+      console.error('Analysis error:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Unable to analyze this image');
       setShowErrorModal(true);
     } finally {

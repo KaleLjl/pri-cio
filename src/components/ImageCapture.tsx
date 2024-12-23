@@ -62,7 +62,7 @@ export default function ImageCapture() {
 
       // 并行执行两个操作
       const [shareCardUrl] = await Promise.all([
-        // 1. 生成分��卡片
+        // 1. 生成卡片
         generateShareCard({
           imageUrl: state.selectedImage,  // 直接使用前端的图片
           price: state.price,
