@@ -4,7 +4,7 @@ import { z } from "zod";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth"
 
-export const maxDuration = 3; // This function can run for a maximum of 3 seconds
+export const maxDuration = 10; // This function can run for a maximum of 10 seconds
 const openai = new OpenAI();
 const CUSTOM_SEARCH_API_KEY = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY;
 const SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
