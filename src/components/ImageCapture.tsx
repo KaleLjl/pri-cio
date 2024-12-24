@@ -62,7 +62,7 @@ export default function ImageCapture() {
 
       // 并行执行两个操作
       const [shareCardUrl] = await Promise.all([
-        // 1. 生成卡片
+        // 1. 生成卡��
         generateShareCard({
           imageUrl: state.selectedImage,  // 直接使用前端的图片
           price: state.price,
@@ -139,7 +139,7 @@ export default function ImageCapture() {
             )}
           </div>
           
-          {/* 货币选择栏只在没有价格和描述时显示 */}
+          {/* 货币选择��只在没有价格和描述时显示 */}
           {!state.description && !state.price && (
             <div className="flex justify-center">
               <select
@@ -188,6 +188,11 @@ export default function ImageCapture() {
                   className="object-cover"
                   unoptimized
                 />
+                {state.isLoading && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+                  </div>
+                )}
               </div>
             ) : (
               <div 
