@@ -20,6 +20,17 @@ const PriceDescription = z.object({
   price: z.number()
 })
 
+// 添加搜索结果的类型定义
+interface SearchItem {
+  title: string;
+  snippet: string;
+}
+
+interface SearchResult {
+  snippet: string;
+  prices: string[];
+}
+
 export async function POST(request: Request) {
   try {
     const session = await auth()
@@ -84,7 +95,7 @@ export async function POST(request: Request) {
 
     if (!isHumanFace) {
       const searchResults = await fetchSearchResults(objectDescription);
-      const contexts = searchResults.map((result: any) => result.snippet).join('\n\n');
+      const contexts = searchResults.map((result: SearchResult) => result.snippet).join('\n\n');
 
       const completion = await openai.beta.chat.completions.parse({
         model: "gpt-4o-mini",
@@ -117,7 +128,7 @@ export async function POST(request: Request) {
 }
 
 // Google search helper function
-async function fetchSearchResults(query: string) {
+async function fetchSearchResults(query: string): Promise<SearchResult[]> {
   const dynamicQuery = `${query} price cost`;
   const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(dynamicQuery)}&key=${CUSTOM_SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}`;
 
@@ -132,12 +143,12 @@ async function fetchSearchResults(query: string) {
   const pricePattern = /(?:[£$€¥]\s?\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?|\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?\s?[£$€¥])/g;
 
   return data.items
-    .map((item: any) => {
+    .map((item: SearchItem) => {
       const text = `${item.title} ${item.snippet}`;
       const prices = text.match(pricePattern);
       return prices ? { snippet: item.snippet, prices } : null;
     })
-    .filter(Boolean);
+    .filter((item: SearchResult | null): item is SearchResult => item !== null);
 }
 
 
