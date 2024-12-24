@@ -31,9 +31,7 @@ export default function LandingContent() {
   }, []);
 
   const handleNavigation = (path: string) => {
-    setTimeout(() => {
-      router.push(path);
-    }, 1000);
+    router.push(path);
   };
 
   return (
