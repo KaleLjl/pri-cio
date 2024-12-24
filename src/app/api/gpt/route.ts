@@ -33,14 +33,20 @@ interface SearchResult {
 
 export async function POST(request: Request) {
   try {
+    console.log('🚀 Starting image analysis process...');
+    
     const session = await auth()
     if (!session) {
+      console.log('❌ Authentication failed');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    console.log('✅ Authentication successful');
 
     const { selectedImage, currency } = await request.json()
+    console.log('📸 Received image and currency:', { currency });
 
     // Step 1: Initial image analysis
+    console.log('🔍 Starting initial image analysis...');
     const initialAnalysis = await openai.beta.chat.completions.parse({
       model: "gpt-4o-mini",
       messages: [
@@ -66,9 +72,11 @@ export async function POST(request: Request) {
     if (!content) throw new Error('No content received from OpenAI');
     
     const { objectDescription, isHumanFace } = JSON.parse(content);
+    console.log('📝 Initial analysis complete:', { isHumanFace, objectDescription });
 
     // Step 2: Handle based on content type
     if (isHumanFace) {
+      console.log('👤 Processing human face...');
       const completion = await openai.beta.chat.completions.parse({
         model: "gpt-4o-mini",
         messages: [
@@ -90,12 +98,17 @@ export async function POST(request: Request) {
       const content = completion.choices[0].message.content;
       if (!content) throw new Error('No content received from OpenAI');
       
+      console.log('✨ Face analysis complete');
       return NextResponse.json(JSON.parse(content));
     }
 
     if (!isHumanFace) {
+      console.log('🔎 Starting market research for object...');
       const searchResults = await fetchSearchResults(objectDescription);
+      console.log('📊 Search results retrieved:', searchResults.length);
+
       const contexts = searchResults.map((result: SearchResult) => result.snippet).join('\n\n');
+      console.log('💡 Generating price analysis...');
 
       const completion = await openai.beta.chat.completions.parse({
         model: "gpt-4o-mini",
@@ -118,17 +131,19 @@ export async function POST(request: Request) {
       const content = completion.choices[0].message.content;
       if (!content) throw new Error('No content received from OpenAI');
       
+      console.log('✅ Object analysis complete');
       return NextResponse.json(JSON.parse(content));
     }
 
   } catch (error) {
-    console.error('Error processing image:', error)
+    console.error('❌ Error processing image:', error)
     return NextResponse.json({ error: 'Failed to process image' }, { status: 500 })
   }
 }
 
 // Google search helper function
 async function fetchSearchResults(query: string): Promise<SearchResult[]> {
+  console.log('🔍 Starting Google search for:', query);
   const dynamicQuery = `${query} price cost`;
   const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(dynamicQuery)}&key=${CUSTOM_SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}`;
 
@@ -136,10 +151,11 @@ async function fetchSearchResults(query: string): Promise<SearchResult[]> {
   const data = await response.json();
 
   if (!response.ok || !data.items) {
-    console.error('Google Custom Search API Error:', data);
+    console.error('❌ Google Custom Search API Error:', data);
     return [];
   }
 
+  console.log('✅ Search results processed successfully');
   const pricePattern = /(?:[£$€¥]\s?\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?|\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?\s?[£$€¥])/g;
 
   return data.items
