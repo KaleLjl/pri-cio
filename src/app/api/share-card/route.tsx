@@ -53,8 +53,6 @@ export async function POST(request: Request) {
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  transform: 'rotate(90deg)',
-                  imageOrientation: 'from-image',
                 }}
               />
             </div>
@@ -76,8 +74,8 @@ export async function POST(request: Request) {
                 }}
               >
                 {
-                  currency === 'USD' ? '$' : 
                   currency === 'GBP' ? '£' : 
+                  currency === 'USD' ? '$' : 
                   currency === 'EUR' ? '€' : 
                   currency === 'CNY' ? '¥' : 
                   currency

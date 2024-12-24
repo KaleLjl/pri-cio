@@ -34,10 +34,46 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const resetOrientation = async (blob: Blob): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 设置正确的画布尺寸
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // 在画布上绘制图像
+        ctx?.drawImage(img, 0, 0);
+        
+        // 将画布内容转换为Blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Canvas to Blob conversion failed'));
+            }
+          },
+          'image/jpeg',
+          0.95
+        );
+      };
+      
+      img.onerror = () => reject(new Error('Image loading failed'));
+      img.src = URL.createObjectURL(blob);
+    });
+  };
+
   const compressImageIfNeeded = async (blob: Blob): Promise<Blob> => {
     console.log('Original size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB');
     
-    if (blob.size > 1 * 1024 * 1024) {
+    // 首先重置方向
+    const orientationFixedBlob = await resetOrientation(blob);
+    
+    if (orientationFixedBlob.size > 1 * 1024 * 1024) {
       console.log('Starting compression...');
       const options = {
         maxSizeMB: 1,
@@ -47,7 +83,7 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
       };
       
       try {
-        const file = new File([blob], "compressed.jpg", { type: 'image/jpeg' });
+        const file = new File([orientationFixedBlob], "compressed.jpg", { type: 'image/jpeg' });
         console.log('Pre-compression size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
         
         let compressedBlob;
@@ -57,17 +93,17 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
           console.log('Compression ratio:', ((1 - compressedBlob.size / file.size) * 100).toFixed(1) + '%');
         } catch (compressionError) {
           console.error('Compression operation failed:', compressionError);
-          return blob;
+          return orientationFixedBlob;
         }
 
         return compressedBlob;
       } catch (error) {
         console.error('Overall compression process failed:', error);
-        return blob;
+        return orientationFixedBlob;
       }
     }
     
-    return blob;
+    return orientationFixedBlob;
   };
 
   const uploadImageFromDevice = () => {
@@ -77,17 +113,24 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
     input.style.display = 'none';
     document.body.appendChild(input);
     
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const result = e.target?.result;
-          if (typeof result === 'string') {
-            setSelectedImage(result);
-          }
-        };
-        reader.readAsDataURL(file);
+        try {
+          // 先处理方向并压缩
+          const processedBlob = await compressImageIfNeeded(file);
+          // 转换为 base64
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const result = e.target?.result;
+            if (typeof result === 'string') {
+              setSelectedImage(result);
+            }
+          };
+          reader.readAsDataURL(processedBlob);
+        } catch (error) {
+          console.error('Error processing image:', error);
+        }
       }
       document.body.removeChild(input);
     };
