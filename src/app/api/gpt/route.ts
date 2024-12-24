@@ -111,6 +111,41 @@ export async function POST(request: Request) {
       const searchResults = await fetchSearchResults(objectDescription);
       console.log('📊 Search results retrieved:', searchResults.length);
 
+      // Add this check for empty search results
+      if (searchResults.length === 0) {
+        console.log('⚠️ No market data found, using base analysis...');
+        const completion = await openai.beta.chat.completions.parse({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: `You are an assistant tasked with estimating the price of an object without market data.
+              Based on the object's apparent quality, brand, condition and general market knowledge,
+              provide a reasonable price estimate in ${currency}.
+              Note that this is an estimate without current market data.
+              Your response should be concise (under 100 characters) and include both a brief description and an estimated price.`
+            },
+            { 
+              role: "user", 
+              content: [
+                { type: "text", text: "What's a reasonable price estimate for this item?" },
+                { type: "image_url", image_url: { url: selectedImage } }
+              ]
+            }
+          ],
+          response_format: zodResponseFormat(PriceDescription, "object"),
+        });
+
+        const content = completion.choices[0].message.content;
+        if (!content) throw new Error('No content received from OpenAI');
+        
+        console.log('✅ Base price estimation complete');
+        return NextResponse.json({
+          ...JSON.parse(content),
+          note: "Estimated price without market data"
+        });
+      }
+
       const contexts = searchResults.map((result: SearchResult) => result.snippet).join('\n\n');
       console.log('💡 Generating price analysis...');
 
