@@ -6,8 +6,8 @@ import { useShareCard } from '@/lib/hooks/useShareCard';
 
 // 提取常量
 const CURRENCIES = [
-  { value: 'USD', label: '$ USD', symbol: '$' },
   { value: 'GBP', label: '£ GBP', symbol: '£' },
+  { value: 'USD', label: '$ USD', symbol: '$' },
   { value: 'EUR', label: '€ EUR', symbol: '€' },
   { value: 'CNY', label: '¥ CNY', symbol: '¥' },
 ].map(curr => ({
@@ -62,7 +62,7 @@ export default function ImageCapture() {
 
       // 并行执行两个操作
       const [shareCardUrl] = await Promise.all([
-        // 1. 生成卡��
+        // 1. 生成卡
         generateShareCard({
           imageUrl: state.selectedImage,  // 直接使用前端的图片
           price: state.price,
