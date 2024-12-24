@@ -53,15 +53,15 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: `Analyze the image and determine if it contains a human face. 
-                Provide a detailed description of what you see. 
-                - If it is a product, specify the brand, model, and any identifiable details.
-                - If it is food, include the cuisine type, country of origin, and whether it is street food or fine dining.
-                - If it is a human face, specify the apparent gender, age group, and any notable features or expressions.`  },
+          content: `Analyze the picture first in detail, and try to guess the name of the thing is in a few words without description. 
+          For example, if the thing is a car, try to analyze what brand, model, year it is. 
+          For items, try to guess the series, brand, size, and year.
+          If recognize as human faces return "Human Face"`
+        },
         { 
           role: "user", 
           content: [
-            { type: "text", text: "What do you see in this image? Is it a human face?" },
+            { type: "text", text: "What do you see in this image?" },
             { type: "image_url", image_url: { url: selectedImage } }
           ]
         }
@@ -83,7 +83,10 @@ export async function POST(request: Request) {
         messages: [
           {
             role: "system",
-            content: `Be funny! Give a playful description and price in ${currency} for this face. Within 100 characteristic `
+            content: `You are a creative and humorous assistant. A photo of a human face has been detected.
+            Generate a funny and witty description of the person and a humorous price estimate that reflects the person's "value" in ${currency}.
+            Use normal speaking tone and a touch of humor, but don't use difficult words.
+            Keep descriptions concise under 100 characters, avoiding anything inappropriate or overly critical.`
           },
           { 
             role: "user", 
@@ -116,7 +119,12 @@ export async function POST(request: Request) {
         messages: [
           {
             role: "system",
-            content: `Analyze the object and market research. Provide a concise description and price in ${currency}. Keep response within 100 characters:\n\n${contexts}`
+            content: `You are an assistant tasked with extracting the most accurate and reliable price of an object.
+            Analyze the following market research carefully and provide the most relevant price in ${currency} based on reliability and context.
+            Your response should be concise (under 100 characters) and include both a brief description and the most accurate price.
+            
+            Market Research:
+            ${contexts}`
           },
           { 
             role: "user", 
