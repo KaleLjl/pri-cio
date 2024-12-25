@@ -12,7 +12,7 @@ const SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
 // Initial analysis schema
 const InitialAnalysis = z.object({
   objectDescription: z.string(),
-  isHumanFace: z.boolean()
+  tradable: z.boolean()
 })
 
 // Final price analysis schema
@@ -49,14 +49,42 @@ export async function POST(request: Request) {
     // Step 1: Initial image analysis
     console.log('🔍 Starting initial image analysis...');
     const initialAnalysis = await openai.beta.chat.completions.parse({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `Analyze the picture first in detail, and try to guess the name of the thing is in a few words without description. 
-          For example, if the thing is a car, try to analyze what brand, model, year it is. 
-          For items, try to guess the series, brand, size, and year.
-          If recognize as human faces return "Human Face"`
+          content: `Analyze the picture in detail and provide a concise identification:
+          
+          1. If it's a product:
+             - Always include the brand name if recognizable
+             - Include model/series name if applicable
+             - Include year if identifiable
+             Format example: "Nike Air Jordan 1 2024" or "Apple iPhone 15 Pro"
+          
+          2. If it's a generic item without clear branding:
+             - Provide the most specific description possible
+             Format example: "Leather Office Chair" or "Stainless Steel Watch"
+          
+          3. Determine if the item is tradable by these rules:
+             Return tradable=false for:
+             - Human faces, body parts, or personal photos
+             - Prepared food or perishable items
+             - Natural scenery (mountains, sunset, etc.)
+             - Buildings or architectural structures
+             - Screenshots or digital content
+             - Abstract concepts or artwork
+             - Living creatures (pets, plants, etc.)
+             
+             Return tradable=true for:
+             - Consumer products with clear branding
+             - Electronics and gadgets
+             - Clothing and accessories
+             - Furniture and home goods
+             - Vehicles and parts
+             - Collectibles and merchandise
+             - Tools and equipment
+          
+          Keep the response brief and focused on identification only.`
         },
         { 
           role: "user", 
@@ -72,19 +100,19 @@ export async function POST(request: Request) {
     const content = initialAnalysis.choices[0].message.content;
     if (!content) throw new Error('No content received from OpenAI');
     
-    const { objectDescription, isHumanFace } = JSON.parse(content);
-    console.log('📝 Initial analysis complete:', { isHumanFace, objectDescription });
+    const { objectDescription, tradable } = JSON.parse(content);
+    console.log('📝 Initial analysis complete:', { tradable, objectDescription });
 
     // Step 2: Handle based on content type
-    if (isHumanFace) {
-      console.log('👤 Processing human face...');
+    if (!tradable) {
+      console.log('🎨 Processing non-tradable item...');
       const completion = await openai.beta.chat.completions.parse({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: `You are a creative and humorous assistant. A photo of a human face has been detected.
-            Generate a funny and witty description of the person and a humorous price estimate that reflects the person's "value" in ${currency}.
+            content: `You are a creative and humorous assistant. A non-tradable item (like a human face, food, building, tree, etc.) has been detected.
+            Generate a funny and witty description and a humorous symbolic "value" in ${currency}.
             Use normal speaking tone and a touch of humor, but don't use difficult words.
             Keep descriptions concise under 100 characters, avoiding anything inappropriate or overly critical.`
           },
@@ -106,29 +134,45 @@ export async function POST(request: Request) {
       return NextResponse.json(JSON.parse(content));
     }
 
-    if (!isHumanFace) {
-      console.log('🔎 Starting market research for object...');
-      const searchResults = await fetchSearchResults(objectDescription);
-      console.log('📊 Search results retrieved:', searchResults.length);
+    if (tradable) {
+      console.log('🔎 Starting market research for:', objectDescription);
+      const searchResults = await fetchSearchResults(objectDescription, currency);
+      console.log('📊 Market research summary:', {
+        resultsFound: searchResults.length,
+        hasValidPrices: searchResults.length > 0,
+        firstResult: searchResults[0]?.snippet.substring(0, 100) + '...'
+      });
 
       // Add this check for empty search results
       if (searchResults.length === 0) {
-        console.log('⚠️ No market data found, using base analysis...');
+        console.log('⚠️ No market data found, falling back to base analysis...');
         const completion = await openai.beta.chat.completions.parse({
           model: "gpt-4o-mini",
           messages: [
             {
               role: "system",
-              content: `You are an assistant tasked with estimating the price of an object without market data.
-              Based on the object's apparent quality, brand, condition and general market knowledge,
-              provide a reasonable price estimate in ${currency}.
-              Note that this is an estimate without current market data.
-              Your response should be concise (under 100 characters) and include both a brief description and an estimated price.`
+              content: `You are an assistant tasked with estimating the second-hand market price for: "${objectDescription}".
+              
+              Consider the following factors for your estimation:
+              - Brand value and market positioning
+              - Apparent condition from the image
+              - Age and wear level visible in the image
+              - Current retail price trends for similar items
+              - Standard depreciation for this type of item
+              
+              Provide a conservative second-hand market price estimate in ${currency}.
+              Your response should be concise (under 100 characters) and include:
+              - Brief description maintaining the brand/model information
+              - Estimated second-hand price
+              
+              Example format:
+              description: "Used Nike Air Jordan 1 (Good condition)"
+              price: 180`
             },
             { 
               role: "user", 
               content: [
-                { type: "text", text: "What's a reasonable price estimate for this item?" },
+                { type: "text", text: "Based on the image, what's a fair second-hand market price?" },
                 { type: "image_url", image_url: { url: selectedImage } }
               ]
             }
@@ -147,24 +191,33 @@ export async function POST(request: Request) {
       }
 
       const contexts = searchResults.map((result: SearchResult) => result.snippet).join('\n\n');
-      console.log('💡 Generating price analysis...');
+      console.log('💡 Generating price analysis with', searchResults.length, 'market references');
 
       const completion = await openai.beta.chat.completions.parse({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: `You are an assistant tasked with extracting the most accurate and reliable price of an object.
-            Analyze the following market research carefully and provide the most relevant price in ${currency} based on reliability and context.
-            Your response should be concise (under 100 characters) and include both a brief description and the most accurate price.
+            content: `You are an assistant tasked with determining the most accurate second-hand market price for: "${objectDescription}".
             
-            Market Research:
+            Based on the provided market research and the item's image:
+            1. Compare the item's condition in the image with market listings
+            2. Consider the brand value and market positioning
+            3. Account for visible wear and age
+            4. Analyze the price trends in the following market data
+            
+            Provide a conservative second-hand market price in ${currency} based on the most reliable data.
+            Your response should be concise (under 100 characters) and include:
+            - Brief description maintaining the brand/model information
+            - Current second-hand market price
+            
+            Market Research Data:
             ${contexts}`
           },
           { 
             role: "user", 
             content: [
-              { type: "text", text: "Based on the market research, what's an accurate description and price?" },
+              { type: "text", text: "Based on the market research and image, what's a fair second-hand market price?" },
               { type: "image_url", image_url: { url: selectedImage } }
             ]
           }
@@ -180,15 +233,22 @@ export async function POST(request: Request) {
     }
 
   } catch (error) {
+    console.error('❌ Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     console.error('❌ Error processing image:', error)
     return NextResponse.json({ error: 'Failed to process image' }, { status: 500 })
   }
 }
 
 // Google search helper function
-async function fetchSearchResults(query: string): Promise<SearchResult[]> {
+async function fetchSearchResults(query: string, currency: string): Promise<SearchResult[]> {
   console.log('🔍 Starting Google search for:', query);
-  const dynamicQuery = `${query} price cost`;
+  const dynamicQuery = `${query} price cost ${currency}`;
+  console.log('🔎 Full search query:', dynamicQuery);
+  
   const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(dynamicQuery)}&key=${CUSTOM_SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}`;
 
   const response = await fetch(url);
@@ -199,16 +259,27 @@ async function fetchSearchResults(query: string): Promise<SearchResult[]> {
     return [];
   }
 
-  console.log('✅ Search results processed successfully');
+  console.log(`📊 Found ${data.items.length} search results`);
   const pricePattern = /(?:[£$€¥]\s?\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?|\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?\s?[£$€¥])/g;
 
-  return data.items
+  const results = data.items
     .map((item: SearchItem) => {
       const text = `${item.title} ${item.snippet}`;
       const prices = text.match(pricePattern);
+      if (prices) {
+        console.log('💰 Found prices in result:', { title: item.title, prices });
+      }
       return prices ? { snippet: item.snippet, prices } : null;
     })
     .filter((item: SearchResult | null): item is SearchResult => item !== null);
+
+  console.log('✅ Search results processed:', {
+    totalResults: data.items.length,
+    resultsWithPrices: results.length,
+    samplePrices: results.slice(0, 3).map(r => r.prices).flat()
+  });
+  
+  return results;
 }
 
 
