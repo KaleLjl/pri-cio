@@ -234,12 +234,12 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('❌ Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
+      name: error instanceof Error ? error.name : 'Unknown error',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace'
     });
-    console.error('❌ Error processing image:', error)
-    return NextResponse.json({ error: 'Failed to process image' }, { status: 500 })
+    console.error('❌ Error processing image:', error);
+    return NextResponse.json({ error: 'Failed to process image' }, { status: 500 });
   }
 }
 
@@ -276,7 +276,7 @@ async function fetchSearchResults(query: string, currency: string): Promise<Sear
   console.log('✅ Search results processed:', {
     totalResults: data.items.length,
     resultsWithPrices: results.length,
-    samplePrices: results.slice(0, 3).map(r => r.prices).flat()
+    samplePrices: results.slice(0, 3).map((r: SearchResult) => r.prices).flat()
   });
   
   return results;
