@@ -10,7 +10,7 @@ interface DisplayHistoryProps {
 }
 
 export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
-  const { histories, isLoading, error, deleteHistory } = useHistory(initialHistories);
+  const { histories, isLoading, error, deleteHistory, postHistory } = useHistory(initialHistories);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   if (error) {
@@ -67,6 +67,16 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                         className="block w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-gray-100 rounded"
                       >
                         Delete
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          postHistory(history); // Call the post function
+                          setActiveDropdown(null);
+                        }}
+                        className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
+                      >
+                        Post
                       </button>
                     </div>
                   )}

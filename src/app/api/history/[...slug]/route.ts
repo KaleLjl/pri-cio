@@ -65,6 +65,12 @@ export async function DELETE(
       userEmail: session.user.email
     });
 
+    // Also delete the corresponding explore item
+    await db.collection("explore").deleteOne({
+      imageUrl: history.imageUrl, // Match the image URL to ensure the correct card is deleted
+      userEmail: session.user.email,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('API Error:', error);
