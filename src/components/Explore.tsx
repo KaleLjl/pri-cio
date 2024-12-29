@@ -11,14 +11,7 @@ interface DisplayExploreProps {
 
 export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
   const { explores, isLoading, error, fetchExplorePosts } = useExplore(initialExplores);
-  const [isNight, setIsNight] = useState(false);
   const [selectedCard, setSelectedCard] = useState<ExploreItem | null>(null);
-
-  // Determine if it is day or night based on the current time
-  useEffect(() => {
-    const hours = new Date().getHours();
-    setIsNight(hours < 6 || hours >= 18); // Night time: before 6 AM or after 6 PM
-  }, []);
 
   // Fetch posts when the component mounts
   useEffect(() => {
@@ -35,7 +28,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
 
   if (explores.length === 0) {
     return (
-      <div className={`min-h-screen ${isNight ? 'bg-black text-white' : 'bg-gray-50 text-gray-800'}`}>
+      <div className="min-h-screen bg-black text-white">
         <div className="text-center py-20">
           <h1 className="text-2xl font-bold">No posts available</h1>
         </div>
@@ -44,21 +37,18 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   }
 
   return (
-    <div className={`min-h-screen ${isNight ? 'bg-black' : 'bg-gray-50'}`}>
+    <div className="min-h-screen bg-black">
       {/* Header Spacer */}
-      <div
-        className={`py-6 ${isNight ? 'bg-black border-b border-gray-700' : 'bg-white shadow-md'}`}
-      >
+      <div className="py-6 bg-black border-b border-gray-700">
         {/* Empty spacer to preserve the header height */}
       </div>
-
       {/* Grid Layout */}
       <div className="p-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
         {explores.map((explore) => (
           <div key={explore._id} className="space-y-2">
             {/* Card */}
             <div
-              className={`rounded-[2rem] overflow-hidden cursor-pointer hover:scale-105 transition-transform shadow-md ${isNight ? 'bg-gray-800' : 'bg-white'}`}
+              className="rounded-[2rem] overflow-hidden cursor-pointer hover:scale-105 transition-transform shadow-md bg-gray-800"
               onClick={() => setSelectedCard(explore)}
             >
               <div className="relative w-full h-80">
@@ -75,10 +65,10 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
             </div>
             {/* Text Below Card */}
             <div className="text-center">
-              <p className={`text-sm font-medium ${isNight ? 'text-white' : 'text-gray-800'}`}>
+              <p className="text-sm font-medium text-white">
                 ${explore.price}
               </p>
-              <p className={`text-xs ${isNight ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className="text-xs text-gray-400">
                 {explore.description || 'No description available'}
               </p>
               <p className="text-xs text-gray-500">
