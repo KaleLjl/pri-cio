@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import LogoImage from '/public/image/logo.png';
 import { FaSearch } from 'react-icons/fa';
 
@@ -17,6 +17,11 @@ const Navigation: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const { data: session } = useSession();
   const pathname = usePathname();
+
+  // ********************************************************************************************************  
+  const [searchQuery, setSearchQuery] = useState<string>(''); // State for search query
+  const router = useRouter(); // For programmatic navigation
+  // ********************************************************************************************************  
 
   const navItems: NavItem[] = session
     ? [
@@ -40,6 +45,18 @@ const Navigation: React.FC = () => {
     setIsOpen(false);
   };
 
+  // ********************************************************************************************************  
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    // Update the URL dynamically if on the Explore page
+    if (pathname === '/explore') {
+      router.push(`/explore?search=${encodeURIComponent(query)}`);
+    }
+  };
+  // ********************************************************************************************************  
+
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-black bg-opacity-50 backdrop-blur-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -62,6 +79,12 @@ const Navigation: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Search..."
+
+                  // ********************************************************************************************************  
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  // ********************************************************************************************************  
+
                   className="pl-10 px-4 py-2 rounded-md border border-gray-300 bg-transparent focus:outline-none focus:border-gray-500 w-full text-white placeholder-gray-400"
                 />
               </div>

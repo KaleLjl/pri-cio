@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { ExploreItem } from '@/lib/types/explore';
+// ********************************************************************************************************  
+import { useSearchParams } from 'next/navigation';
+// ********************************************************************************************************  
 
 interface DisplayExploreProps {
   explores: ExploreItem[];
@@ -13,10 +16,32 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   const { explores, isLoading, error, fetchExplorePosts } = useExplore(initialExplores);
   const [selectedCard, setSelectedCard] = useState<ExploreItem | null>(null);
 
+  // ********************************************************************************************************  
+  const [filteredExplores, setFilteredExplores] = useState<ExploreItem[]>([]);
+  const searchParams = useSearchParams(); // Get the search query from the URL
+  const searchQuery = searchParams?.get('search') || ''; // Extract or default to an empty string
+  // ********************************************************************************************************  
+
   // Fetch posts when the component mounts
   useEffect(() => {
     fetchExplorePosts();
   }, [fetchExplorePosts]);
+
+  // ********************************************************************************************************  
+  // Filter posts based on the search query
+  useEffect(() => {
+    if (!searchQuery) {
+      // If no search query, display all posts
+      setFilteredExplores(explores);
+    } else {
+      // Filter posts by matching the description (case-insensitive)
+      const filtered = explores.filter((explore) =>
+        explore.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredExplores(filtered);
+    }
+  }, [explores, searchQuery]);
+  // ********************************************************************************************************  
 
   if (isLoading) {
     return <div className="text-center py-10">Loading...</div>;
@@ -26,11 +51,11 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     return <div className="text-center py-10 text-red-500">{error}</div>;
   }
 
-  if (explores.length === 0) {
+  if (filteredExplores.length === 0) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
-          <h1 className="text-2xl font-bold">No posts available</h1>
+          <h1 className="text-2xl font-bold">Sorry, no posts found</h1>
         </div>
       </div>
     );
@@ -44,7 +69,12 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
       </div>
       {/* Grid Layout */}
       <div className="p-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
-        {explores.map((explore) => (
+    
+        {/********************************************************************************************************** */}
+        {/* {explores.map((explore) => ( */}
+        {filteredExplores.map((explore) => (
+        // ********************************************************************************************************  
+
           <div key={explore._id} className="space-y-2">
             {/* Card */}
             <div

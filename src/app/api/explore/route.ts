@@ -2,20 +2,42 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-export async function GET() {
+// export async function GET() {
+//     try {
+//       const client = await clientPromise;
+//       const db = client.db('pri-cio');
+  
+//       const posts = await db.collection('explore').find({}).sort({ createdAt: -1 }).toArray();
+  
+//       return NextResponse.json(posts);
+//     } catch (error) {
+//       console.error('Error fetching explore posts:', error);
+//       return NextResponse.json({ message: 'Failed to fetch explore posts' }, { status: 500 });
+//     }
+// }
+
+// ********************************************************************************************************
+export async function GET(req: Request) {
+    const url = new URL(req.url);
+    const search = url.searchParams.get('search') || '';
+  
     try {
       const client = await clientPromise;
       const db = client.db('pri-cio'); // Replace with your database name
   
-      const posts = await db.collection('explore').find({}).sort({ createdAt: -1 }).toArray();
+      const filter = search
+        ? { description: { $regex: search, $options: 'i' } } // Case-insensitive search
+        : {}; // Fetch all posts if no query
+  
+      const posts = await db.collection('explore').find(filter).sort({ createdAt: -1 }).toArray();
   
       return NextResponse.json(posts);
     } catch (error) {
-      console.error('Error fetching explore posts:', error);
-      return NextResponse.json({ message: 'Failed to fetch explore posts' }, { status: 500 });
+      console.error('Error fetching posts:', error);
+      return NextResponse.json({ message: 'Failed to fetch posts' }, { status: 500 });
     }
-  }
-  
+}
+// ********************************************************************************************************  
   
 
 export async function POST(req: Request) {
