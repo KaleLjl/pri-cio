@@ -32,6 +32,7 @@ const Navigation: React.FC = () => {
         { label: 'Sign out', href: '/' },
       ]
     : [
+        { label: 'Explore', href: '/explore' },
         { label: 'Sign in', href: '/signin' }
       ];
 

@@ -15,12 +15,12 @@ export function useExplore(initialData: ExploreItem[] = []) {
         throw new Error('Failed to fetch explore posts');
       }
       const data = await response.json();
-
+  
       // Update state only if data has changed
       if (JSON.stringify(data) !== JSON.stringify(explores)) {
         setExplore(data);
       }
-
+  
       setError(null);
     } catch (error) {
       console.error('Fetch explore posts failed:', error);
@@ -29,6 +29,7 @@ export function useExplore(initialData: ExploreItem[] = []) {
       setIsLoading(false);
     }
   }, [explores]);
+  
 
   // Delete a post from the explore collection
   const deleteExplorePost = async (exploreId: string) => {

@@ -3,6 +3,12 @@ export interface ExploreItem {
     imageUrl: string;
     price: string;
     description: string;
-    createdAt: string;
     userEmail: string;
+    location?: {
+      latitude: number;
+      longitude: number;
+      city: string;
+      country: string;
+    } | null; // Optional field
+    createdAt: string;
   }

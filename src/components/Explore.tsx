@@ -127,6 +127,11 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               height={200}
               className="rounded-md mb-4"
             />
+            {selectedCard?.location && (
+              <p className="text-gray-400 mb-2">
+                Location: {selectedCard.location.city}, {selectedCard.location.country}
+              </p>
+            )}
             <p className="text-gray-300">{selectedCard.description || 'No description available'}</p>
             <p className="text-gray-400 text-sm mt-2">
               Created at: {new Date(selectedCard.createdAt).toLocaleString()}

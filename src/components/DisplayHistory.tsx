@@ -4,10 +4,43 @@ import Image from 'next/image';
 import { useHistory,HistoryItem } from '@/lib/hooks/useHistory';
 import { useState } from 'react';
 
+interface DisplayHistoryProps {
+  histories: HistoryItem[];
+}
 
 export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
   const { histories, isLoading, error, deleteHistory, postHistory } = useHistory(initialHistories);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [selectedHistory, setSelectedHistory] = useState<HistoryItem | null>(null);
+  // Function to handle posting with location
+  const handlePostWithLocation = async () => {
+    try {
+      if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser.');
+        return;
+      }
+  
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const location = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+  
+        // Pass location when posting
+        if (selectedHistory) {
+          const updatedHistory = { ...selectedHistory, location }; // Add location to history item
+          await postHistory(updatedHistory);
+          setShowLocationModal(false); // Close modal after posting
+        }
+      });
+    } catch (error) {
+      console.error('Failed to post with location:', error);
+    }
+  };
+  
+
 
   if (error) {
     return <div className="text-center py-10 text-red-500">{error}</div>;
@@ -67,7 +100,8 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          postHistory(history); // Call the post function
+                          setSelectedHistory(history); // Set the selected history
+                          setShowLocationModal(true); // Show the location modal
                           setActiveDropdown(null);
                         }}
                         className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
@@ -91,6 +125,31 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
               </div>
             </div>
           ))}
+          {/* Location Permission Modal */}
+          {showLocationModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">Enable Location Services</h2>
+                <p className="text-gray-600 mb-6">
+                  This post requires location permission to include your current location. Allow it?
+                </p>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => setShowLocationModal(false)}
+                    className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePostWithLocation}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                  >
+                    Allow
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

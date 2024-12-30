@@ -100,8 +100,43 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  // Post to explore
-  const postHistory = async (history: HistoryItem) => {
+  // // Post to explore
+  // const postHistory = async (history: HistoryItem) => {
+  //   if (!session?.user?.email) {
+  //     throw new Error('User not authenticated');
+  //   }
+  
+  //   setIsSaving(true);
+  //   try {
+  //     const response = await fetch('/api/explore', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         price: history.price,
+  //         description: history.description,
+  //         imageUrl: history.imageUrl,
+  //         userEmail: session.user.email,
+  //       }),
+  //     });
+  
+  //     if (!response.ok) {
+  //       throw new Error('Failed to post history to explore');
+  //     }
+  
+  //     console.log('History successfully posted to explore!');
+  //   } catch (error) {
+  //     console.error('Post history failed:', error);
+  //     setError(error instanceof Error ? error.message : 'Failed to post history');
+  //     throw error;
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
+
+  // *****************************************************************************************
+  const postHistory = async (history: HistoryItem & { location?: { latitude: number; longitude: number } }) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
     }
@@ -118,6 +153,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
           description: history.description,
           imageUrl: history.imageUrl,
           userEmail: session.user.email,
+          location: history.location || null, // Pass location if available
         }),
       });
   
@@ -135,6 +171,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
   
+  // *****************************************************************************************
 
   return {
     histories,
