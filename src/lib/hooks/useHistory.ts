@@ -1,9 +1,14 @@
-'use client';
-
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { HistoryItem } from '@/lib/types/history';
 
+export interface HistoryItem {
+  _id: string;
+  imageUrl: string;
+  price: string;
+  description: string;
+  createdAt: string;
+  userEmail: string;
+}
 export function useHistory(initialData: HistoryItem[] = []) {
   const { data: session } = useSession();
   const [histories, setHistories] = useState<HistoryItem[]>(initialData);

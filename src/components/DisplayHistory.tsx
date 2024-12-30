@@ -1,13 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useHistory } from '@/lib/hooks/useHistory';
+import { useHistory,HistoryItem } from '@/lib/hooks/useHistory';
 import { useState } from 'react';
-import { HistoryItem } from '@/lib/types/history';
 
-interface DisplayHistoryProps {
-  histories: HistoryItem[];
-}
 
 export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
   const { histories, isLoading, error, deleteHistory, postHistory } = useHistory(initialHistories);

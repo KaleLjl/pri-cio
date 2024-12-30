@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import html2canvas from 'html2canvas';
+import imageCompression from 'browser-image-compression';
 
 interface ImageCaptureState {
   selectedImage: string | null;
@@ -20,7 +20,6 @@ interface ImageCaptureActions {
   uploadImageFromDevice: () => void;
   analyzeImageWithAI: () => Promise<void>;
   clearImageAndData: () => void;
-  exportAsImage: () => Promise<void>;
   closeErrorModal: () => void;
 }
 
@@ -35,7 +34,78 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // 业务逻辑
+  const resetOrientation = async (blob: Blob): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 设置正确的画布尺寸
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // 在画布上绘制图像
+        ctx?.drawImage(img, 0, 0);
+        
+        // 将画布内容转换为Blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Canvas to Blob conversion failed'));
+            }
+          },
+          'image/jpeg',
+          0.95
+        );
+      };
+      
+      img.onerror = () => reject(new Error('Image loading failed'));
+      img.src = URL.createObjectURL(blob);
+    });
+  };
+
+  const compressImageIfNeeded = async (blob: Blob): Promise<Blob> => {
+    console.log('Original size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB');
+    
+    // 首先重置方向
+    const orientationFixedBlob = await resetOrientation(blob);
+    
+    if (orientationFixedBlob.size > 1 * 1024 * 1024) {
+      console.log('Starting compression...');
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: false,
+        initialQuality: 0.7
+      };
+      
+      try {
+        const file = new File([orientationFixedBlob], "compressed.jpg", { type: 'image/jpeg' });
+        console.log('Pre-compression size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+        
+        let compressedBlob;
+        try {
+          compressedBlob = await imageCompression(file, options);
+          console.log('Post-compression size:', (compressedBlob.size / 1024 / 1024).toFixed(2) + 'MB');
+          console.log('Compression ratio:', ((1 - compressedBlob.size / file.size) * 100).toFixed(1) + '%');
+        } catch (compressionError) {
+          console.error('Compression operation failed:', compressionError);
+          return orientationFixedBlob;
+        }
+
+        return compressedBlob;
+      } catch (error) {
+        console.error('Overall compression process failed:', error);
+        return orientationFixedBlob;
+      }
+    }
+    
+    return orientationFixedBlob;
+  };
+
   const uploadImageFromDevice = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -43,17 +113,24 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
     input.style.display = 'none';
     document.body.appendChild(input);
     
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const result = e.target?.result;
-          if (typeof result === 'string') {
-            setSelectedImage(result);
-          }
-        };
-        reader.readAsDataURL(file);
+        try {
+          // 先处理方向并压缩
+          const processedBlob = await compressImageIfNeeded(file);
+          // 转换为 base64
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const result = e.target?.result;
+            if (typeof result === 'string') {
+              setSelectedImage(result);
+            }
+          };
+          reader.readAsDataURL(processedBlob);
+        } catch (error) {
+          console.error('Error processing image:', error);
+        }
       }
       document.body.removeChild(input);
     };
@@ -64,10 +141,21 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const analyzeImageWithAI = async () => {
     setIsLoading(true);
     try {
+      if (!selectedImage) {
+        throw new Error('No image selected');
+      }
+
+      // 直接获取 blob 并压缩
+      const initialBlob = await (await fetch(selectedImage)).blob();
+      const finalProcessed = await compressImageIfNeeded(initialBlob);
+      
+      // Convert final blob back to base64 for API request
+      const finalBase64 = await imageCompression.getDataUrlFromFile(new File([finalProcessed], "processed.jpg", { type: finalProcessed.type }));
+      
       const response = await fetch('/api/gpt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedImage, currency }),
+        body: JSON.stringify({ selectedImage: finalBase64, currency }),
       });
 
       if (!response.ok) throw new Error('Failed to analyze image');
@@ -80,41 +168,17 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
       setDescriptionState(data.description);
       setPriceState(data.price.toString());
     } catch (error) {
+      console.error('Analysis error:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Unable to analyze this image');
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
   };
-
   const clearImageAndData = () => {
     setSelectedImage(null);
     setPriceState('');
     setDescriptionState('');
-  };
-
-  const exportAsImage = async () => {
-    try {
-      const element = document.getElementById('export-content');
-      if (!element) return;
-
-      const canvas = await html2canvas(element, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: null,
-        imageTimeout: 0,
-      });
-      
-      const dataUrl = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = 'price-details.png';
-      link.href = dataUrl;
-      link.click();
-    } catch (error) {
-      console.error('Export failed:', error);
-      setErrorMessage('Failed to export image');
-      setShowErrorModal(true);
-    }
   };
 
   const closeErrorModal = useCallback(() => {
@@ -138,19 +202,6 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
   const setCurrency = useCallback((value: string) => {
     setCurrencyState(value);
   }, []);
-
-  const actions = {
-    setIsEditing,
-    setPrice,
-    setDescription,
-    setCurrency,
-    uploadImageFromDevice,
-    analyzeImageWithAI,
-    clearImageAndData,
-    exportAsImage,
-    closeErrorModal,
-  };
-
   return [
     // 状态
     {
@@ -164,7 +215,14 @@ export const useImageCapture = (): [ImageCaptureState, ImageCaptureActions] => {
       errorMessage,
     },
     // 动作
-    actions
+   {setIsEditing,
+    setPrice,
+    setDescription,
+    setCurrency,
+    uploadImageFromDevice,
+    analyzeImageWithAI,
+    clearImageAndData,
+    closeErrorModal,}
   ];
 };
  

@@ -2,12 +2,12 @@
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
 import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
-import { useEffect, useRef, useCallback } from 'react';
+import { useShareCard } from '@/lib/hooks/useShareCard';
 
 // 提取常量
 const CURRENCIES = [
-  { value: 'USD', label: '$ USD', symbol: '$' },
   { value: 'GBP', label: '£ GBP', symbol: '£' },
+  { value: 'USD', label: '$ USD', symbol: '$' },
   { value: 'EUR', label: '€ EUR', symbol: '€' },
   { value: 'CNY', label: '¥ CNY', symbol: '¥' },
 ].map(curr => ({
@@ -15,7 +15,7 @@ const CURRENCIES = [
   label: `  ${curr.label}  `
 }));
 
-// 提取子组件
+// 提取子组件, 无法识别时候报错的弹窗
 const ErrorModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
@@ -50,28 +50,8 @@ const ErrorModal = ({ message, onClose }: { message: string; onClose: () => void
 export default function ImageCapture() {
   const [state, actions] = useImageCapture();
   const { saveToHistory, isSaving } = useHistory();
+  const { generateShareCard } = useShareCard();
 
-  const priceEditRef = useRef<HTMLDivElement>(null);
-  const descriptionEditRef = useRef<HTMLDivElement>(null);
-
-  const handleClickOutside = useCallback((event: MouseEvent) => {
-    if (state.isEditing) {
-      const target = event.target as Node;
-      const isPriceEdit = priceEditRef.current?.contains(target);
-      const isDescriptionEdit = descriptionEditRef.current?.contains(target);
-
-      if (!isPriceEdit && !isDescriptionEdit) {
-        actions.setIsEditing(false);
-      }
-    }
-  }, [state.isEditing, actions.setIsEditing]);
-
-  useEffect(() => {
-    if (state.isEditing) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [state.isEditing, handleClickOutside]);
 
   const handleExport = async () => {
     try {
@@ -79,13 +59,63 @@ export default function ImageCapture() {
       if (!state.selectedImage) {
         throw new Error('No image selected');
       }
-      await saveToHistory(state.price, state.description, state.selectedImage);
-      await actions.exportAsImage();
+
+      // 并行执行两个操作
+      const [shareCardUrl] = await Promise.all([
+        // 1. 生成卡
+        generateShareCard({
+          imageUrl: state.selectedImage,  // 直接使用前端的图片
+          price: state.price,
+          description: state.description,
+          currency: state.currency
+        }).catch(error => {
+          console.error('Failed to generate share card:', {
+            error: error.message,
+            details: error,
+            requestData: {
+              imageUrl: state.selectedImage,
+              price: state.price,
+              description: state.description,
+              currency: state.currency
+            }
+          });
+          throw error;
+        }),
+        // 2. 保存到历史记录
+        saveToHistory(
+          state.price, 
+          state.description, 
+          state.selectedImage
+        ).catch(error => {
+          console.error('Failed to save to history:', {
+            error: error.message,
+            details: error,
+            requestData: {
+              price: state.price,
+              description: state.description,
+              imageUrl: state.selectedImage
+            }
+          });
+          throw error;
+        })
+      ]);
+
+      // 3. 下载分享卡片
+      const link = document.createElement('a');
+      link.href = shareCardUrl;
+      link.download = 'pricio-share.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(shareCardUrl);
     } catch (error) {
-      console.error('Failed to save history:', error);
+      console.error('Export operation failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      });
     }
   };
-
   return (
     <>
       {/* 给标题和货币选择器的容器设置固定高度 */}
@@ -102,9 +132,14 @@ export default function ImageCapture() {
                 Click to edit
               </h2>
             )}
+            {(state.description || state.price) && state.isEditing && (
+              <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
+                Press Enter to confirm
+              </h2>
+            )}
           </div>
           
-          {/* 货币选择栏只在没有价格和描述时显示 */}
+          {/* 货币选择��只在没有价格和描述时显示 */}
           {!state.description && !state.price && (
             <div className="flex justify-center">
               <select
@@ -139,14 +174,7 @@ export default function ImageCapture() {
 
       {/* 这是图片,价格描述显示区域 */}
       <div 
-        id="export-content"
-        className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full cursor-pointer bg-gray-800"
-        onClick={(e) => {
-          if (!state.isEditing && (state.description || state.price)) {
-            e.stopPropagation();
-            actions.setIsEditing(true);
-          }
-        }}
+        className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full bg-gray-800"
       >
         {/* 这是图片的显示区域 */}
         <div className="flex flex-col items-center">
@@ -160,6 +188,11 @@ export default function ImageCapture() {
                   className="object-cover"
                   unoptimized
                 />
+                {state.isLoading && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+                  </div>
+                )}
               </div>
             ) : (
               <div 
@@ -175,7 +208,7 @@ export default function ImageCapture() {
           {/* 这是价格与描述的显示区域 */}
           {(state.description || state.price) && (
             <div className="mt-2 text-center w-full space-y-4">
-              <div ref={priceEditRef} className="flex justify-center">
+              <div  className="flex justify-center">
                 {state.isEditing ? (
                   <div className="relative flex items-center">
                     <span className="absolute left-4 text-3xl font-semibold text-purple-600">
@@ -208,7 +241,13 @@ export default function ImageCapture() {
                           actions.setPrice(value);
                         }
                       }}
-                      className="w-auto min-w-[120px] pl-10 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          actions.setIsEditing(false);
+                        }
+                      }}
+                      className="w-auto min-w-[120px] pl-8 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
                       style={{ width: `${Math.max(120, (state.price?.length || 1) * 20)}px` }}
                       placeholder="0"
                     />
@@ -229,7 +268,7 @@ export default function ImageCapture() {
                 )}
               </div>
 
-              <div ref={descriptionEditRef} className="w-full">
+              <div className="w-full">
                 {state.isEditing ? (
                   <textarea
                     value={state.description}
@@ -240,8 +279,9 @@ export default function ImageCapture() {
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
+                        actions.setIsEditing(false);
                       }
                     }}
                     className="w-full p-2 text-lg text-gray-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
