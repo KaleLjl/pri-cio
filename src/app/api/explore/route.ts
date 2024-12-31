@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     }
 
     const client = await clientPromise;
-    const db = client.db('pri-cio'); // Replace with your database name
+    const db = client.db('pri-cio'); 
 
     const newPost = {
       price,

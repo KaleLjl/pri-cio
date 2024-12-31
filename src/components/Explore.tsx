@@ -1,33 +1,200 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { ExploreItem } from '@/lib/types/explore';
-// ********************************************************************************************************  
 import { useSearchParams } from 'next/navigation';
-// ********************************************************************************************************  
+import Switch from "react-switch";
+import { Switch as HeadlessSwitch } from "@headlessui/react";
+import { Menu } from '@headlessui/react';
 
 interface DisplayExploreProps {
   explores: ExploreItem[];
 }
 
+const RadiusDropdown = ({ radius, setRadius }: { radius: number; setRadius: (value: number) => void }) => {
+  const options = [
+    { value: 1, label: '1 km' },
+    { value: 2, label: '2 km' },
+    { value: 5, label: '5 km' },
+    { value: 10, label: '10 km' },
+    { value: 20, label: '20 km' },
+    { value: 40, label: '40 km' },
+    { value: 60, label: '60 km' },
+    { value: 80, label: '80 km' },
+    { value: 100, label: '100 km' },
+    { value: 250, label: '250 km' },
+    { value: 500, label: '500 km' },
+  ];
+
+  return (
+    <Menu as="div" className="relative inline-block w-full text-left">
+      <div>
+        <Menu.Button className="inline-flex justify-between items-center w-full px-4 py-2 text-sm font-medium text-black bg-gray-100 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500">
+          {options.find((option) => option.value === radius)?.label || 'Select Radius'}
+          <svg
+            className="w-5 h-5 ml-2 -mr-1 text-gray-500"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </Menu.Button>
+      </div>
+
+      <Menu.Items className="absolute z-10 mt-2 w-full bg-white border border-gray-300 rounded-lg shadow-lg focus:outline-none">
+        {options.map((option) => (
+          <Menu.Item key={option.value}>
+            {({ active }) => (
+              <button
+                onClick={() => setRadius(option.value)}
+                className={`${
+                  active ? 'bg-purple-500 text-white' : 'text-gray-900'
+                } group flex rounded-md items-center w-full px-4 py-2 text-sm`}
+              >
+                {option.label}
+              </button>
+            )}
+          </Menu.Item>
+        ))}
+      </Menu.Items>
+    </Menu>
+  );
+};
+
+
 export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
   const { explores, isLoading, error, fetchExplorePosts } = useExplore(initialExplores);
-  const [selectedCard, setSelectedCard] = useState<ExploreItem | null>(null);
-
-  // ********************************************************************************************************  
+  const [selectedCard, setSelectedCard] = useState<ExploreItem | null>(null);  
   const [filteredExplores, setFilteredExplores] = useState<ExploreItem[]>([]);
   const searchParams = useSearchParams(); // Get the search query from the URL
   const searchQuery = searchParams?.get('search') || ''; // Extract or default to an empty string
-  // ********************************************************************************************************  
 
+  const [radiusModalOpen, setRadiusModalOpen] = useState(false); // Modal for radius filter
+  const [radius, setRadius] = useState<number>(10); // Radius in km
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [enableLocation, setEnableLocation] = useState(false);
+  const [noLimit, setNoLimit] = useState(false);
+  const [locationName, setLocationName] = useState<string>('');
+  const [appliedFilters, setAppliedFilters] = useState({
+    radius: 10,
+    enableLocation: false,
+    noLimit: false,
+    userLocation: null as { latitude: number; longitude: number } | null,
+  });
+  const apiKey = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
   // Fetch posts when the component mounts
   useEffect(() => {
     fetchExplorePosts();
   }, [fetchExplorePosts]);
 
+
+  // ********************************************************************************************************
+  // Filter posts based on search query and radius
+  useEffect(() => {
+    const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+      const toRad = (value: number) => (value * Math.PI) / 180;
+      const R = 6371; // Radius of Earth in km
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    let filtered = explores;
+
+    if (searchQuery) {
+      filtered = filtered.filter((explore) =>
+        explore.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    const { radius: appliedRadius, enableLocation: appliedEnableLocation, noLimit: appliedNoLimit, userLocation: appliedUserLocation } = appliedFilters;
+
+    // Apply location and radius filter only if "No Limit" is not selected
+    if (!appliedNoLimit && appliedEnableLocation && appliedUserLocation) {
+      filtered = filtered.filter((explore) => {
+        if (!explore.location) return false;
+        const distance = haversineDistance(
+          appliedUserLocation.latitude,
+          appliedUserLocation.longitude,
+          explore.location.latitude,
+          explore.location.longitude
+        );
+        return distance <= appliedRadius;
+      });
+    }
+
+    setFilteredExplores(filtered);
+  }, [explores, searchQuery, appliedFilters]);
+
+  const handleGetUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ latitude, longitude });
+          console.log('Location:', latitude, );
+          // Fetch location name using OpenCage API
+          try {
+            const response = await fetch(
+              `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}`
+            );
+            if (!response.ok) {
+              throw new Error(`API error: ${response.statusText}`);
+            }
+            const data = await response.json();
+            console.log('OpenCage API response:', data); // Log the response
+
+            if (data?.results?.[0]?.formatted) {
+              setLocationName(data.results[0].formatted);
+            } else {
+              setLocationName('Unknown Location');
+            }
+          } catch (error) {
+            console.error('Error fetching location name:', error);
+            setLocationName('Unknown Location');
+          }
+        },
+        (error) => {
+          console.error('Error getting user location:', error);
+          alert('Failed to get your location.');
+          setLocationName('Unknown Location');
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by your browser.');
+      setLocationName('Unknown Location');
+    }
+  };
+  
+
+  const handleApplyRadius = () => {
+    if (noLimit) {
+      console.log('No limit selected');
+      setRadiusModalOpen(false);
+      return;
+    }
+  
+    if (enableLocation && radius) {
+      console.log(`Location enabled with radius: ${radius} km`);
+    } else if (enableLocation) {
+      alert('Please set a radius or disable location.');
+    }
+  
+    setRadiusModalOpen(false);
+  };
   // ********************************************************************************************************  
+
+
   // Filter posts based on the search query
   useEffect(() => {
     if (!searchQuery) {
@@ -40,8 +207,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
       );
       setFilteredExplores(filtered);
     }
-  }, [explores, searchQuery]);
-  // ********************************************************************************************************  
+  }, [explores, searchQuery]);  
 
   if (isLoading) {
     return <div className="text-center py-10">Loading...</div>;
@@ -67,14 +233,21 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
       <div className="py-6 bg-black border-b border-gray-700">
         {/* Empty spacer to preserve the header height */}
       </div>
-      {/* Grid Layout */}
-      <div className="p-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
-    
-        {/********************************************************************************************************** */}
-        {/* {explores.map((explore) => ( */}
-        {filteredExplores.map((explore) => (
-        // ********************************************************************************************************  
 
+      {/* Set Radius Button */}
+      <div className="absolute top-20 right-12 group z-10">
+        <span
+          onClick={() => setRadiusModalOpen(true)}
+          className="px-4 py-2 text-white bg-transparent cursor-pointer rounded-full group-hover:bg-gray-800 transition-all duration-200"
+        >
+          Set Radius
+        </span>
+      </div>
+
+      {/* Grid Layout */}
+      <div className="p-12 pt-20 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
+        {/* {explores.map((explore) => ( */}
+        {filteredExplores.map((explore) => (  
           <div key={explore._id} className="space-y-2">
             {/* Card */}
             <div
@@ -108,6 +281,81 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
           </div>
         ))}
       </div>
+
+      {/* Radius Modal */}
+      {radiusModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-lg relative">
+          <button
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+            onClick={() => setRadiusModalOpen(false)}
+          >
+            &times;
+          </button>
+          <h2 className="text-black text-xl font-bold mb-4">Set Radius</h2>
+
+          <div className="flex items-center mb-4">
+            <label htmlFor="locationSwitch" className="mr-3 text-gray-600">
+              Enable Location
+            </label>
+            <Switch
+                onChange={(value) => {
+                  setEnableLocation(value);
+                  if (value) handleGetUserLocation();
+                }}
+                checked={enableLocation}
+                onColor="#A855F7"
+                offColor="#ccc"
+                className="react-switch"
+            />
+          </div>
+          
+          {enableLocation && locationName && (
+              <div className="mb-4 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-700">
+                Location: {locationName}
+              </div>
+          )}
+
+          {enableLocation && (
+            <div className="mb-4">
+              <RadiusDropdown radius={radius} setRadius={setRadius} />
+            </div>
+          )}
+          <div className="flex items-center">
+            <HeadlessSwitch
+              checked={noLimit}
+              onChange={(value) => {
+                setNoLimit(value);
+                if (value) {
+                  setEnableLocation(false);
+                  setRadius(0);
+                }
+              }}
+              className={`${
+                noLimit ? 'bg-purple-500' : 'bg-gray-200'
+              } relative inline-flex h-6 w-11 items-center rounded-full`}
+            >
+              <span
+                className={`${
+                  noLimit ? 'translate-x-6' : 'translate-x-1'
+                } inline-block h-4 w-4 transform bg-white rounded-full transition-transform`}
+              />
+            </HeadlessSwitch>
+            <span className="ml-3 text-gray-600">No Limit</span>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={handleApplyRadius}
+              className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      )}
 
       {/* Modal */}
       {selectedCard && (
