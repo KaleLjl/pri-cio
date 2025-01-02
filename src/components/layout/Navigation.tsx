@@ -7,9 +7,10 @@ import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import LogoImage from '/public/image/logo.png';
 import { FaSearch } from 'react-icons/fa';
+import { Avatar } from '@mui/material';
 
 interface NavItem {
-  label: string;
+  label: string | JSX.Element;
   href: string;
 }
 
@@ -18,14 +19,12 @@ const Navigation: React.FC = () => {
   const { data: session } = useSession();
   const pathname = usePathname();
 
-  // ********************************************************************************************************  
-  const [searchQuery, setSearchQuery] = useState<string>(''); // State for search query
-  const router = useRouter(); // For programmatic navigation
-  // ********************************************************************************************************  
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const router = useRouter();
 
   const navItems: NavItem[] = session
     ? [
-        { label: session.user?.email || 'Dashboard', href: '/editprofile' },
+        { label: <Avatar sx={{ bgcolor: "gray", width: 40, height: 40, fontSize: "1rem" }}>{session.user?.email ? session.user.email.charAt(0) : 'U'}</Avatar>, href: '/editprofile' },
         { label: 'Explore', href: '/explore' },
         { label: 'App', href: '/app' },
         { label: 'History', href: '/history' },
@@ -45,7 +44,6 @@ const Navigation: React.FC = () => {
     setIsOpen(false);
   };
 
-  // ********************************************************************************************************  
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
@@ -55,7 +53,6 @@ const Navigation: React.FC = () => {
       router.push(`/explore?search=${encodeURIComponent(query)}`);
     }
   };
-  // ********************************************************************************************************  
 
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-black bg-opacity-50 backdrop-blur-lg">
@@ -79,12 +76,8 @@ const Navigation: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Search..."
-
-                  // ********************************************************************************************************  
                   value={searchQuery}
                   onChange={handleSearch}
-                  // ********************************************************************************************************  
-
                   className="pl-10 px-4 py-2 rounded-md border border-gray-300 bg-transparent focus:outline-none focus:border-gray-500 w-full text-white placeholder-gray-400"
                 />
               </div>

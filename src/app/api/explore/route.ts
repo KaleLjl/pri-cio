@@ -23,29 +23,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: 'Failed to fetch posts' }, { status: 500 });
     }
 }
-  
-
-// export async function POST(req: Request) {
-//   try {
-//     const body = await req.json();
-//     const { price, description, imageUrl, userEmail, location} = body;
-
-//     if (!price || !description || !imageUrl || !userEmail) {
-//       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
-//     }
-
-//     const client = await clientPromise;
-//     const db = client.db('pri-cio'); // Replace with your database name
-
-//     const newPost = { price, description, imageUrl, userEmail, location: location || null, createdAt: new Date() };
-//     const result = await db.collection('explore').insertOne(newPost);
-
-//     return NextResponse.json({ ...newPost, _id: result.insertedId });
-//   } catch (error) {
-//     console.error('Error posting to explore:', error);
-//     return NextResponse.json({ message: 'Failed to post to explore' }, { status: 500 });
-//   }
-// }
 
 export async function POST(req: Request) {
   try {
