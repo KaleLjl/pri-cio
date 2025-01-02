@@ -785,7 +785,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                   )}
 
                   <div className="border-t border-gray-200 pt-4 space-y-2">
-                    <p className="text-gray-500 text-sm">47 comments</p>
+                    <p className="text-gray-500 text-sm">0 comments</p>
                     <div className="flex items-start space-x-4">
                       <div className="h-10 w-10 rounded-full bg-gray-300" />
                       <input

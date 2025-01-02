@@ -25,7 +25,7 @@ const Navigation: React.FC = () => {
 
   const navItems: NavItem[] = session
     ? [
-        { label: session.user?.email || 'Dashboard', href: '#' },
+        { label: session.user?.email || 'Dashboard', href: '/editprofile' },
         { label: 'Explore', href: '/explore' },
         { label: 'App', href: '/app' },
         { label: 'History', href: '/history' },
