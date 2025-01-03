@@ -1,28 +1,32 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useSession } from 'next-auth/react';
 
-export interface ProfileFormData {
-  firstName: string;
-  lastName: string;
-  about: string;
-  pronouns: string;
-  website: string;
-  username: string;
+export interface Profile {
+  email?: string; // Add optional email if needed for form updates
+  firstName?: string;
+  lastName?: string;
+  about?: string;
+  pronouns?: string;
+  website?: string;
+  username?: string;
+  avatar?: string | null;
 }
+
 
 export interface UseProfilePage {
   avatar: string | null;
-  formData: ProfileFormData;
+  formData: Profile;
   handleAvatarChange: (file: File) => void;
   handleInputChange: (name: string, value: string) => void;
   resetForm: () => void;
   saveProfile: () => void;
+  fetchProfileData: () => Promise<{ avatar: string | null; formData: Profile }>;
 }
 
 export const useProfilePage = (userId: string): UseProfilePage => {
   const [avatar, setAvatar] = useState<string | null>(null);
   const { data: session } = useSession();
-  const [formData, setFormData] = useState<ProfileFormData>({
+  const [formData, setFormData] = useState<Profile>({
     firstName: "",
     lastName: "",
     about: "",
@@ -30,6 +34,7 @@ export const useProfilePage = (userId: string): UseProfilePage => {
     website: "",
     username: "",
   });
+  
 
   // Handle avatar image change
   const handleAvatarChange = (file: File) => {
@@ -91,6 +96,117 @@ export const useProfilePage = (userId: string): UseProfilePage => {
     }
   };
 
+  // const fetchProfileData = useCallback(async () => {
+  //   try {
+  //     const response = await fetch(`/api/editprofile`);
+  //     if (!response.ok) {
+  //       throw new Error(`Failed to fetch profile data: ${response.statusText}`);
+  //     }
+  
+  //     const profiles: Profile[] = await response.json();
+  //     const userProfile = profiles.find((profile: Profile) => profile.email === session?.user?.email);
+  
+  //     if (userProfile) {
+  //       setAvatar(userProfile.avatar || null);
+  //       setFormData({
+  //         firstName: userProfile.firstName || "",
+  //         lastName: userProfile.lastName || "",
+  //         about: userProfile.about || "",
+  //         pronouns: userProfile.pronouns || "",
+  //         website: userProfile.website || "",
+  //         username: userProfile.username || "",
+  //       });
+  
+  //       // Return the object in the expected format
+  //       return {
+  //         avatar: userProfile.avatar || null,
+  //         formData: {
+  //           firstName: userProfile.firstName || "",
+  //           lastName: userProfile.lastName || "",
+  //           about: userProfile.about || "",
+  //           pronouns: userProfile.pronouns || "",
+  //           website: userProfile.website || "",
+  //           username: userProfile.username || "",
+  //           email: userProfile.email, // Include email if needed
+  //         },
+  //       };
+  //     }
+  
+  //     // Handle case where user profile is not found
+  //     throw new Error("User profile not found");
+  //   } catch (error) {
+  //     console.error("Error fetching profile data:", error);
+  //     throw error;
+  //   }
+  // }, [session?.user?.email]);
+  const fetchProfileData = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/editprofile`);
+      if (!response.ok) {
+        console.warn(`Failed to fetch profile data: ${response.statusText}`);
+        return {
+          avatar: null,
+          formData: {
+            firstName: "",
+            lastName: "",
+            about: "",
+            pronouns: "",
+            website: "",
+            username: "",
+          },
+        };
+      }
+  
+      const profiles: Profile[] = await response.json();
+      const userProfile = profiles.find((profile: Profile) => profile.email === session?.user?.email);
+  
+      if (userProfile) {
+        setAvatar(userProfile.avatar || null);
+        setFormData({
+          firstName: userProfile.firstName || "",
+          lastName: userProfile.lastName || "",
+          about: userProfile.about || "",
+          pronouns: userProfile.pronouns || "",
+          website: userProfile.website || "",
+          username: userProfile.username || "",
+        });
+  
+        // Return the object in the expected format
+        return {
+          avatar: userProfile.avatar || null,
+          formData: {
+            firstName: userProfile.firstName || "",
+            lastName: userProfile.lastName || "",
+            about: userProfile.about || "",
+            pronouns: userProfile.pronouns || "",
+            website: userProfile.website || "",
+            username: userProfile.username || "",
+            email: userProfile.email,
+          },
+        };
+      }
+  
+      // Log a warning if the profile is not found
+      console.warn("No profile found for the user.");
+      return {
+        avatar: null,
+        formData: {
+          firstName: "",
+          lastName: "",
+          about: "",
+          pronouns: "",
+          website: "",
+          username: "",
+        },
+      };
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+      throw error;
+    }
+  }, [session?.user?.email]);
+  
+  
+
   return {
     avatar,
     formData,
@@ -98,5 +214,6 @@ export const useProfilePage = (userId: string): UseProfilePage => {
     handleInputChange,
     resetForm,
     saveProfile,
+    fetchProfileData,
   };
 };

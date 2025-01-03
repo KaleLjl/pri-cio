@@ -27,6 +27,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
+    console.log("Received email:", email);
+
     const client = await clientPromise;
     const db = client.db("pri-cio");
 
@@ -46,6 +48,8 @@ export async function POST(req: Request) {
       { $set: updatedProfile }
     );
 
+    console.log("Update result:", result);
+    
     if (result.matchedCount === 0) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }

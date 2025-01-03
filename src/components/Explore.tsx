@@ -33,7 +33,7 @@ const RadiusDropdown = ({ radius, setRadius }: { radius: number; setRadius: (val
   return (
     <Menu as="div" className="relative inline-block w-full text-left">
       <div>
-        <Menu.Button className="inline-flex justify-between items-center w-full px-4 py-2 text-sm font-medium text-black bg-gray-100 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        <Menu.Button className="inline-flex justify-between items-center w-full px-4 py-2 text-sm font-medium text-black bg-gray-100 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-600">
           {options.find((option) => option.value === radius)?.label || 'Select Radius'}
           <svg
             className="w-5 h-5 ml-2 -mr-1 text-gray-500"
@@ -57,7 +57,7 @@ const RadiusDropdown = ({ radius, setRadius }: { radius: number; setRadius: (val
               <button
                 onClick={() => setRadius(option.value)}
                 className={`${
-                  active ? 'bg-purple-500 text-white' : 'text-gray-900'
+                  active ? 'bg-purple-600 text-white' : 'text-gray-900'
                 } group flex rounded-md items-center w-full px-4 py-2 text-sm`}
               >
                 {option.label}
@@ -298,7 +298,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               if (value) handleGetUserLocation();
             }}
             checked={enableLocation}
-            onColor="#A855F7"
+            onColor="#6D28D9"
             offColor="#ccc"
             className="react-switch"
           />
@@ -324,7 +324,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               }
             }}
             className={`${
-              noLimit ? 'bg-purple-500' : 'bg-gray-200'
+              noLimit ? 'bg-purple-600' : 'bg-gray-200'
             } relative inline-flex h-6 w-11 items-center rounded-full`}
           >
             <span
@@ -338,7 +338,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
         <div className="mt-6 flex justify-end">
           <button
             onClick={handleApplyRadius}
-            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-blue-600"
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500"
           >
             Apply
           </button>

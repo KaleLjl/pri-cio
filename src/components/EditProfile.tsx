@@ -1,6 +1,6 @@
 'use client';
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   TextField,
@@ -19,6 +19,8 @@ import { useSession } from 'next-auth/react'; // Import useSession to get user d
 const ProfilePage = () => {
   const { data: session } = useSession(); // Get session data
   const userId = session?.user?.id || ""; // Assuming user ID is stored in session
+  const userEmail = session?.user?.email || ""; // Fetch user's email
+  const emailInitial = userEmail.charAt(0).toUpperCase(); // Use the first letter of the email
   const {
     avatar,
     formData,
@@ -26,12 +28,47 @@ const ProfilePage = () => {
     handleInputChange,
     resetForm,
     saveProfile,
+    fetchProfileData,
   } = useProfilePage(userId);
+
+  // *******************************************************************************************
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null); // Temporary preview
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const profileData = await fetchProfileData();
+        setCurrentAvatar(profileData.avatar || null);
+        console.log("Profile avatar:", profileData.avatar);
+      } catch (error) {
+        console.error("Error fetching profile data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [fetchProfileData]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) handleAvatarChange(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPreviewAvatar(reader.result as string); // Set temporary preview
+      };
+      reader.readAsDataURL(file);
+      handleAvatarChange(file); // Pass file to handler for saving on "Save"
+    }
   };
+
+  const displayedAvatar = previewAvatar || currentAvatar;
+
+  if (isLoading) {
+    return <div className="text-center py-10">Loading...</div>;
+  }
 
   return (
     <div style={{ backgroundColor: "black", minHeight: "100vh", color: "white" }}>
@@ -70,14 +107,14 @@ const ProfilePage = () => {
         {/* Profile Picture and Change Button */}
         <Box display="flex" alignItems="center" justifyContent="center" my={4}>
           <Avatar
-            src={avatar || undefined}
+            src={displayedAvatar || undefined}
             sx={{
-              bgcolor: avatar ? "transparent" : "gray",
+              bgcolor: displayedAvatar ? "transparent" : "gray",
               width: 80,
               height: 80,
             }}
           >
-            {!avatar && "C"}
+            {!displayedAvatar && emailInitial}
           </Avatar>
           <Button
             variant="contained"

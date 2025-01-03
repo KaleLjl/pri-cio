@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
@@ -20,15 +20,57 @@ const Navigation: React.FC = () => {
   const pathname = usePathname();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      if (session?.user?.email) {
+        try {
+          const response = await fetch(`/api/editprofile`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch user profile: ${response.statusText}`);
+          }
+          const profiles = await response.json();
+          const userProfile = profiles.find((profile: { email: string }) => profile.email === session.user?.email);
+
+          if (userProfile?.avatar) {
+            setCurrentAvatar(userProfile.avatar);
+          } else {
+            setCurrentAvatar(null); // Reset to null if no avatar found
+          }
+        } catch (error) {
+          console.error('Error fetching user avatar:', error);
+          setCurrentAvatar(null);
+        }
+      }
+    };
+
+    fetchUserAvatar();
+  }, [session?.user?.email]);
+
+  const emailInitial = session?.user?.email?.charAt(0).toUpperCase() || 'U';
 
   const navItems: NavItem[] = session
     ? [
-        { label: <Avatar sx={{ bgcolor: "gray", width: 40, height: 40, fontSize: "1rem" }}>{session.user?.email ? session.user.email.charAt(0) : 'U'}</Avatar>, href: '/editprofile' },
         { label: 'Explore', href: '/explore' },
         { label: 'App', href: '/app' },
         { label: 'History', href: '/history' },
         { label: 'Sign out', href: '/' },
+        { label: (<Avatar
+          src={currentAvatar || undefined}
+          sx={{
+            bgcolor: currentAvatar ? 'transparent' : 'gray',
+            width: 40,
+            height: 40,
+            fontSize: '1rem',
+          }}
+          >
+          {!currentAvatar && emailInitial}
+          </Avatar>
+          ), 
+          href: '/editprofile' 
+        },
       ]
     : [
         { label: 'Explore', href: '/explore' },
