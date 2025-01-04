@@ -1,0 +1,32 @@
+{
+    "navigation": {
+      "home": "首页",
+      "app": "应用",
+      "history": "历史",
+      "signin": "登录",
+      "signout": "退出"
+    },
+    "landing": {
+      "title": "智能估价",
+      "subtitle": "想知道你的脸、美食或物品值多少钱？上传照片，立即获得有趣的价格估算！",
+      "getStarted": "开始使用",
+      "description": {
+        "title": "图片转化价值",
+        "subtitle": "发现一切的价值！上传人脸、物品或美食的照片，让AI为您提供既有趣又精准的价格估算。",
+        "features": {
+          "face": {
+            "title": "趣味人脸定价",
+            "description": "上传您或朋友的照片，让AI根据个性、外表和明星潜力给出有趣的价格评估。"
+          },
+          "object": {
+            "title": "物品估价",
+            "description": "想知道您的电子产品、小物件或艺术品的价值？上传图片，AI将立即计算出估计价值。"
+          },
+          "food": {
+            "title": "美食定价",
+            "description": "好奇您的美食值多少钱？拍张照片，获取AI生成的准确价格估算。"
+          }
+        }
+      }
+    }
+  }

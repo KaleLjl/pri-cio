@@ -1,0 +1,32 @@
+{
+    "navigation": {
+      "home": "Home",
+      "app": "App",
+      "history": "History",
+      "signin": "Sign in",
+      "signout": "Sign out"
+    },
+    "landing": {
+      "title": "Price it",
+      "subtitle": "Curious what your face, food, or gadgets are worth? Snap a pic and I'll give you a fun and fast price estimate!",
+      "getStarted": "Get Started",
+      "description": {
+        "title": "Turn Images Into Value",
+        "subtitle": "Discover the value of anything! Upload photos of faces, objects, or food and let our AI deliver prices that are both entertaining and precise.",
+        "features": {
+          "face": {
+            "title": "Fun Face Pricing",
+            "description": "Upload your face (or a friend's) and let our AI rate it with entertaining prices based on personality, looks, and star potential."
+          },
+          "object": {
+            "title": "Object Estimates",
+            "description": "Want to know the price of your electronics, gadgets, or art? Upload an image and let our AI calculate the estimated value instantly."
+          },
+          "food": {
+            "title": "Food Pricing",
+            "description": "Curious about how much your meal costs? Snap a picture of your food and get an accurate AI-generated price estimate."
+          }
+        }
+      }
+    }
+  }
