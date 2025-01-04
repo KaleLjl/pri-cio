@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import type { Locale } from '@/lib/i18n/config';
+import { getDictionary } from '@/lib/i18n/get-dictionary';
 import Providers from "@/components/Providers";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import { Analytics } from '@vercel/analytics/next';
@@ -59,16 +61,21 @@ export const viewport = {
   initialScale: 1
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
+  params,
+}: {
   children: React.ReactNode;
-}>) {
+  params: Promise<{ lang: Locale }>
+}) {
+  const { lang } = await params;
+  const dict = await getDictionary(lang);
+
   return (
-    <html lang="en">
+    <html lang={lang}>
       <body>
         <Providers>
-          <LayoutWrapper>
+          <LayoutWrapper dict={dict}>
             {children}
           </LayoutWrapper>
           <Analytics />

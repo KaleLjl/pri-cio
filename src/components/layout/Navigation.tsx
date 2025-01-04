@@ -5,30 +5,34 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import LogoImage from '/public/image/logo.png';
+import type { Dictionary } from '@/lib/i18n/get-dictionary';
+
+interface Props {
+  dict: Dictionary;
+}
 
 interface NavItem {
   label: string;
   href: string;
 }
 
-const Navigation: React.FC = () => {
+const Navigation = ({ dict }: Props) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const { data: session } = useSession();
 
-  const navItems: NavItem[] = session
+  const navItems = session
     ? [
         { label: session.user?.email || 'Dashboard', href: '#' },
-        { label: 'App', href: '/app' },
-        { label: 'History', href: '/history' },
-        { label: 'Sign out', href: '/' },
+        { label: dict.navigation.app, href: '/app' },
+        { label: dict.navigation.history, href: '/history' },
+        { label: dict.navigation.signout, href: '/' },
       ]
     : [
-        { label: 'Sign in', href: '/signin' }
+        { label: dict.navigation.signin, href: '/signin' }
       ];
 
-
   const handleNavClick = async (item: NavItem) => {
-    if (item.label === 'Sign out') {
+    if (item.label === dict.navigation.signout) {
       await signOut();
       window.location.href = '/';
       return;
