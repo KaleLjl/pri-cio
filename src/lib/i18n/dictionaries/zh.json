@@ -28,5 +28,31 @@
           }
         }
       }
+    },
+    "signin": {
+    "title": "继续使用 PRICIO AI",
+    "google": "使用谷歌账号登录"
+  },
+  "history": {
+    "title": "历史记录",
+    "noRecords": "暂无历史记录",
+    "delete": "删除",
+    "loading": "加载中..."
+  },
+  "app": {
+    "title": "想知道什么的价格？",
+    "clickToEdit": "点击编辑",
+    "pressEnter": "按回车确认",
+    "description": "在此输入描述...",
+    "buttons": {
+      "photos": "选择照片",
+      "priceIt": "估算价格",
+      "delete": "删除",
+      "export": "导出"
+    },
+    "error": {
+      "title": "错误",
+      "close": "关闭"
     }
+  }
   }

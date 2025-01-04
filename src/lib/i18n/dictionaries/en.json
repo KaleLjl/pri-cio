@@ -28,5 +28,31 @@
           }
         }
       }
+    },
+    "signin": {
+    "title": "Continue to PRICIO AI",
+    "google": "Sign in with Google"
+  },
+  "history": {
+    "title": "History",
+    "noRecords": "No history records found",
+    "delete": "Delete",
+    "loading": "Loading..."
+  },
+  "app": {
+    "title": "What price do you want to know?",
+    "clickToEdit": "Click to edit",
+    "pressEnter": "Press Enter to confirm",
+    "description": "Enter description here...",
+    "buttons": {
+      "photos": "Photos",
+      "priceIt": "Price it",
+      "delete": "Delete",
+      "export": "Export"
+    },
+    "error": {
+      "title": "Error",
+      "close": "Close"
     }
+  }
   }

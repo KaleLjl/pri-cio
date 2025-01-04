@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
@@ -7,9 +6,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import GoogleIcon from '/public/image/google-icon.svg';
 import LogoImage from '/public/image/logo.png';
+import type { Dictionary } from '@/lib/i18n/get-dictionary';
 
-// Separate component for handling search params
-function SignInContent() {
+interface Props {
+  dict: Dictionary;
+}
+
+function SignInContent({ dict }: Props) {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
@@ -26,7 +29,7 @@ function SignInContent() {
   return (
     <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-8 md:px-16">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-black">Continue to PRICIO AI</h1>
+        <h1 className="text-2xl font-bold text-black">{dict.signin.title}</h1>
       </div>
 
       <button
@@ -36,13 +39,13 @@ function SignInContent() {
         className="flex items-center justify-center w-full py-3 mb-4 border border-gray-300 rounded-lg bg-white hover:bg-purple-600 hover:text-white group transition"
       >
         <Image src={GoogleIcon} alt="Google" width={20} height={20} className="mr-2" />
-        <span className="text-black group-hover:text-white">Sign in with Google</span>
+        <span className="text-black group-hover:text-white">{dict.signin.google}</span>
       </button>
     </div>
   );
 }
 
-export default function SigninForm() {
+export default function SigninForm({ dict }: Props) {
   return (
     <div className="min-h-screen flex relative">
       {/* Logo Section */}
@@ -66,8 +69,8 @@ export default function SigninForm() {
       </div>
 
       {/* Right Section: Login Form - Full width on mobile */}
-      <Suspense fallback={<div>Loading...</div>}>
-        <SignInContent />
+      <Suspense fallback={<div>{dict.history.loading}</div>}>
+        <SignInContent dict={dict} />
       </Suspense>
     </div>
   );
