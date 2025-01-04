@@ -29,5 +29,4 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
   },
   adapter: MongoDBAdapter(clientPromise),
   secret: process.env.AUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
 });
