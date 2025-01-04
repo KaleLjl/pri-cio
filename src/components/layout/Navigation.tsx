@@ -18,10 +18,9 @@ interface NavItem {
   href: string;
 }
 
-const LanguageSwitcher = ({ currentLang, onChange, dict }: { 
+const LanguageSwitcher = ({ currentLang, onChange }: { 
   currentLang: string; 
   onChange: (lang: string) => void;
-  dict: Dictionary;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -139,7 +138,6 @@ const Navigation = ({ dict }: Props) => {
               <LanguageSwitcher 
                 currentLang={currentLang} 
                 onChange={handleLanguageChange}
-                dict={dict}
               />
             </div>
           </div>
@@ -192,7 +190,6 @@ const Navigation = ({ dict }: Props) => {
             <LanguageSwitcher 
               currentLang={currentLang} 
               onChange={handleLanguageChange}
-              dict={dict}
             />
           </div>
         </div>

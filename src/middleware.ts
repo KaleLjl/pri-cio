@@ -8,7 +8,7 @@ const defaultLocale = i18n.defaultLocale
 function getLocale(request: NextRequest): string {
   // 1. 首先检查 cookie
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value
-  if (cookieLocale && locales.includes(cookieLocale as any)) {
+  if (cookieLocale && locales.includes(cookieLocale as Locale)) {
     return cookieLocale
   }
 
@@ -64,7 +64,7 @@ export function middleware(request: NextRequest) {
 
   // 将当前语言保存到 cookie
   const pathnameLocale = pathname.split('/')[1]
-  if (locales.includes(pathnameLocale as any)) {
+  if (locales.includes(pathnameLocale as Locale)) {
     response.cookies.set('NEXT_LOCALE', pathnameLocale)
   }
 
