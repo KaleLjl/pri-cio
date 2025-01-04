@@ -3,6 +3,8 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth"
+import { getPrompts } from "@/lib/prompts"
+import type { Locale } from "@/lib/i18n/config";
 
 export const maxDuration = 20; // This function can run for a maximum of 20 seconds
 const openai = new OpenAI();
@@ -44,6 +46,16 @@ export async function POST(request: Request) {
     console.log('✅ Authentication successful');
 
     const { selectedImage, currency } = await request.json()
+    console.log('📸 Received image and currency:', { currency });
+
+    // 从 cookie 中获取语言设置
+    const cookies = request.headers.get('cookie');
+    const localeCookie = cookies?.split(';').find(c => c.trim().startsWith('NEXT_LOCALE='));
+    const locale = (localeCookie?.split('=')[1]?.trim() || 'en') as Locale;
+    
+    // 获取对应语言的用户提示
+    const userPrompts = getPrompts(locale);
+    console.log('🗣️ Using language:', locale);
     console.log('📸 Received image and currency:', { currency });
 
     // Step 1: Initial image analysis
@@ -89,7 +101,7 @@ export async function POST(request: Request) {
         { 
           role: "user", 
           content: [
-            { type: "text", text: "What do you see in this image?" },
+            { type: "text", text: userPrompts.initialQuery },
             { type: "image_url", image_url: { url: selectedImage } }
           ]
         }
@@ -119,7 +131,7 @@ export async function POST(request: Request) {
           { 
             role: "user", 
             content: [
-              { type: "text", text: "Give me a funny description and price estimate!" },
+              { type: "text", text: userPrompts.funnyEstimate },
               { type: "image_url", image_url: { url: selectedImage } }
             ]
           }
@@ -143,7 +155,6 @@ export async function POST(request: Request) {
         firstResult: searchResults[0]?.snippet.substring(0, 100) + '...'
       });
 
-      // Add this check for empty search results
       if (searchResults.length === 0) {
         console.log('⚠️ No market data found, falling back to base analysis...');
         const completion = await openai.beta.chat.completions.parse({
@@ -172,7 +183,7 @@ export async function POST(request: Request) {
             { 
               role: "user", 
               content: [
-                { type: "text", text: "Based on the image, what's a fair second-hand market price?" },
+                { type: "text", text: userPrompts.baseMarketPrice },
                 { type: "image_url", image_url: { url: selectedImage } }
               ]
             }
@@ -217,7 +228,7 @@ export async function POST(request: Request) {
           { 
             role: "user", 
             content: [
-              { type: "text", text: "Based on the market research and image, what's a fair second-hand market price?" },
+              { type: "text", text: userPrompts.marketResearchPrice },
               { type: "image_url", image_url: { url: selectedImage } }
             ]
           }
