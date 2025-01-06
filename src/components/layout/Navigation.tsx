@@ -20,7 +20,7 @@ const Navigation: React.FC = () => {
   const pathname = usePathname();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -34,14 +34,14 @@ const Navigation: React.FC = () => {
           const profiles = await response.json();
           const userProfile = profiles.find((profile: { email: string }) => profile.email === session.user?.email);
 
-          if (userProfile?.avatar) {
-            setCurrentAvatar(userProfile.avatar);
+          if (userProfile?.avatarUrl) {
+            setCurrentAvatarUrl(userProfile.avatarUrl);
           } else {
-            setCurrentAvatar(null); // Reset to null if no avatar found
+            setCurrentAvatarUrl(null);
           }
         } catch (error) {
           console.error('Error fetching user avatar:', error);
-          setCurrentAvatar(null);
+          setCurrentAvatarUrl(null);
         }
       }
     };
@@ -57,17 +57,19 @@ const Navigation: React.FC = () => {
         { label: 'App', href: '/app' },
         { label: 'History', href: '/history' },
         { label: 'Sign out', href: '/' },
-        { label: (<Avatar
-          src={currentAvatar || undefined}
-          sx={{
-            bgcolor: currentAvatar ? 'transparent' : 'gray',
-            width: 40,
-            height: 40,
-            fontSize: '1rem',
-          }}
-          >
-          {!currentAvatar && emailInitial}
-          </Avatar>
+        { 
+          label: (
+            <Avatar
+              src={currentAvatarUrl || undefined}
+              sx={{
+                bgcolor: currentAvatarUrl ? 'transparent' : 'gray',
+                width: 40,
+                height: 40,
+                fontSize: '1rem',
+              }}
+            >
+              {!currentAvatarUrl && emailInitial}
+            </Avatar>
           ), 
           href: '/editprofile' 
         },

@@ -8,21 +8,20 @@ import {
   Avatar,
   Typography,
   Box,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
 } from "@mui/material";
 import { useProfilePage } from "@/lib/hooks/useProfilePage";
 import { useSession } from 'next-auth/react'; // Import useSession to get user data
 
 const ProfilePage = () => {
-  const { data: session } = useSession(); // Get session data
-  const userId = session?.user?.id || ""; // Assuming user ID is stored in session
-  const userEmail = session?.user?.email || ""; // Fetch user's email
-  const emailInitial = userEmail.charAt(0).toUpperCase(); // Use the first letter of the email
+  // 获取用户会话数据
+  const { data: session } = useSession();
+  const userId = session?.user?.id || "";
+  const userEmail = session?.user?.email || "";
+  const emailInitial = userEmail.charAt(0).toUpperCase(); // 获取邮箱首字母作为头像默认显示
+
+  // 使用自定义 Hook 获取配置文件相关功能
   const {
-    avatar,
+    avatarUrl,
     formData,
     handleAvatarChange,
     handleInputChange,
@@ -31,52 +30,62 @@ const ProfilePage = () => {
     fetchProfileData,
   } = useProfilePage(userId);
 
-  // *******************************************************************************************
-  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
-  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null); // Temporary preview
-  const [isLoading, setIsLoading] = useState(true);
+  // 状态管理
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null); // 预览头像
+  const [isLoading, setIsLoading] = useState(true); // 加载状态
 
+  // 在组件加载时获取用户资料数据
   useEffect(() => {
-    const fetchData = async () => {
+    const loadProfile = async () => {
       try {
-        const profileData = await fetchProfileData();
-        setCurrentAvatar(profileData.avatar || null);
-        console.log("Profile avatar:", profileData.avatar);
+        await fetchProfileData();
       } catch (error) {
-        console.error("Error fetching profile data:", error);
+        console.error("Error loading profile:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
+    loadProfile();
   }, [fetchProfileData]);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // 更新文件上传处理
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPreviewAvatar(reader.result as string); // Set temporary preview
-      };
-      reader.readAsDataURL(file);
-      handleAvatarChange(file); // Pass file to handler for saving on "Save"
+      // 创建临时预览
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewAvatar(objectUrl);
+      
+      // 处理文件上传
+      await handleAvatarChange(file);
     }
   };
 
-  const displayedAvatar = previewAvatar || currentAvatar;
+  // 清理预览 URL
+  useEffect(() => {
+    return () => {
+      if (previewAvatar) {
+        URL.revokeObjectURL(previewAvatar);
+      }
+    };
+  }, [previewAvatar]);
 
+  // 显示的头像：优先显示预览头像，其次是当前头像URL
+  const displayedAvatar = previewAvatar || formData.avatarUrl;
+
+  // 加载状态显示
   if (isLoading) {
     return <div className="text-center py-10">Loading...</div>;
   }
 
   return (
     <div style={{ backgroundColor: "black", minHeight: "100vh", color: "white" }}>
-      {/* Spacer for Navigation */}
+      {/* 导航栏占位符 */}
       <Box sx={{ height: "64px", backgroundColor: "black" }} />
   
       <Container maxWidth="sm" sx={{ py: 6 }}>
-        {/* Page Header */}
+        {/* 页面标题 */}
         <Typography
           variant="h4"
           sx={{
@@ -90,6 +99,8 @@ const ProfilePage = () => {
         >
           Edit Profile
         </Typography>
+
+        {/* 页面说明文字 */}
         <Typography
           variant="body1"
           sx={{
@@ -104,7 +115,7 @@ const ProfilePage = () => {
           Keep your personal details private. Information you add here is visible to anyone who can view your profile.
         </Typography>
   
-        {/* Profile Picture and Change Button */}
+        {/* 头像上传区域 */}
         <Box display="flex" alignItems="center" justifyContent="center" my={4}>
           <Avatar
             src={displayedAvatar || undefined}
@@ -132,17 +143,17 @@ const ProfilePage = () => {
               type="file"
               accept="image/*"
               hidden
-              onChange={handleFileUpload} // Handle file upload
+              onChange={handleFileUpload}
             />
           </Button>
         </Box>
   
-        {/* Input Fields */}
+        {/* 表单输入区域 */}
         <Box component="form" sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <TextField
-            label="First Name"
-            name="firstName"
-            value={formData.firstName}
+            label="Name"
+            name="name"
+            value={formData.name}
             onChange={(e) => handleInputChange(e.target.name, e.target.value)}
             fullWidth
             variant="outlined"
@@ -154,45 +165,16 @@ const ProfilePage = () => {
                   borderColor: "white",
                 },
                 "&:hover fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
+                  borderColor: "#6D28D9",
                 },
                 "&.Mui-focused fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
+                  borderColor: "#6D28D9",
                 },
               },
               "& .MuiInputLabel-root": {
                 color: "white",
                 "&.Mui-focused": {
-                  color: "#6D28D9", // Purple-600
-                },
-              },
-            }}
-          />
-          <TextField
-            label="Last Name"
-            name="lastName"
-            value={formData.lastName}
-            onChange={(e) => handleInputChange(e.target.name, e.target.value)}
-            fullWidth
-            variant="outlined"
-            sx={{
-              backgroundColor: "black",
-              "& .MuiOutlinedInput-root": {
-                color: "white",
-                "& fieldset": {
-                  borderColor: "white",
-                },
-                "&:hover fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
-                },
-                "&.Mui-focused fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
-                },
-              },
-              "& .MuiInputLabel-root": {
-                color: "white",
-                "&.Mui-focused": {
-                  color: "#6D28D9", // Purple-600
+                  color: "#6D28D9",
                 },
               },
             }}
@@ -228,36 +210,6 @@ const ProfilePage = () => {
               },
             }}
           />
-          <FormControl fullWidth sx={{ backgroundColor: "black" }}>
-            <InputLabel sx={{ color: "white", "&.Mui-focused": { color: "#6D28D9" } }}>
-              Pronouns
-            </InputLabel>
-            <Select
-              label="Pronouns"
-              name="pronouns"
-              value={formData.pronouns}
-              onChange={(e) => handleInputChange(e.target.name, e.target.value)}
-              sx={{
-                color: "white",
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "white",
-                },
-                "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "#6D28D9", // Purple-600 on hover
-                },
-                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "#6D28D9", // Purple-600 when focused
-                },
-                "& .MuiSelect-icon": {
-                  color: "white", // Ensure the dropdown icon is white
-                },
-              }}
-            >
-              <MenuItem value="">Select your pronouns</MenuItem>
-              <MenuItem value="he/him">He/Him</MenuItem>
-              <MenuItem value="she/her">She/Her</MenuItem>
-            </Select>
-          </FormControl>
           <TextField
             label="Website"
             name="website"
@@ -287,39 +239,11 @@ const ProfilePage = () => {
               },
             }}
           />
-          <TextField
-            label="Username"
-            name="username"
-            value={formData.username}
-            onChange={(e) => handleInputChange(e.target.name, e.target.value)}
-            fullWidth
-            variant="outlined"
-            sx={{
-              backgroundColor: "black",
-              "& .MuiOutlinedInput-root": {
-                color: "white",
-                "& fieldset": {
-                  borderColor: "white",
-                },
-                "&:hover fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
-                },
-                "&.Mui-focused fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
-                },
-              },
-              "& .MuiInputLabel-root": {
-                color: "white",
-                "&.Mui-focused": {
-                  color: "#6D28D9", // Purple-600
-                },
-              },
-            }}
-          />
         </Box>
   
-        {/* Reset and Save Buttons */}
+        {/* 底部按钮区域 */}
         <Box display="flex" justifyContent="space-between" mt={4}>
+          {/* 重置按钮 */}
           <Button
             variant="outlined"
             sx={{
@@ -332,6 +256,8 @@ const ProfilePage = () => {
           >
             Reset
           </Button>
+          
+          {/* 保存按钮 */}
           <Button
             variant="contained"
             sx={{
@@ -347,7 +273,6 @@ const ProfilePage = () => {
       </Container>
     </div>
   );
-  
 };
 
 export default ProfilePage;
