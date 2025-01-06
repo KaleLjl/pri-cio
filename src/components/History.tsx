@@ -14,35 +14,78 @@ interface DisplayHistoryProps {
 
 export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
   const { histories, isLoading, error, deleteHistory } = useHistory(initialHistories);
-  const { postHistoryToExplore, isSaving } = usePostToExplore();
+  const { 
+    postHistoryToExplore, 
+    isSaving,
+    locationPermission,
+    handleLocationPermission,
+    showToast,
+    setShowToast,
+    toastMessage,
+    setToastMessage,
+    toastType,
+    setToastType
+  } = usePostToExplore();
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedHistory, setSelectedHistory] = useState<HistoryItem | null>(null);
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
   
-  const handlePostWithLocation = async () => {
+  const handlePost = async (history: HistoryItem) => {
     try {
-      if (!navigator.geolocation) {
-        alert('Geolocation is not supported by your browser.');
+      // If permission was already granted, post directly
+      if (locationPermission === 'granted') {
+        await postHistoryToExplore(history);
+        setToastMessage('Successfully posted to explore!');
+        setToastType('success');
+        setShowToast(true);
         return;
       }
-  
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        const location = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-  
-        if (selectedHistory) {
-          const updatedHistory = { ...selectedHistory, location };
-          await postHistoryToExplore(updatedHistory);
-          setShowLocationModal(false);
-          setShowSuccessToast(true);
-        }
-      });
+
+      // If permission was denied, post without location
+      if (locationPermission === 'denied') {
+        await postHistoryToExplore(history);
+        setToastMessage('Successfully posted to explore!');
+        setToastType('success');
+        setShowToast(true);
+        return;
+      }
+
+      // If permission hasn't been decided yet, show modal
+      setSelectedHistory(history);
+      setShowLocationModal(true);
+    } catch (error) {
+      console.error('Failed to post:', error);
+    }
+  };
+
+  const handlePostWithLocation = async () => {
+    if (!selectedHistory) return;
+
+    try {
+      handleLocationPermission('granted');
+      await postHistoryToExplore(selectedHistory);
+      setShowLocationModal(false);
+      setToastMessage('Successfully posted to explore!');
+      setToastType('success');
+      setShowToast(true);
     } catch (error) {
       console.error('Failed to post with location:', error);
+    }
+  };
+
+  const handlePostWithoutLocation = async () => {
+    if (!selectedHistory) return;
+
+    try {
+      handleLocationPermission('denied');
+      await postHistoryToExplore(selectedHistory);
+      setShowLocationModal(false);
+      setToastMessage('Successfully posted to explore!');
+      setToastType('success');
+      setShowToast(true);
+    } catch (error) {
+      console.error('Failed to post without location:', error);
     }
   };
   
@@ -106,13 +149,12 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedHistory(history); // Set the selected history
-                          setShowLocationModal(true); // Show the location modal
-                          setActiveDropdown(null);
+                          handlePost(history);
                         }}
+                        disabled={isSaving}
                         className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
                       >
-                        Post
+                        {isSaving ? 'Posting...' : 'Post'}
                       </button>
                     </div>
                   )}
@@ -134,21 +176,25 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
           {/* Location Permission Modal */}
           <Modal 
             title="Enable Location Services"
-            message="This post requires location permission to include your current location. Allow it?"
+            message="Would you like to include your location with posts? This helps other users find items near them."
             isOpen={showLocationModal}
-            onClose={() => setShowLocationModal(false)}
+            onClose={() => {
+              setShowLocationModal(false);
+              handlePostWithoutLocation();
+            }}
             onConfirm={handlePostWithLocation}
-            confirmText="Allow"
-            cancelText="Cancel"
+            confirmText="Allow Location"
+            cancelText="Don't Allow"
           />
         </div>
       )}
       
       <Toast 
-        message="Successfully posted to explore!"
-        isVisible={showSuccessToast}
-        onClose={() => setShowSuccessToast(false)}
-        type="success"
+        message={toastMessage}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        type={toastType}
+        duration={2000}
       />
     </div>
   );
