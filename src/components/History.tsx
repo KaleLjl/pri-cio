@@ -1,20 +1,26 @@
 'use client';
 
 import Image from 'next/image';
-import { useHistory,HistoryItem } from '@/lib/hooks/useHistory';
+import { useHistory } from '@/lib/hooks/useHistory';
+import { usePostToExplore } from '@/lib/hooks/usePostToExplore';
 import { useState } from 'react';
+import { HistoryItem } from '@/lib/types/history';
+import Toast from '@/components/ui/Toast';
+import Modal from '@/components/ui/Modal';
 
 interface DisplayHistoryProps {
   histories: HistoryItem[];
 }
 
 export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
-  const { histories, isLoading, error, deleteHistory, postHistory } = useHistory(initialHistories);
+  const { histories, isLoading, error, deleteHistory } = useHistory(initialHistories);
+  const { postHistoryToExplore, isSaving } = usePostToExplore();
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedHistory, setSelectedHistory] = useState<HistoryItem | null>(null);
-  // Function to handle posting with location
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  
   const handlePostWithLocation = async () => {
     try {
       if (!navigator.geolocation) {
@@ -28,11 +34,11 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
           longitude: position.coords.longitude,
         };
   
-        // Pass location when posting
         if (selectedHistory) {
-          const updatedHistory = { ...selectedHistory, location }; // Add location to history item
-          await postHistory(updatedHistory);
-          setShowLocationModal(false); // Close modal after posting
+          const updatedHistory = { ...selectedHistory, location };
+          await postHistoryToExplore(updatedHistory);
+          setShowLocationModal(false);
+          setShowSuccessToast(true);
         }
       });
     } catch (error) {
@@ -126,32 +132,24 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
             </div>
           ))}
           {/* Location Permission Modal */}
-          {showLocationModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                <h2 className="text-xl font-bold mb-4 text-black">Enable Location Services</h2>
-                <p className="text-gray-600 mb-6">
-                  This post requires location permission to include your current location. Allow it?
-                </p>
-                <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={() => setShowLocationModal(false)}
-                    className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handlePostWithLocation}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                  >
-                    Allow
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <Modal 
+            title="Enable Location Services"
+            message="This post requires location permission to include your current location. Allow it?"
+            isOpen={showLocationModal}
+            onClose={() => setShowLocationModal(false)}
+            onConfirm={handlePostWithLocation}
+            confirmText="Allow"
+            cancelText="Cancel"
+          />
         </div>
       )}
+      
+      <Toast 
+        message="Successfully posted to explore!"
+        isVisible={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+        type="success"
+      />
     </div>
   );
 }

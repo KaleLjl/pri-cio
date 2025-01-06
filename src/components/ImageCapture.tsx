@@ -3,6 +3,7 @@ import { useImageCapture } from '@/lib/hooks/useImageCapture';
 import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
 import { useShareCard } from '@/lib/hooks/useShareCard';
+import Modal from '@/components/ui/Modal';
 
 // 提取常量
 const CURRENCIES = [
@@ -14,38 +15,6 @@ const CURRENCIES = [
   ...curr,
   label: `  ${curr.label}  `
 }));
-
-// 提取子组件, 无法识别时候报错的弹窗
-const ErrorModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-      <div className="flex items-start mb-4">
-        <div className="flex-shrink-0">
-          <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <div className="ml-3">
-          <h3 className="text-lg font-medium text-gray-900">Error</h3>
-          <div className="mt-2">
-            <p className="text-sm text-gray-500">
-              {message}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="mt-4 flex justify-end">
-        <button
-          type="button"
-          className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500"
-          onClick={onClose}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 export default function ImageCapture() {
   const [state, actions] = useImageCapture();
@@ -376,12 +345,15 @@ export default function ImageCapture() {
         </div>
       )}
 
-      {state.showErrorModal && (
-        <ErrorModal 
-          message={state.errorMessage} 
-          onClose={actions.closeErrorModal} 
-        />
-      )}
+      <Modal 
+        title="Error"
+        message={state.errorMessage}
+        isOpen={state.showErrorModal}
+        onClose={actions.closeErrorModal}
+        onConfirm={actions.closeErrorModal}
+        confirmText="Close"
+        cancelText="Cancel"
+      />
     </>
   );
 }

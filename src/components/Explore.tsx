@@ -271,9 +271,22 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               <p className="text-xs text-gray-400">
                 {explore.description || 'No description available'}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 mb-2">
                 {new Date(explore.createdAt).toLocaleString()}
               </p>
+              <div className="flex items-center justify-center space-x-2 mt-2">
+                <div className="relative w-6 h-6 rounded-full overflow-hidden">
+                  <Image
+                    src={explore.userProfile?.avatarUrl || '/default-avatar.png'}
+                    alt={explore.userProfile?.name || 'User'}
+                    layout="fill"
+                    objectFit="cover"
+                  />
+                </div>
+                <span className="text-xs text-gray-300">
+                  {explore.userProfile?.name || 'Anonymous'}
+                </span>
+              </div>
             </div>
           </motion.div>
         ))}
@@ -374,7 +387,25 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
 
                 {/* Right Column: Content */}
                 <div className="flex flex-col space-y-4">
-                  <h2 className="text-2xl font-bold">{selectedCard.description || 'No description available'}</h2>
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                      <Image
+                        src={selectedCard.userProfile?.avatarUrl || '/default-avatar.png'}
+                        alt={selectedCard.userProfile?.name || 'User'}
+                        layout="fill"
+                        objectFit="cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {selectedCard.userProfile?.name || 'Anonymous'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <h2 className="text-2xl font-bold">
+                    {selectedCard.description || 'No description available'}
+                  </h2>
                   <p className="text-gray-600 text-sm">
                     Created at: {new Date(selectedCard.createdAt).toLocaleString()}
                   </p>

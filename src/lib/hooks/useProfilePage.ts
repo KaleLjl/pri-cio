@@ -1,24 +1,6 @@
 import { useState, useCallback } from "react";
 import { useSession } from 'next-auth/react';
-
-export interface Profile {
-  email?: string;
-  name?: string;
-  about?: string;
-  website?: string;
-  avatarUrl?: string | null;
-  updatedAt?: Date;
-}
-
-export interface UseProfilePage {
-  avatarUrl: string | null;
-  formData: Profile;
-  handleAvatarChange: (file: File) => Promise<void>;
-  handleInputChange: (name: string, value: string) => void;
-  resetForm: () => void;
-  saveProfile: () => Promise<void>;
-  fetchProfileData: () => Promise<Profile>;
-}
+import { Profile, UseProfilePage } from '../types/users';
 
 export const useProfilePage = (userId: string): UseProfilePage => {
   const [avatar, setAvatar] = useState<string | null>(null);

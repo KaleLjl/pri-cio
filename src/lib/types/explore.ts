@@ -4,11 +4,15 @@ export interface ExploreItem {
     price: string;
     description: string;
     userEmail: string;
+    userProfile?: {
+      name?: string;
+      avatarUrl?: string | null;
+    };
     location?: {
       latitude: number;
       longitude: number;
       city: string;
       country: string;
-    } | null; // Optional field
+    } | null;
     createdAt: string;
-  }
+}

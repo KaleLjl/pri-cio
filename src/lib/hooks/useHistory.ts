@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { HistoryItem } from '@/lib/types/history';
 
-export interface HistoryItem {
-  _id: string;
-  imageUrl: string;
-  price: string;
-  description: string;
-  createdAt: string;
-  userEmail: string;
-}
 export function useHistory(initialData: HistoryItem[] = []) {
   const { data: session } = useSession();
   const [histories, setHistories] = useState<HistoryItem[]>(initialData);
@@ -16,7 +9,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 保存到历史记录
   const saveToHistory = async (price: string, description: string, selectedImage: string) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
@@ -41,7 +33,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
         throw new Error('Failed to save history');
       }
       
-      // 保存成功后刷新历史记录
       await refreshHistories();
       return await response.json();
     } catch (error) {
@@ -53,7 +44,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  // 刷新历史记录
   const refreshHistories = async () => {
     if (!session?.user?.email) {
       setError('User not authenticated');
@@ -76,7 +66,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  // 删除历史记录
   const deleteHistory = async (historyId: string) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
@@ -91,7 +80,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
         throw new Error('Failed to delete history');
       }
 
-      // 删除成功后更新列表
       setHistories(histories.filter(history => history._id !== historyId));
     } catch (error) {
       console.error('Delete history failed:', error);
@@ -99,79 +87,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
       throw error;
     }
   };
-
-  // // Post to explore
-  // const postHistory = async (history: HistoryItem) => {
-  //   if (!session?.user?.email) {
-  //     throw new Error('User not authenticated');
-  //   }
-  
-  //   setIsSaving(true);
-  //   try {
-  //     const response = await fetch('/api/explore', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: JSON.stringify({
-  //         price: history.price,
-  //         description: history.description,
-  //         imageUrl: history.imageUrl,
-  //         userEmail: session.user.email,
-  //       }),
-  //     });
-  
-  //     if (!response.ok) {
-  //       throw new Error('Failed to post history to explore');
-  //     }
-  
-  //     console.log('History successfully posted to explore!');
-  //   } catch (error) {
-  //     console.error('Post history failed:', error);
-  //     setError(error instanceof Error ? error.message : 'Failed to post history');
-  //     throw error;
-  //   } finally {
-  //     setIsSaving(false);
-  //   }
-  // };
-
-  // *****************************************************************************************
-  const postHistory = async (history: HistoryItem & { location?: { latitude: number; longitude: number } }) => {
-    if (!session?.user?.email) {
-      throw new Error('User not authenticated');
-    }
-  
-    setIsSaving(true);
-    try {
-      const response = await fetch('/api/explore', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          price: history.price,
-          description: history.description,
-          imageUrl: history.imageUrl,
-          userEmail: session.user.email,
-          location: history.location || null, // Pass location if available
-        }),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to post history to explore');
-      }
-  
-      console.log('History successfully posted to explore!');
-    } catch (error) {
-      console.error('Post history failed:', error);
-      setError(error instanceof Error ? error.message : 'Failed to post history');
-      throw error;
-    } finally {
-      setIsSaving(false);
-    }
-  };
-  
-  // *****************************************************************************************
 
   return {
     histories,
@@ -181,6 +96,5 @@ export function useHistory(initialData: HistoryItem[] = []) {
     saveToHistory,
     refreshHistories,
     deleteHistory,
-    postHistory,
   };
 }

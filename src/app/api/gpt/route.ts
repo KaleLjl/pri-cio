@@ -1,36 +1,24 @@
 import OpenAI from "openai"
 import { zodResponseFormat } from "openai/helpers/zod";
-import { z } from "zod";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth"
+import { 
+  InitialAnalysis, 
+  PriceDescription,
+  SearchItem,
+  SearchResult 
+} from "@/lib/types/gpt";
+import {
+  getInitialAnalysisPrompt,
+  getNonTradablePrompt,
+  getBasePricePrompt,
+  getMarketPricePrompt
+} from '@/lib/prompts';
 
 export const maxDuration = 20; // This function can run for a maximum of 20 seconds
 const openai = new OpenAI();
 const CUSTOM_SEARCH_API_KEY = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY;
 const SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
-
-// Initial analysis schema
-const InitialAnalysis = z.object({
-  objectDescription: z.string(),
-  tradable: z.boolean()
-})
-
-// Final price analysis schema
-const PriceDescription = z.object({
-  description: z.string(),
-  price: z.number()
-})
-
-// 添加搜索结果的类型定义
-interface SearchItem {
-  title: string;
-  snippet: string;
-}
-
-interface SearchResult {
-  snippet: string;
-  prices: string[];
-}
 
 export async function POST(request: Request) {
   try {
@@ -53,38 +41,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: `Analyze the picture in detail and provide a concise identification:
-          
-          1. If it's a product:
-             - Always include the brand name if recognizable
-             - Include model/series name if applicable
-             - Include year if identifiable
-             Format example: "Nike Air Jordan 1 2024" or "Apple iPhone 15 Pro"
-          
-          2. If it's a generic item without clear branding:
-             - Provide the most specific description possible
-             Format example: "Leather Office Chair" or "Stainless Steel Watch"
-          
-          3. Determine if the item is tradable by these rules:
-             Return tradable=false for:
-             - Human faces, body parts, or personal photos
-             - Prepared food or perishable items
-             - Natural scenery (mountains, sunset, etc.)
-             - Buildings or architectural structures
-             - Screenshots or digital content
-             - Abstract concepts or artwork
-             - Living creatures (pets, plants, etc.)
-             
-             Return tradable=true for:
-             - Consumer products with clear branding
-             - Electronics and gadgets
-             - Clothing and accessories
-             - Furniture and home goods
-             - Vehicles and parts
-             - Collectibles and merchandise
-             - Tools and equipment
-          
-          Keep the response brief and focused on identification only.`
+          content: getInitialAnalysisPrompt()
         },
         { 
           role: "user", 
@@ -111,10 +68,7 @@ export async function POST(request: Request) {
         messages: [
           {
             role: "system",
-            content: `You are a creative and humorous assistant. A non-tradable item (like a human face, food, building, tree, etc.) has been detected.
-            Generate a funny and witty description and a humorous symbolic "value" in ${currency}.
-            Use normal speaking tone and a touch of humor, but don't use difficult words.
-            Keep descriptions concise under 100 characters, avoiding anything inappropriate or overly critical.`
+            content: getNonTradablePrompt(currency)
           },
           { 
             role: "user", 
@@ -151,23 +105,7 @@ export async function POST(request: Request) {
           messages: [
             {
               role: "system",
-              content: `You are an assistant tasked with estimating the second-hand market price for: "${objectDescription}".
-              
-              Consider the following factors for your estimation:
-              - Brand value and market positioning
-              - Apparent condition from the image
-              - Age and wear level visible in the image
-              - Current retail price trends for similar items
-              - Standard depreciation for this type of item
-              
-              Provide a conservative second-hand market price estimate in ${currency}.
-              Your response should be concise (under 100 characters) and include:
-              - Brief description maintaining the brand/model information
-              - Estimated second-hand price
-              
-              Example format:
-              description: "Used Nike Air Jordan 1 (Good condition)"
-              price: 180`
+              content: getBasePricePrompt(objectDescription, currency)
             },
             { 
               role: "user", 
@@ -198,21 +136,7 @@ export async function POST(request: Request) {
         messages: [
           {
             role: "system",
-            content: `You are an assistant tasked with determining the most accurate second-hand market price for: "${objectDescription}".
-            
-            Based on the provided market research and the item's image:
-            1. Compare the item's condition in the image with market listings
-            2. Consider the brand value and market positioning
-            3. Account for visible wear and age
-            4. Analyze the price trends in the following market data
-            
-            Provide a conservative second-hand market price in ${currency} based on the most reliable data.
-            Your response should be concise (under 100 characters) and include:
-            - Brief description maintaining the brand/model information
-            - Current second-hand market price
-            
-            Market Research Data:
-            ${contexts}`
+            content: getMarketPricePrompt(objectDescription, currency, contexts)
           },
           { 
             role: "user", 
