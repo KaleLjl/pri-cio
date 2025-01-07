@@ -5,42 +5,28 @@ import { HistoryItem } from '@/lib/types/history';
 export function useHistory(initialData: HistoryItem[] = []) {
   const { data: session } = useSession();
   const [histories, setHistories] = useState<HistoryItem[]>(initialData);
-  const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const saveToHistory = async (price: string, description: string, selectedImage: string) => {
+  const deleteHistory = async (historyId: string) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
     }
 
-    setIsSaving(true);
     try {
-      const response = await fetch('/api/history', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          price,
-          description,
-          selectedImage,
-          userEmail: session.user.email,
-        }),
+      const response = await fetch(`/api/history/${historyId}`, {
+        method: 'DELETE',
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save history');
+        throw new Error('Failed to delete history');
       }
-      
-      await refreshHistories();
-      return await response.json();
+
+      setHistories(histories.filter(history => history._id !== historyId));
     } catch (error) {
-      console.error('Save history failed:', error);
-      setError(error instanceof Error ? error.message : 'Failed to save history');
+      console.error('Delete history failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete history');
       throw error;
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -66,35 +52,12 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  const deleteHistory = async (historyId: string) => {
-    if (!session?.user?.email) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      const response = await fetch(`/api/history/${historyId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete history');
-      }
-
-      setHistories(histories.filter(history => history._id !== historyId));
-    } catch (error) {
-      console.error('Delete history failed:', error);
-      setError(error instanceof Error ? error.message : 'Failed to delete history');
-      throw error;
-    }
-  };
-
   return {
     histories,
+    setHistories,
     isLoading,
-    isSaving,
     error,
-    saveToHistory,
-    refreshHistories,
     deleteHistory,
+    refreshHistories,
   };
 }

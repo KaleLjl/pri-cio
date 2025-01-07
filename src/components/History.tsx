@@ -13,20 +13,18 @@ interface DisplayHistoryProps {
 }
 
 export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
-  const { histories, isLoading, error, deleteHistory } = useHistory(initialHistories);
+  const { histories, setHistories, isLoading, error, deleteHistory } = useHistory(initialHistories);
   const { 
     postHistoryToExplore, 
+    unpublishHistory,
     isSaving,
     locationPermission,
     handleLocationPermission,
     showToast,
     setShowToast,
     toastMessage,
-    setToastMessage,
     toastType,
-    setToastType,
-    unpublishHistory
-  } = usePublish();
+  } = usePublish(setHistories);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -37,18 +35,12 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
       // If permission was already granted, post directly
       if (locationPermission === 'granted') {
         await postHistoryToExplore(history);
-        setToastMessage('Successfully posted to explore!');
-        setToastType('success');
-        setShowToast(true);
         return;
       }
 
       // If permission was denied, post without location
       if (locationPermission === 'denied') {
         await postHistoryToExplore(history);
-        setToastMessage('Successfully posted to explore!');
-        setToastType('success');
-        setShowToast(true);
         return;
       }
 
@@ -67,9 +59,6 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
       handleLocationPermission('granted');
       await postHistoryToExplore(selectedHistory);
       setShowLocationModal(false);
-      setToastMessage('Successfully posted to explore!');
-      setToastType('success');
-      setShowToast(true);
     } catch (error) {
       console.error('Failed to post with location:', error);
     }
@@ -82,9 +71,6 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
       handleLocationPermission('denied');
       await postHistoryToExplore(selectedHistory);
       setShowLocationModal(false);
-      setToastMessage('Successfully posted to explore!');
-      setToastType('success');
-      setShowToast(true);
     } catch (error) {
       console.error('Failed to post without location:', error);
     }

@@ -1,24 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { HistoryItem } from '@/lib/types/history';
 
-export function usePublish() {
+export function usePublish(setHistories: React.Dispatch<React.SetStateAction<HistoryItem[]>>) {
   const { data: session } = useSession();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [locationPermission, setLocationPermission] = useState<string | null>(null);
+  const [locationPermission, setLocationPermission] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('locationPermission');
+    }
+    return null;
+  });
   const [canPost, setCanPost] = useState(true);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
-
-  // Load saved location permission on mount
-  useEffect(() => {
-    const savedPermission = localStorage.getItem('locationPermission');
-    if (savedPermission) {
-      setLocationPermission(savedPermission);
-    }
-  }, []);
 
   const showNewToast = (message: string, type: 'success' | 'error' | 'info') => {
     setShowToast(false);
@@ -34,25 +31,21 @@ export function usePublish() {
       throw new Error('User not authenticated');
     }
 
-    // 检查是否已发布
     if (history.exploreId) {
       showNewToast('This item has already been published', 'error');
       return Promise.reject('Item already published');
     }
     
-    // 如果不能发布，显示提示并直接返回
     if (!canPost) {
       showNewToast('Please wait 5 seconds before posting again', 'info');
       return Promise.reject('Please wait before posting again');
     }
 
-    // 立即禁用发布能力
     setCanPost(false);
     setIsSaving(true);
 
     try {
       let locationData = null;
-
       if (locationPermission === 'granted') {
         try {
           const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -85,10 +78,19 @@ export function usePublish() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Publish error:', errorData);
         throw new Error(errorData.message || 'Failed to post history to explore');
       }
 
+      const data = await response.json();
+      
+      setHistories(prev => 
+        prev.map(h => 
+          h._id === history._id 
+            ? { ...h, exploreId: data._id.toString() } 
+            : h
+        )
+      );
+      
       showNewToast('Successfully posted to explore!', 'success');
     } catch (error) {
       console.error('Post history failed:', error);
@@ -97,16 +99,10 @@ export function usePublish() {
       throw error;
     } finally {
       setIsSaving(false);
-      // 5秒后重新启用发布能力
       setTimeout(() => {
         setCanPost(true);
       }, 5000);
     }
-  };
-
-  const handleLocationPermission = (permission: 'granted' | 'denied') => {
-    localStorage.setItem('locationPermission', permission);
-    setLocationPermission(permission);
   };
 
   const unpublishHistory = async (historyId: string, exploreId: string) => {
@@ -120,10 +116,17 @@ export function usePublish() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to unpublish history');
+        throw new Error('Failed to unpublish');
       }
-
+      
+      setHistories(prev => 
+        prev.map(h => 
+          h._id === historyId 
+            ? { ...h, exploreId: undefined } 
+            : h
+        )
+      );
+      
       showNewToast('Successfully unpublished!', 'success');
     } catch (error) {
       console.error('Unpublish failed:', error);
@@ -132,8 +135,14 @@ export function usePublish() {
     }
   };
 
+  const handleLocationPermission = (permission: 'granted' | 'denied') => {
+    localStorage.setItem('locationPermission', permission);
+    setLocationPermission(permission);
+  };
+
   return {
     postHistoryToExplore,
+    unpublishHistory,
     isSaving,
     error,
     locationPermission,
@@ -142,10 +151,7 @@ export function usePublish() {
     showToast,
     setShowToast,
     toastMessage,
-    setToastMessage,
     toastType,
-    setToastType,
     showNewToast,
-    unpublishHistory,
   };
 } 
