@@ -9,6 +9,31 @@ export function useHistory(initialData: HistoryItem[] = []) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const deleteHistory = async (historyId: string) => {
+    if (!session?.user?.email) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const response = await fetch(`/api/history/${historyId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete history');
+      }
+
+      setHistories(prev => prev.filter(history => history._id !== historyId));
+      return { success: true };
+    } catch (error) {
+      console.error('Delete history failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete history');
+      throw error;
+    }
+  };
+
   const saveToHistory = async (price: string, description: string, imageUrl: string) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
@@ -40,31 +65,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
       setIsSaving(false);
     }
   };
- // 删除历史记录
- const deleteHistory = async (historyId: string) => {
-  if (!session?.user?.email) {
-    throw new Error('User not authenticated');
-  }
-
-  try {
-    const response = await fetch(`/api/history/${historyId}`, {
-      method: 'DELETE',
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to delete history');
-    }
-
-    // 删除成功后更新列表
-    setHistories(prev => prev.filter(history => history._id !== historyId));
-  } catch (error) {
-    console.error('Delete history failed:', error);
-    setError(error instanceof Error ? error.message : 'Failed to delete history');
-    throw error;
-  }
-};
 
   const refreshHistories = async () => {
     if (!session?.user?.email) {
@@ -94,8 +94,8 @@ export function useHistory(initialData: HistoryItem[] = []) {
     isLoading,
     isSaving,
     error,
-    saveToHistory,
     deleteHistory,
     refreshHistories,
+    saveToHistory,
   };
 }

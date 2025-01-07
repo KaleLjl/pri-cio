@@ -13,18 +13,6 @@ export function usePublish(setHistories: React.Dispatch<React.SetStateAction<His
     return null;
   });
   const [canPost, setCanPost] = useState(true);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
-
-  const showNewToast = (message: string, type: 'success' | 'error' | 'info') => {
-    setShowToast(false);
-    setTimeout(() => {
-      setToastMessage(message);
-      setToastType(type);
-      setShowToast(true);
-    }, 100);
-  };
 
   const postHistoryToExplore = async (history: HistoryItem) => {
     if (!session?.user?.email) {
@@ -32,13 +20,11 @@ export function usePublish(setHistories: React.Dispatch<React.SetStateAction<His
     }
 
     if (history.exploreId) {
-      showNewToast('This item has already been published', 'error');
-      return Promise.reject('Item already published');
+      throw new Error('This item has already been published');
     }
     
     if (!canPost) {
-      showNewToast('Please wait 5 seconds before posting again', 'info');
-      return Promise.reject('Please wait before posting again');
+      throw new Error('Please wait 5 seconds before posting again');
     }
 
     setCanPost(false);
@@ -91,11 +77,10 @@ export function usePublish(setHistories: React.Dispatch<React.SetStateAction<His
         )
       );
       
-      showNewToast('Successfully posted to explore!', 'success');
+      return { success: true };
     } catch (error) {
       console.error('Post history failed:', error);
       setError(error instanceof Error ? error.message : 'Failed to post history');
-      showNewToast(error instanceof Error ? error.message : 'Failed to post history', 'error');
       throw error;
     } finally {
       setIsSaving(false);
@@ -127,10 +112,9 @@ export function usePublish(setHistories: React.Dispatch<React.SetStateAction<His
         )
       );
       
-      showNewToast('Successfully unpublished!', 'success');
+      return { success: true };
     } catch (error) {
       console.error('Unpublish failed:', error);
-      showNewToast(error instanceof Error ? error.message : 'Failed to unpublish', 'error');
       throw error;
     }
   };
@@ -148,10 +132,5 @@ export function usePublish(setHistories: React.Dispatch<React.SetStateAction<His
     locationPermission,
     handleLocationPermission,
     canPost,
-    showToast,
-    setShowToast,
-    toastMessage,
-    toastType,
-    showNewToast,
   };
 } 

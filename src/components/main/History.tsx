@@ -13,24 +13,40 @@ interface DisplayHistoryProps {
 }
 
 export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
-  const { 
-    histories, 
-    setHistories, 
-    isLoading, 
-    error, 
-    deleteHistory 
-  } = useHistory(initialHistories);
-  
+  const { histories, setHistories, isLoading, error, deleteHistory } = useHistory(initialHistories);
   const { 
     postHistoryToExplore, 
     unpublishHistory,
     locationPermission,
     handleLocationPermission,
-    showToast,
-    setShowToast,
-    toastMessage,
-    toastType,
   } = usePublish(setHistories);
+
+  // Toast state
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+
+  const showNewToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setShowToast(false);
+    setTimeout(() => {
+      setToastMessage(message);
+      setToastType(type);
+      setShowToast(true);
+    }, 100);
+  };
+
+  // Handle delete with toast
+  const handleDelete = async (historyId: string) => {
+    try {
+      await deleteHistory(historyId);
+      showNewToast('Successfully deleted!', 'success');
+    } catch (error) {
+      showNewToast(
+        error instanceof Error ? error.message : 'Failed to delete history', 
+        'error'
+      );
+    }
+  };
 
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -40,18 +56,23 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
     try {
       if (locationPermission === 'granted') {
         await postHistoryToExplore(history);
+        showNewToast('Successfully posted to explore!', 'success');
         return;
       }
 
       if (locationPermission === 'denied') {
         await postHistoryToExplore(history);
+        showNewToast('Successfully posted to explore!', 'success');
         return;
       }
 
       setSelectedHistory(history);
       setShowLocationModal(true);
     } catch (error) {
-      console.error('Failed to post:', error);
+      showNewToast(
+        error instanceof Error ? error.message : 'Failed to post history',
+        'error'
+      );
     }
   };
 
@@ -85,6 +106,18 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
     const posted = histories.filter(history => history.exploreId);
     setPostedHistories(posted);
   }, [histories]);
+
+  const handleUnpublish = async (historyId: string, exploreId: string) => {
+    try {
+      await unpublishHistory(historyId, exploreId);
+      showNewToast('Successfully unpublished!', 'success');
+    } catch (error) {
+      showNewToast(
+        error instanceof Error ? error.message : 'Failed to unpublish',
+        'error'
+      );
+    }
+  };
 
   if (error) {
     return <div className="text-center py-10 text-red-500">{error}</div>;
@@ -131,7 +164,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          deleteHistory(history._id);
+                          handleDelete(history._id);
                           setActiveDropdown(null);
                         }}
                         className="block w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-gray-100 rounded"
@@ -209,7 +242,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                           onClick={(e) => {
                             e.stopPropagation();
                             if (history.exploreId) {
-                              unpublishHistory(history._id, history.exploreId);
+                              handleUnpublish(history._id, history.exploreId);
                             }
                             setActiveDropdown(null);
                           }}
