@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { HistoryItem } from '@/lib/types/history';
 
-export function usePostToExplore() {
+export function usePublish() {
   const { data: session } = useSession();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export function usePostToExplore() {
         }
       }
 
-      const response = await fetch('/api/explore', {
+      const response = await fetch('/api/publish', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

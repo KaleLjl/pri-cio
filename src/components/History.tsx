@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useHistory } from '@/lib/hooks/useHistory';
-import { usePostToExplore } from '@/lib/hooks/usePostToExplore';
+import { usePublish } from '@/lib/hooks/usePublish';
 import { useState } from 'react';
 import { HistoryItem } from '@/lib/types/history';
 import Toast from '@/components/ui/Toast';
@@ -25,7 +25,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
     setToastMessage,
     toastType,
     setToastType
-  } = usePostToExplore();
+  } = usePublish();
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
   const [showLocationModal, setShowLocationModal] = useState(false);
