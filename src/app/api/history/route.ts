@@ -34,30 +34,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { price, description, selectedImage } = await request.json();
+    const { price, description, imageUrl } = await request.json();
     
-    // 生成唯一的文件名
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-    
-    // 上传图片到 S3
-    const imageUrl = await uploadToS3(selectedImage, fileName);
+    // 1. 先上传图片到 S3
+    const fileName = `history-${session.user.email}-${Date.now()}.jpg`;
+    const s3ImageUrl = await uploadToS3(imageUrl, fileName);
     
     const client = await clientPromise;
     const db = client.db("pri-cio");
     
-    // 保存记录到 MongoDB
+    // 2. 保存 S3 URL 到数据库
     const result = await db.collection("histories").insertOne({
       price,
       description,
       userEmail: session.user.email,
-      imageUrl,
+      imageUrl: s3ImageUrl,  // 使用 S3 URL
       createdAt: new Date(),
     });
 
     return NextResponse.json({ 
       success: true, 
       id: result.insertedId,
-      imageUrl 
+      imageUrl: s3ImageUrl 
     });
   } catch (error) {
     console.error('API Error:', error);

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useHistory } from '@/lib/hooks/useHistory';
+import { useHistoryState } from '@/lib/hooks/page/useHistoryState';
 import { usePublish } from '@/lib/hooks/usePublish';
 import { useState, useEffect } from 'react';
 import { HistoryItem } from '@/lib/types/history';
@@ -13,11 +13,17 @@ interface DisplayHistoryProps {
 }
 
 export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
-  const { histories, setHistories, isLoading, error, deleteHistory } = useHistory(initialHistories);
+  const { 
+    histories, 
+    setHistories, 
+    isLoading, 
+    error, 
+    deleteHistory 
+  } = useHistoryState(initialHistories);
+  
   const { 
     postHistoryToExplore, 
     unpublishHistory,
-    isSaving,
     locationPermission,
     handleLocationPermission,
     showToast,
@@ -25,26 +31,23 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
     toastMessage,
     toastType,
   } = usePublish(setHistories);
+
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedHistory, setSelectedHistory] = useState<HistoryItem | null>(null);
   
   const handlePost = async (history: HistoryItem) => {
     try {
-      // If permission was already granted, post directly
       if (locationPermission === 'granted') {
         await postHistoryToExplore(history);
         return;
       }
 
-      // If permission was denied, post without location
       if (locationPermission === 'denied') {
         await postHistoryToExplore(history);
         return;
       }
 
-      // If permission hasn't been decided yet, show modal
       setSelectedHistory(history);
       setShowLocationModal(true);
     } catch (error) {
@@ -79,9 +82,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
   const [postedHistories, setPostedHistories] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
-    console.log('Current histories:', histories);
     const posted = histories.filter(history => history.exploreId);
-    console.log('Posted histories:', posted);
     setPostedHistories(posted);
   }, [histories]);
 
@@ -114,16 +115,8 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                   fill
                   className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  onError={() => {
-                    console.error(`Failed to load image: ${history.imageUrl}`);
-                  }}
                 />
                 <div className="absolute top-2 right-2 flex items-center gap-2">
-                  {history.exploreId && (
-                    <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
-                      Posted
-                    </span>
-                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -134,7 +127,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                     •••
                   </button>
                   {activeDropdown === history._id && (
-                    <div className="absolute right-0 mt-2 w-20 bg-white/50 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-10 transition-transform duration-200 ease-in-out">
+                    <div className="absolute right-0 mt-2 w-20 bg-white/50 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-10">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -145,31 +138,15 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                       >
                         Delete
                       </button>
-                      {!history.exploreId ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePost(history);
-                          }}
-                          disabled={isSaving}
-                          className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
-                        >
-                          {isSaving ? 'Posting...' : 'Post'}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (history.exploreId) {
-                              unpublishHistory(history._id, history.exploreId);
-                            }
-                            setActiveDropdown(null);
-                          }}
-                          className="block w-full text-left px-2 py-1 text-sm text-orange-600 hover:bg-gray-100 rounded"
-                        >
-                          Unpublish
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePost(history);
+                        }}
+                        className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
+                      >
+                        Post
+                      </button>
                     </div>
                   )}
                 </div>

@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import clientPromise from '@/lib/mongodb'
-import DisplayHistory from '@/components/History'
+import DisplayHistory from '@/components/main/History'
 
 async function getHistoryData(email: string) {
   const client = await clientPromise;

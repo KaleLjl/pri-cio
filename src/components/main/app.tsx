@@ -1,6 +1,6 @@
 'use client'
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
-import { useHistory } from '@/lib/hooks/useHistory';
+import { useHistoryData } from '@/lib/hooks/server/useHistoryData';
 import Image from 'next/image';
 import { useShareCard } from '@/lib/hooks/useShareCard';
 import Modal from '@/components/ui/Modal';
@@ -18,7 +18,7 @@ const CURRENCIES = [
 
 export default function ImageCapture() {
   const [state, actions] = useImageCapture();
-  const { saveToHistory, isSaving } = useHistory();
+  const { saveToHistory, isSaving } = useHistoryData();
   const { generateShareCard } = useShareCard();
 
 
@@ -108,7 +108,7 @@ export default function ImageCapture() {
             )}
           </div>
           
-          {/* 货币选择��只在没有价格和描述时显示 */}
+          {/* 货币选择器只在没有价格和描述时显示 */}
           {!state.description && !state.price && (
             <div className="flex justify-center">
               <select
