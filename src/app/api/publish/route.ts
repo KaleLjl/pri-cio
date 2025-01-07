@@ -14,8 +14,27 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { price, description, imageUrl, location, historyId } = body;
 
-    if (!price || !description || !imageUrl) {
-      return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+    // 添加详细的验证
+    const validationErrors = [];
+    if (!price) validationErrors.push('Price is required');
+    if (!description) validationErrors.push('Description is required');
+    if (!imageUrl) validationErrors.push('Image URL is required');
+    if (!historyId) validationErrors.push('History ID is required');
+
+    if (validationErrors.length > 0) {
+      return NextResponse.json({ 
+        message: 'Missing required fields', 
+        errors: validationErrors,
+        receivedData: { price, description, imageUrl, historyId }
+      }, { status: 400 });
+    }
+
+    // 验证 historyId 是否为有效的 ObjectId
+    if (!ObjectId.isValid(historyId)) {
+      return NextResponse.json({ 
+        message: 'Invalid history ID format',
+        receivedId: historyId
+      }, { status: 400 });
     }
 
     // 如果有位置信息，进行地理编码
@@ -83,22 +102,33 @@ export async function POST(req: Request) {
       } : undefined,
       location: enrichedLocation,
       createdAt: new Date(),
-      historyId: historyId // 添加对应的 history ID
+      historyId: historyId // 存储原始的 history ID
     };
 
     const result = await db.collection('explore').insertOne(newPublication);
 
-    // 更新 history 记录，添加 publishedId
+    // 更新 history 记录
     await db.collection('histories').updateOne(
       { _id: new ObjectId(historyId) },
-      { $set: { publishedId: result.insertedId.toString() } }
+      { 
+        $set: { 
+          exploreId: result.insertedId.toString() 
+        } 
+      }
     );
 
-    return NextResponse.json({ ...newPublication, _id: result.insertedId });
+    return NextResponse.json({ 
+      ...newPublication, 
+      _id: result.insertedId,
+      publishedId: result.insertedId.toString() 
+    });
   } catch (error) {
-    console.error('Error publishing item:', error);
+    console.error('Error in publish API:', error);
     return NextResponse.json(
-      { message: 'Failed to publish item' },
+      { 
+        message: 'Failed to publish item', 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

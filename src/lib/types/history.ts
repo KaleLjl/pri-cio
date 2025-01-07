@@ -4,5 +4,6 @@ export interface HistoryItem {
   price: string;
   description: string;
   createdAt: string;
+  exploreId?: string;
   userEmail: string;
 }

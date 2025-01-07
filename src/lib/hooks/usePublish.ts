@@ -73,11 +73,14 @@ export function usePublish() {
           imageUrl: history.imageUrl,
           userEmail: session.user.email,
           location: locationData,
+          historyId: history._id,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to post history to explore');
+        const errorData = await response.json();
+        console.error('Publish error:', errorData);
+        throw new Error(errorData.message || 'Failed to post history to explore');
       }
 
       showNewToast('Successfully posted to explore!', 'success');

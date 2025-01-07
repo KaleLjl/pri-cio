@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useHistory } from '@/lib/hooks/useHistory';
 import { usePublish } from '@/lib/hooks/usePublish';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { HistoryItem } from '@/lib/types/history';
 import Toast from '@/components/ui/Toast';
 import Modal from '@/components/ui/Modal';
@@ -89,7 +89,14 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
     }
   };
   
+  const [postedHistories, setPostedHistories] = useState<HistoryItem[]>([]);
 
+  useEffect(() => {
+    console.log('Current histories:', histories);
+    const posted = histories.filter(history => history.exploreId);
+    console.log('Posted histories:', posted);
+    setPostedHistories(posted);
+  }, [histories]);
 
   if (error) {
     return <div className="text-center py-10 text-red-500">{error}</div>;
@@ -111,7 +118,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
             <div
               key={history._id}
               className="relative bg-white rounded-lg shadow-md overflow-hidden group"
-              onMouseLeave={() => setActiveDropdown(null)} // Close dropdown when hovering out of the card
+              onMouseLeave={() => setActiveDropdown(null)}
             >
               <div className="relative h-80 w-full p-40">
                 <Image
@@ -173,22 +180,71 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
               </div>
             </div>
           ))}
-          {/* Location Permission Modal */}
-          <Modal 
-            title="Enable Location Services"
-            message="Would you like to include your location with posts? This helps other users find items near them."
-            isOpen={showLocationModal}
-            onClose={() => {
-              setShowLocationModal(false);
-              handlePostWithoutLocation();
-            }}
-            onConfirm={handlePostWithLocation}
-            confirmText="Allow Location"
-            cancelText="Don't Allow"
-          />
         </div>
       )}
       
+      {/* Posted Items Section */}
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold mb-6 flex items-center">
+          <span>Posted Items</span>
+          <span className="ml-3 text-sm font-normal text-gray-500">
+            ({postedHistories.length} items)
+          </span>
+        </h2>
+        
+        {postedHistories.length === 0 ? (
+          <div className="text-center py-10 text-gray-500">No posted items yet</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {postedHistories.map((history) => (
+              <div
+                key={history._id}
+                className="relative bg-white rounded-lg shadow-md overflow-hidden group"
+              >
+                <div className="relative h-80 w-full p-40">
+                  <Image
+                    src={history.imageUrl}
+                    alt={history.description || 'Product image'}
+                    fill
+                    className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
+                  <div className="absolute top-2 right-2">
+                    <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
+                      Posted
+                    </span>
+                  </div>
+                  <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <p className="text-lg font-semibold text-green-400">
+                      ${history.price || 'N/A'}
+                    </p>
+                    <p className="text-sm mt-1">{history.description || 'No description available'}</p>
+                    <p className="text-xs text-gray-300 mt-1">
+                      {history.createdAt
+                        ? new Date(history.createdAt).toLocaleString()
+                        : 'Date not available'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Modal 
+        title="Enable Location Services"
+        message="Would you like to include your location with posts? This helps other users find items near them."
+        isOpen={showLocationModal}
+        onClose={() => {
+          setShowLocationModal(false);
+          handlePostWithoutLocation();
+        }}
+        onConfirm={handlePostWithLocation}
+        confirmText="Allow Location"
+        cancelText="Don't Allow"
+      />
+
       <Toast 
         message={toastMessage}
         isVisible={showToast}

@@ -4,6 +4,7 @@ export interface ExploreItem {
     price: string;
     description: string;
     userEmail: string;
+    historyId: string;
     userProfile?: {
       name?: string;
       avatarUrl?: string | null;
