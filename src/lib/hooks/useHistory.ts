@@ -6,29 +6,65 @@ export function useHistory(initialData: HistoryItem[] = []) {
   const { data: session } = useSession();
   const [histories, setHistories] = useState<HistoryItem[]>(initialData);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const deleteHistory = async (historyId: string) => {
+  const saveToHistory = async (price: string, description: string, imageUrl: string) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
     }
 
+    setIsSaving(true);
     try {
-      const response = await fetch(`/api/history/${historyId}`, {
-        method: 'DELETE',
+      const response = await fetch('/api/history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          price,
+          description,
+          imageUrl,
+          userEmail: session.user.email,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete history');
+        throw new Error('Failed to save to history');
       }
 
-      setHistories(histories.filter(history => history._id !== historyId));
-    } catch (error) {
-      console.error('Delete history failed:', error);
-      setError(error instanceof Error ? error.message : 'Failed to delete history');
-      throw error;
+      const newHistory = await response.json();
+      setHistories(prev => [...prev, newHistory]);
+      return newHistory;
+    } finally {
+      setIsSaving(false);
     }
   };
+ // 删除历史记录
+ const deleteHistory = async (historyId: string) => {
+  if (!session?.user?.email) {
+    throw new Error('User not authenticated');
+  }
+
+  try {
+    const response = await fetch(`/api/history/${historyId}`, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to delete history');
+    }
+
+    // 删除成功后更新列表
+    setHistories(prev => prev.filter(history => history._id !== historyId));
+  } catch (error) {
+    console.error('Delete history failed:', error);
+    setError(error instanceof Error ? error.message : 'Failed to delete history');
+    throw error;
+  }
+};
 
   const refreshHistories = async () => {
     if (!session?.user?.email) {
@@ -56,7 +92,9 @@ export function useHistory(initialData: HistoryItem[] = []) {
     histories,
     setHistories,
     isLoading,
+    isSaving,
     error,
+    saveToHistory,
     deleteHistory,
     refreshHistories,
   };

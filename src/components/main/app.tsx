@@ -1,6 +1,6 @@
 'use client'
 import { useImageCapture } from '@/lib/hooks/useImageCapture';
-import { useHistoryData } from '@/lib/hooks/server/useHistoryData';
+import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
 import { useShareCard } from '@/lib/hooks/useShareCard';
 import Modal from '@/components/ui/Modal';
@@ -18,7 +18,7 @@ const CURRENCIES = [
 
 export default function ImageCapture() {
   const [state, actions] = useImageCapture();
-  const { saveToHistory, isSaving } = useHistoryData();
+  const { saveToHistory, isSaving } = useHistory();
   const { generateShareCard } = useShareCard();
 
 

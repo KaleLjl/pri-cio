@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useHistoryState } from '@/lib/hooks/page/useHistoryState';
+import { useHistory } from '@/lib/hooks/useHistory';
 import { usePublish } from '@/lib/hooks/usePublish';
 import { useState, useEffect } from 'react';
 import { HistoryItem } from '@/lib/types/history';
@@ -19,7 +19,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
     isLoading, 
     error, 
     deleteHistory 
-  } = useHistoryState(initialHistories);
+  } = useHistory(initialHistories);
   
   const { 
     postHistoryToExplore, 
