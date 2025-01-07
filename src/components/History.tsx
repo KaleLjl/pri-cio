@@ -24,7 +24,8 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
     toastMessage,
     setToastMessage,
     toastType,
-    setToastType
+    setToastType,
+    unpublishHistory
   } = usePublish();
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
@@ -114,7 +115,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
         <div className="text-center py-10 text-gray-500">No history records found</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {histories.map((history) => (
+          {histories.filter(history => !history.exploreId).map((history) => (
             <div
               key={history._id}
               className="relative bg-white rounded-lg shadow-md overflow-hidden group"
@@ -131,7 +132,12 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                     console.error(`Failed to load image: ${history.imageUrl}`);
                   }}
                 />
-                <div className="absolute top-2 right-2">
+                <div className="absolute top-2 right-2 flex items-center gap-2">
+                  {history.exploreId && (
+                    <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
+                      Posted
+                    </span>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -153,16 +159,31 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                       >
                         Delete
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePost(history);
-                        }}
-                        disabled={isSaving}
-                        className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
-                      >
-                        {isSaving ? 'Posting...' : 'Post'}
-                      </button>
+                      {!history.exploreId ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePost(history);
+                          }}
+                          disabled={isSaving}
+                          className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
+                        >
+                          {isSaving ? 'Posting...' : 'Post'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (history.exploreId) {
+                              unpublishHistory(history._id, history.exploreId);
+                            }
+                            setActiveDropdown(null);
+                          }}
+                          className="block w-full text-left px-2 py-1 text-sm text-orange-600 hover:bg-gray-100 rounded"
+                        >
+                          Unpublish
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -183,7 +204,6 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
         </div>
       )}
       
-      {/* Posted Items Section */}
       <div className="mt-12">
         <h2 className="text-2xl font-bold mb-6 flex items-center">
           <span>Posted Items</span>
@@ -200,6 +220,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
               <div
                 key={history._id}
                 className="relative bg-white rounded-lg shadow-md overflow-hidden group"
+                onMouseLeave={() => setActiveDropdown(null)}
               >
                 <div className="relative h-80 w-full p-40">
                   <Image
@@ -209,10 +230,32 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                     className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
-                  <div className="absolute top-2 right-2">
-                    <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
-                      Posted
-                    </span>
+                  <div className="absolute top-2 right-2 flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveDropdown(activeDropdown === history._id ? null : history._id);
+                      }}
+                      className="text-white hover:text-gray-800"
+                    >
+                      •••
+                    </button>
+                    {activeDropdown === history._id && (
+                      <div className="absolute right-0 mt-2 w-20 bg-white/50 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-10">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (history.exploreId) {
+                              unpublishHistory(history._id, history.exploreId);
+                            }
+                            setActiveDropdown(null);
+                          }}
+                          className="block w-full text-left px-2 py-1 text-sm text-orange-600 hover:bg-gray-100 rounded"
+                        >
+                          Unpublish
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <p className="text-lg font-semibold text-green-400">

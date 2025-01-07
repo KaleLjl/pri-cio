@@ -33,6 +33,12 @@ export function usePublish() {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
     }
+
+    // 检查是否已发布
+    if (history.exploreId) {
+      showNewToast('This item has already been published', 'error');
+      return Promise.reject('Item already published');
+    }
     
     // 如果不能发布，显示提示并直接返回
     if (!canPost) {
@@ -103,6 +109,29 @@ export function usePublish() {
     setLocationPermission(permission);
   };
 
+  const unpublishHistory = async (historyId: string, exploreId: string) => {
+    if (!session?.user?.email) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const response = await fetch(`/api/publish?historyId=${historyId}&exploreId=${exploreId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to unpublish history');
+      }
+
+      showNewToast('Successfully unpublished!', 'success');
+    } catch (error) {
+      console.error('Unpublish failed:', error);
+      showNewToast(error instanceof Error ? error.message : 'Failed to unpublish', 'error');
+      throw error;
+    }
+  };
+
   return {
     postHistoryToExplore,
     isSaving,
@@ -117,5 +146,6 @@ export function usePublish() {
     toastType,
     setToastType,
     showNewToast,
+    unpublishHistory,
   };
 } 

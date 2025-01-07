@@ -133,3 +133,40 @@ export async function POST(req: Request) {
     );
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const historyId = searchParams.get('historyId');
+    const exploreId = searchParams.get('exploreId');
+
+    if (!historyId || !exploreId) {
+      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db('pri-cio');
+
+    // Delete from explore collection
+    await db.collection('explore').deleteOne({ _id: new ObjectId(exploreId) });
+
+    // Update history record to remove exploreId
+    await db.collection('histories').updateOne(
+      { _id: new ObjectId(historyId) },
+      { $unset: { exploreId: "" } }
+    );
+
+    return NextResponse.json({ message: 'Successfully unpublished' });
+  } catch (error) {
+    console.error('Error in unpublish API:', error);
+    return NextResponse.json(
+      { message: 'Failed to unpublish item' },
+      { status: 500 }
+    );
+  }
+}
