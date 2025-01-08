@@ -47,7 +47,7 @@ export function usePublish(setHistories: React.Dispatch<React.SetStateAction<His
         }
       }
 
-      const response = await fetch('/api/publish', {
+      const response = await fetch('/api/explore', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -96,7 +96,7 @@ export function usePublish(setHistories: React.Dispatch<React.SetStateAction<His
     }
 
     try {
-      const response = await fetch(`/api/publish?historyId=${historyId}&exploreId=${exploreId}`, {
+      const response = await fetch(`/api/explore?historyId=${historyId}&exploreId=${exploreId}`, {
         method: 'DELETE',
       });
 

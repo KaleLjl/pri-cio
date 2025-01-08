@@ -1,5 +1,4 @@
 'use client';
-
 import Image from 'next/image';
 import { useHistory } from '@/lib/hooks/useHistory';
 import { usePublish } from '@/lib/hooks/usePublish';
@@ -8,7 +7,6 @@ import { HistoryItem } from '@/lib/types/history';
 import Toast from '@/components/ui/Toast';
 import Modal from '@/components/ui/Modal';
 import EditModal from '@/components/ui/EditModal';
-import { useToast } from '@/lib/hooks/useToast';
 
 interface DisplayHistoryProps {
   histories: HistoryItem[];
