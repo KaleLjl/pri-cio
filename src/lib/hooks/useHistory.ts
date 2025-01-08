@@ -88,6 +88,38 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
+  const updateHistory = async (historyId: string, updates: { price?: string; description?: string }) => {
+    if (!session?.user?.email) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const response = await fetch(`/api/history/${historyId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update history');
+      }
+
+      setHistories(prev => prev.map(history => 
+        history._id === historyId ? { ...history, ...updates } : history
+      ));
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Update history failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update history');
+      throw error;
+    }
+  };
+
   return {
     histories,
     setHistories,
@@ -97,5 +129,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
     deleteHistory,
     refreshHistories,
     saveToHistory,
+    updateHistory,
   };
 }

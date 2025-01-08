@@ -1,16 +1,18 @@
 interface ModalProps {
     title: string;
-    message: string;
+    message?: string;
+    children?: React.ReactNode;
     isOpen: boolean;
     onClose: () => void;
     onConfirm: () => void;
-    confirmText?: string;
-    cancelText?: string;
+    confirmText: string;
+    cancelText: string;
   }
   
   export default function Modal({
     title,
     message,
+    children,
     isOpen,
     onClose,
     onConfirm,

@@ -52,3 +52,49 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete history' }, { status: 500 });
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string[] }> }
+) {
+  try {
+    const { slug } = await params;
+    const historyId = slug[0];
+    
+    if (!historyId) {
+      return NextResponse.json({ error: 'History ID is required' }, { status: 400 });
+    }
+
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const updates = await request.json();
+    const client = await clientPromise;
+    const db = client.db("pri-cio");
+
+    const result = await db.collection("histories").updateOne(
+      { 
+        _id: new ObjectId(historyId),
+        userEmail: session.user.email 
+      },
+      { $set: updates }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json(
+        { error: 'History not found or unauthorized' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update history' },
+      { status: 500 }
+    );
+  }
+}

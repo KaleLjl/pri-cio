@@ -7,13 +7,15 @@ import { useState, useEffect } from 'react';
 import { HistoryItem } from '@/lib/types/history';
 import Toast from '@/components/ui/Toast';
 import Modal from '@/components/ui/Modal';
+import EditModal from '@/components/ui/EditModal';
+import { useToast } from '@/lib/hooks/useToast';
 
 interface DisplayHistoryProps {
   histories: HistoryItem[];
 }
 
 export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
-  const { histories, setHistories, isLoading, error, deleteHistory } = useHistory(initialHistories);
+  const { histories, setHistories, isLoading, error, deleteHistory, updateHistory } = useHistory(initialHistories);
   const { 
     postHistoryToExplore, 
     unpublishHistory,
@@ -26,6 +28,7 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
+  // Define the action with toast 
   const showNewToast = (message: string, type: 'success' | 'error' | 'info') => {
     setShowToast(false);
     setTimeout(() => {
@@ -35,7 +38,6 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
     }, 100);
   };
 
-  // Handle delete with toast
   const handleDelete = async (historyId: string) => {
     try {
       await deleteHistory(historyId);
@@ -119,6 +121,35 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
     }
   };
 
+  const [editingHistory, setEditingHistory] = useState<HistoryItem | null>(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
+  const handleEdit = (history: HistoryItem) => {
+    setEditingHistory(history);
+    setEditPrice(history.price || '');
+    setEditDescription(history.description || '');
+    setActiveDropdown(null);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingHistory) return;
+
+    try {
+      await updateHistory(editingHistory._id, {
+        price: editPrice,
+        description: editDescription,
+      });
+      setEditingHistory(null);
+      showNewToast('Successfully updated!', 'success');
+    } catch (error) {
+      showNewToast(
+        error instanceof Error ? error.message : 'Failed to update history',
+        'error'
+      );
+    }
+  };
+
   if (error) {
     return <div className="text-center py-10 text-red-500">{error}</div>;
   }
@@ -148,6 +179,8 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                   fill
                   className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  placeholder="blur"
+                  blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
                 />
                 <div className="absolute top-2 right-2 flex items-center gap-2">
                   <button
@@ -179,6 +212,15 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                         className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
                       >
                         Post
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(history);
+                        }}
+                        className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
+                      >
+                        Edit
                       </button>
                     </div>
                   )}
@@ -225,6 +267,8 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
                     fill
                     className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    placeholder="blur"
+                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
                   />
                   <div className="absolute top-2 right-2 flex items-center gap-2">
                     <button
@@ -282,6 +326,16 @@ export default function DisplayHistory({ histories: initialHistories }: DisplayH
         onConfirm={handlePostWithLocation}
         confirmText="Allow Location"
         cancelText="Don't Allow"
+      />
+
+      <EditModal
+        isOpen={!!editingHistory}
+        onClose={() => setEditingHistory(null)}
+        onSave={handleUpdate}
+        price={editPrice}
+        description={editDescription}
+        onPriceChange={setEditPrice}
+        onDescriptionChange={setEditDescription}
       />
 
       <Toast 
