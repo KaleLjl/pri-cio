@@ -40,8 +40,11 @@ export default function History({ histories: initialHistories }: { histories: Hi
     }, 100);
   };
 
+  const [actionInProgress, setActionInProgress] = useState<{[key: string]: string}>({});
+
   const handleDelete = async (historyId: string) => {
     try {
+      setActionInProgress({...actionInProgress, [historyId]: 'deleting'});
       await deleteHistory(historyId);
       showNewToast('Successfully deleted!', 'success');
     } catch (error) {
@@ -49,6 +52,8 @@ export default function History({ histories: initialHistories }: { histories: Hi
         error instanceof Error ? error.message : 'Failed to delete history', 
         'error'
       );
+    } finally {
+      setActionInProgress({...actionInProgress, [historyId]: ''});
     }
   };
 
@@ -58,6 +63,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
   
   const handlePost = async (history: HistoryItem) => {
     try {
+      setActionInProgress({...actionInProgress, [history._id]: 'posting'});
       if (locationPermission === 'granted') {
         await postHistoryToExplore(history);
         showNewToast('Successfully posted to explore!', 'success');
@@ -77,6 +83,8 @@ export default function History({ histories: initialHistories }: { histories: Hi
         error instanceof Error ? error.message : 'Failed to post history',
         'error'
       );
+    } finally {
+      setActionInProgress({...actionInProgress, [history._id]: ''});
     }
   };
 
@@ -113,6 +121,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
 
   const handleUnpublish = async (historyId: string, exploreId: string) => {
     try {
+      setActionInProgress({...actionInProgress, [historyId]: 'unpublishing'});
       await unpublishHistory(historyId, exploreId);
       showNewToast('Successfully unpublished!', 'success');
     } catch (error) {
@@ -120,6 +129,8 @@ export default function History({ histories: initialHistories }: { histories: Hi
         error instanceof Error ? error.message : 'Failed to unpublish',
         'error'
       );
+    } finally {
+      setActionInProgress({...actionInProgress, [historyId]: ''});
     }
   };
 
@@ -185,47 +196,52 @@ export default function History({ histories: initialHistories }: { histories: Hi
                   blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
                 />
                 <div className="absolute top-2 right-2 flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveDropdown(activeDropdown === history._id ? null : history._id);
-                    }}
-                    className="text-white hover:text-gray-800"
-                  >
-                    •••
-                  </button>
-                  {activeDropdown === history._id && (
-                    <div className="absolute right-0 mt-2 w-20 bg-white/50 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-10">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(history._id);
-                          setActiveDropdown(null);
-                        }}
-                        className="block w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-gray-100 rounded"
-                      >
-                        Delete
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePost(history);
-                        }}
-                        className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
-                      >
-                        Post
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(history);
-                        }}
-                        className="block w-full text-left px-2 py-1 text-sm text-blue-600 hover:bg-gray-100 rounded"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  )}
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveDropdown(activeDropdown === history._id ? null : history._id);
+                      }}
+                      className="text-white hover:text-gray-800 px-2 py-1 rounded"
+                    >
+                      •••
+                    </button>
+                    {activeDropdown === history._id && (
+                      <div className="absolute right-0 top-full mt-1 w-32 bg-white/80 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-50">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(history._id);
+                            setActiveDropdown(null);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                          disabled={!!actionInProgress[history._id]}
+                        >
+                          {actionInProgress[history._id] === 'deleting' ? 'Deleting...' : 'Delete'}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePost(history);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                          disabled={!!actionInProgress[history._id]}
+                        >
+                          {actionInProgress[history._id] === 'posting' ? 'Posting...' : 'Post'}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(history);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                          disabled={!!actionInProgress[history._id]}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <p className="text-lg font-semibold text-green-400">
@@ -273,31 +289,34 @@ export default function History({ histories: initialHistories }: { histories: Hi
                     blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
                   />
                   <div className="absolute top-2 right-2 flex items-center gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveDropdown(activeDropdown === history._id ? null : history._id);
-                      }}
-                      className="text-white hover:text-gray-800"
-                    >
-                      •••
-                    </button>
-                    {activeDropdown === history._id && (
-                      <div className="absolute right-0 mt-2 w-20 bg-white/50 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-10">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (history.exploreId) {
-                              handleUnpublish(history._id, history.exploreId);
-                            }
-                            setActiveDropdown(null);
-                          }}
-                          className="block w-full text-left px-2 py-1 text-sm text-orange-600 hover:bg-gray-100 rounded"
-                        >
-                          Unpublish
-                        </button>
-                      </div>
-                    )}
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveDropdown(activeDropdown === history._id ? null : history._id);
+                        }}
+                        className="text-white hover:text-gray-800 px-2 py-1 rounded"
+                      >
+                        •••
+                      </button>
+                      {activeDropdown === history._id && (
+                        <div className="absolute right-0 top-full mt-1 w-32 bg-white/80 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-50">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (history.exploreId) {
+                                handleUnpublish(history._id, history.exploreId);
+                              }
+                              setActiveDropdown(null);
+                            }}
+                            className="block w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                            disabled={!!actionInProgress[history._id]}
+                          >
+                            {actionInProgress[history._id] === 'unpublishing' ? 'Unpublishing...' : 'Unpublish'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <p className="text-lg font-semibold text-green-400">
