@@ -53,22 +53,15 @@ export function useExplore(initialData: ExploreItem[] = []) {
   const queryClient = useQueryClient();
 
   // Query for fetching posts
-  const { data: explores = initialData, isLoading, error } = useQuery({
+  const { data: explores, isLoading, error } = useQuery({
     queryKey: ['explores'],
     queryFn: fetchExplorePosts,
-    initialData: initialData.map(item => ({
-      ...item,
-      imageUrl: item.imageUrl || '/image/placeholder.jpg',
-      userProfile: {
-        ...item.userProfile,
-        avatarUrl: item.userProfile?.avatarUrl || '/image/default-avatar.png',
-      },
-    })),
     staleTime: 0, // Always consider data stale
     gcTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     retry: 2,
+    refetchInterval: false
   });
 
   // Mutation for deleting posts
@@ -82,7 +75,7 @@ export function useExplore(initialData: ExploreItem[] = []) {
   });
 
   return {
-    explores,
+    explores: explores ?? [], // Use empty array as fallback instead of initialData
     isLoading,
     error: error instanceof Error ? error.message : null,
     deleteExplorePost: deletePost,

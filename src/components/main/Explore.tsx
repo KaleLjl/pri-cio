@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { ExploreItem } from '@/lib/types/explore';
@@ -95,7 +95,6 @@ const ImageWithFallback = ({ src, alt, ...props }: any) => {
 export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
   const { explores, isLoading, error } = useExplore(initialExplores);
   const [selectedCard, setSelectedCard] = useState<ExploreItem | null>(null);  
-  const [filteredExplores, setFilteredExplores] = useState<ExploreItem[]>(initialExplores);
   const searchParams = useSearchParams();
   const searchQuery = searchParams?.get('search') || '';
 
@@ -105,13 +104,48 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   const [enableLocation, setEnableLocation] = useState(false);
   const [noLimit, setNoLimit] = useState(false);
   const [locationName, setLocationName] = useState<string>('');
-  const [appliedFilters, setAppliedFilters] = useState({
-    radius: 10,
-    enableLocation: false,
-    noLimit: false,
-    userLocation: null as { latitude: number; longitude: number } | null,
-  });
   const apiKey = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
+
+  const haversineDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const R = 6371; // Radius of Earth in km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }, []);
+
+  // Calculate filtered explores directly instead of using state
+  const filteredExplores = useMemo(() => {
+    if (!explores) return [];
+    
+    let filtered = [...explores];
+
+    // Apply search filter
+    if (searchQuery) {
+      filtered = filtered.filter((explore) =>
+        explore.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Apply location and radius filter
+    if (!noLimit && enableLocation && userLocation) {
+      filtered = filtered.filter((explore) => {
+        if (!explore.location) return false;
+        const distance = haversineDistance(
+          userLocation.latitude,
+          userLocation.longitude,
+          explore.location.latitude,
+          explore.location.longitude
+        );
+        return distance <= radius;
+      });
+    }
+
+    return filtered;
+  }, [explores, searchQuery, radius, enableLocation, userLocation, noLimit, haversineDistance]);
 
   const handleGetUserLocation = useCallback(() => {
     if (navigator.geolocation) {
@@ -152,81 +186,55 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     }
   }, [apiKey]);
 
-  // Consolidated filtering logic
-  useEffect(() => {
-    if (!explores) return;
-
-    const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-      const toRad = (value: number) => (value * Math.PI) / 180;
-      const R = 6371; // Radius of Earth in km
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    };
-
-    let filtered = [...explores];
-
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter((explore) =>
-        explore.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Apply location and radius filter
-    const { radius: appliedRadius, enableLocation: appliedEnableLocation, noLimit: appliedNoLimit, userLocation: appliedUserLocation } = appliedFilters;
-    if (!appliedNoLimit && appliedEnableLocation && appliedUserLocation) {
-      filtered = filtered.filter((explore) => {
-        if (!explore.location) return false;
-        const distance = haversineDistance(
-          appliedUserLocation.latitude,
-          appliedUserLocation.longitude,
-          explore.location.latitude,
-          explore.location.longitude
-        );
-        return distance <= appliedRadius;
-      });
-    }
-
-    setFilteredExplores(filtered);
-  }, [explores, searchQuery, appliedFilters]);
-
   const handleApplyRadius = useCallback(() => {
     if (noLimit) {
-      setAppliedFilters({
-        radius: 0,
-        enableLocation: false,
-        noLimit: true,
-        userLocation: null,
-      });
+      setEnableLocation(false);
+      setRadius(0);
     } else if (enableLocation && radius) {
-      setAppliedFilters({
-        radius,
-        enableLocation: true,
-        noLimit: false,
-        userLocation,
-      });
+      setEnableLocation(true);
+      setRadius(radius);
     }
     setRadiusModalOpen(false);
-  }, [noLimit, enableLocation, radius, userLocation]);
+  }, [noLimit, enableLocation, radius]);
 
+  // Check loading state first
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-black text-white flex justify-center items-center">
+        <div className="text-center py-20">
+          <h1 className="text-2xl font-bold">Loading...</h1>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-center py-10 text-red-500">{error}</div>;
+    return (
+      <div className="min-h-screen bg-black text-white flex justify-center items-center">
+        <div className="text-center py-20">
+          <h1 className="text-2xl font-bold text-red-500">{error}</h1>
+        </div>
+      </div>
+    );
   }
 
-  // Only check filteredExplores length after loading is complete
-  if (!isLoading && filteredExplores.length === 0) {
+  // Only show no posts found when we have loaded the data and filtered it
+  if (!isLoading && explores && explores.length > 0 && filteredExplores.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
           <h1 className="text-2xl font-bold">Sorry, no posts found</h1>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading if we have no explores data yet
+  if (!explores || explores.length === 0) {
+    return (
+      <div className="min-h-screen bg-black text-white flex justify-center items-center">
+        <div className="text-center py-20">
+          <h1 className="text-2xl font-bold">Loading...</h1>
         </div>
       </div>
     );
