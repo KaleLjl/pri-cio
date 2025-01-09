@@ -1,25 +1,29 @@
 'use client';
-import Image from 'next/image';
+import React, { useState, useEffect } from 'react';
 import { useHistory } from '@/lib/hooks/useHistory';
-import { usePublish } from '@/lib/hooks/usePublish';
-import { useState, useEffect } from 'react';
 import { HistoryItem } from '@/lib/types/history';
-import Toast from '@/components/ui/Toast';
+import Image from 'next/image';
+import { motion } from 'framer-motion';
+import { Switch } from '@headlessui/react';
 import Modal from '@/components/ui/Modal';
+import Toast from '@/components/ui/Toast';
 import EditModal from '@/components/ui/EditModal';
 
-interface DisplayHistoryProps {
-  histories: HistoryItem[];
-}
-
-export default function DisplayHistory({ histories: initialHistories }: DisplayHistoryProps) {
-  const { histories, setHistories, isLoading, error, deleteHistory, updateHistory } = useHistory(initialHistories);
-  const { 
-    postHistoryToExplore, 
+export default function History({ histories: initialHistories }: { histories: HistoryItem[] }) {
+  const {
+    histories,
+    setHistories,
+    isLoading,
+    isSaving,
+    error,
+    deleteHistory,
+    updateHistory,
+    postHistoryToExplore,
     unpublishHistory,
     locationPermission,
     handleLocationPermission,
-  } = usePublish(setHistories);
+    canPost,
+  } = useHistory(initialHistories);
 
   // Toast state
   const [showToast, setShowToast] = useState(false);

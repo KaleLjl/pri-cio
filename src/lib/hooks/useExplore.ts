@@ -56,12 +56,13 @@ export function useExplore(initialData: ExploreItem[] = []) {
   const { data: explores, isLoading, error } = useQuery({
     queryKey: ['explores'],
     queryFn: fetchExplorePosts,
-    staleTime: 0, // Always consider data stale
+    staleTime: 1000 * 30, // Consider data fresh for 30 seconds
     gcTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     retry: 2,
-    refetchInterval: false
+    refetchInterval: 1000 * 60 * 1, // Refetch every 1 minute
+    refetchIntervalInBackground: false // Only refetch when window is focused
   });
 
   // Mutation for deleting posts

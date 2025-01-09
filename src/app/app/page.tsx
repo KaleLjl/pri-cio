@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import ImageCapture from '@/components/main/app';
+import ImageCapture from '@/components/main/App';
 
 export default async function Home() {
   const session = await auth();
