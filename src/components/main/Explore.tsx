@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { ExploreItem } from '@/lib/types/explore';
@@ -70,16 +70,37 @@ const RadiusDropdown = ({ radius, setRadius }: { radius: number; setRadius: (val
   );
 };
 
+const ImageWithFallback = ({ src, alt, ...props }: any) => {
+  const [imgSrc, setImgSrc] = useState(src);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(src);
+    setError(false);
+  }, [src]);
+
+  return (
+    <Image
+      {...props}
+      src={error ? '/image/placeholder.jpg' : imgSrc}
+      alt={alt}
+      onError={() => {
+        setError(true);
+        setImgSrc('/image/placeholder.jpg');
+      }}
+    />
+  );
+};
 
 export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
-  const { explores, isLoading, error, fetchExplorePosts } = useExplore(initialExplores);
+  const { explores, isLoading, error } = useExplore(initialExplores);
   const [selectedCard, setSelectedCard] = useState<ExploreItem | null>(null);  
-  const [filteredExplores, setFilteredExplores] = useState<ExploreItem[]>([]);
-  const searchParams = useSearchParams(); // Get the search query from the URL
-  const searchQuery = searchParams?.get('search') || ''; // Extract or default to an empty string
+  const [filteredExplores, setFilteredExplores] = useState<ExploreItem[]>(initialExplores);
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams?.get('search') || '';
 
-  const [radiusModalOpen, setRadiusModalOpen] = useState(false); // Modal for radius filter
-  const [radius, setRadius] = useState<number>(10); // Radius in km
+  const [radiusModalOpen, setRadiusModalOpen] = useState(false);
+  const [radius, setRadius] = useState<number>(10);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [enableLocation, setEnableLocation] = useState(false);
   const [noLimit, setNoLimit] = useState(false);
@@ -91,60 +112,14 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     userLocation: null as { latitude: number; longitude: number } | null,
   });
   const apiKey = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
-  // Fetch posts when the component mounts
-  useEffect(() => {
-    fetchExplorePosts();
-  }, [fetchExplorePosts]);
 
-
-  // ********************************************************************************************************
-  // Filter posts based on search query and radius
-  useEffect(() => {
-    const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-      const toRad = (value: number) => (value * Math.PI) / 180;
-      const R = 6371; // Radius of Earth in km
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    };
-
-    let filtered = explores;
-
-    if (searchQuery) {
-      filtered = filtered.filter((explore) =>
-        explore.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    const { radius: appliedRadius, enableLocation: appliedEnableLocation, noLimit: appliedNoLimit, userLocation: appliedUserLocation } = appliedFilters;
-
-    // Apply location and radius filter only if "No Limit" is not selected
-    if (!appliedNoLimit && appliedEnableLocation && appliedUserLocation) {
-      filtered = filtered.filter((explore) => {
-        if (!explore.location) return false;
-        const distance = haversineDistance(
-          appliedUserLocation.latitude,
-          appliedUserLocation.longitude,
-          explore.location.latitude,
-          explore.location.longitude
-        );
-        return distance <= appliedRadius;
-      });
-    }
-
-    setFilteredExplores(filtered);
-  }, [explores, searchQuery, appliedFilters]);
-
-  const handleGetUserLocation = () => {
+  const handleGetUserLocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation({ latitude, longitude });
-          console.log('Location:', latitude, );
+          
           // Fetch location name using OpenCage API
           try {
             const response = await fetch(
@@ -154,7 +129,6 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               throw new Error(`API error: ${response.statusText}`);
             }
             const data = await response.json();
-            console.log('OpenCage API response:', data); // Log the response
 
             if (data?.results?.[0]?.formatted) {
               setLocationName(data.results[0].formatted);
@@ -176,40 +150,68 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
       alert('Geolocation is not supported by your browser.');
       setLocationName('Unknown Location');
     }
-  };
-  
+  }, [apiKey]);
 
-  const handleApplyRadius = () => {
-    if (noLimit) {
-      console.log('No limit selected');
-      setRadiusModalOpen(false);
-      return;
-    }
-  
-    if (enableLocation && radius) {
-      console.log(`Location enabled with radius: ${radius} km`);
-    } else if (enableLocation) {
-      alert('Please set a radius or disable location.');
-    }
-  
-    setRadiusModalOpen(false);
-  };
-  // ********************************************************************************************************  
-
-
-  // Filter posts based on the search query
+  // Consolidated filtering logic
   useEffect(() => {
-    if (!searchQuery) {
-      // If no search query, display all posts
-      setFilteredExplores(explores);
-    } else {
-      // Filter posts by matching the description (case-insensitive)
-      const filtered = explores.filter((explore) =>
+    if (!explores) return;
+
+    const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+      const toRad = (value: number) => (value * Math.PI) / 180;
+      const R = 6371; // Radius of Earth in km
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    let filtered = [...explores];
+
+    // Apply search filter
+    if (searchQuery) {
+      filtered = filtered.filter((explore) =>
         explore.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredExplores(filtered);
     }
-  }, [explores, searchQuery]);  
+
+    // Apply location and radius filter
+    const { radius: appliedRadius, enableLocation: appliedEnableLocation, noLimit: appliedNoLimit, userLocation: appliedUserLocation } = appliedFilters;
+    if (!appliedNoLimit && appliedEnableLocation && appliedUserLocation) {
+      filtered = filtered.filter((explore) => {
+        if (!explore.location) return false;
+        const distance = haversineDistance(
+          appliedUserLocation.latitude,
+          appliedUserLocation.longitude,
+          explore.location.latitude,
+          explore.location.longitude
+        );
+        return distance <= appliedRadius;
+      });
+    }
+
+    setFilteredExplores(filtered);
+  }, [explores, searchQuery, appliedFilters]);
+
+  const handleApplyRadius = useCallback(() => {
+    if (noLimit) {
+      setAppliedFilters({
+        radius: 0,
+        enableLocation: false,
+        noLimit: true,
+        userLocation: null,
+      });
+    } else if (enableLocation && radius) {
+      setAppliedFilters({
+        radius,
+        enableLocation: true,
+        noLimit: false,
+        userLocation,
+      });
+    }
+    setRadiusModalOpen(false);
+  }, [noLimit, enableLocation, radius, userLocation]);
 
   if (isLoading) {
     return <div className="text-center py-10">Loading...</div>;
@@ -219,7 +221,8 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     return <div className="text-center py-10 text-red-500">{error}</div>;
   }
 
-  if (filteredExplores.length === 0) {
+  // Only check filteredExplores length after loading is complete
+  if (!isLoading && filteredExplores.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
@@ -255,13 +258,13 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
           >
             <div className="rounded-[2rem] overflow-hidden shadow-md bg-gray-800">
               <div className="relative w-full h-80">
-                <Image
+                <ImageWithFallback
                   src={explore.imageUrl}
                   alt={`Post created on ${new Date(explore.createdAt).toLocaleString()}`}
                   layout="fill"
                   objectFit="cover"
                   placeholder="blur"
-                  blurDataURL="/image-placeholder.jpg"
+                  blurDataURL="/image/placeholder.jpg"
                   className="rounded-[2rem]"
                 />
               </div>
@@ -376,7 +379,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               <div className="grid grid-cols-2 gap-6">
                 {/* Left Column: Image */}
                 <div className="overflow-hidden rounded-lg">
-                  <Image
+                  <ImageWithFallback
                     src={selectedCard.imageUrl}
                     alt={`Post created on ${new Date(selectedCard.createdAt).toLocaleString()}`}
                     width={500}
