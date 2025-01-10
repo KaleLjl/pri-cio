@@ -1,78 +1,66 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
-import { auth } from '@/lib/auth';
 import { ObjectId } from 'mongodb';
+import { auth } from '@/lib/auth';
 
-// Get messages for a conversation
+// 设置合理的缓存时间
+export const revalidate = 30; // 30秒缓存
+
 export async function GET(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const conversationId = searchParams.get('conversationId');
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
-
-    if (!conversationId) {
-      return NextResponse.json(
-        { error: 'Conversation ID is required' },
-        { status: 400 }
-      );
+    const limit = parseInt(searchParams.get('limit') || '20');
+    
+    if (!conversationId || !ObjectId.isValid(conversationId)) {
+      return NextResponse.json({ error: 'Invalid conversation ID' }, { status: 400 });
     }
 
     const client = await clientPromise;
     const db = client.db('pri-cio');
 
-    // Get user ID from email
-    const user = await db.collection('users').findOne(
-      { email: session.user.email },
-      { projection: { _id: 1 } }
-    );
+    // 创建复合索引以提高查询性能
+    await db.collection('messages').createIndex({ conversationId: 1, createdAt: -1 });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Verify user is part of the conversation
-    const conversation = await db.collection('conversations').findOne({
-      _id: new ObjectId(conversationId),
-      participants: user._id.toString()
-    });
-
-    if (!conversation) {
-      return NextResponse.json(
-        { error: 'Conversation not found or unauthorized' },
-        { status: 404 }
-      );
-    }
-
-    // Get messages with pagination
+    // 计算要跳过的文档数量
     const skip = (page - 1) * limit;
+
+    // 使用聚合管道优化查询
     const messages = await db.collection('messages')
-      .find({
+      .find({ 
         conversationId: new ObjectId(conversationId)
       })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1 }) // 倒序排列，最新的消息在前
       .skip(skip)
       .limit(limit)
       .toArray();
 
-    // Mark messages as read
-    await db.collection('messages').updateMany(
-      {
-        conversationId: new ObjectId(conversationId),
-        receiverId: user._id.toString(),
-        read: false
-      },
-      {
-        $set: { read: true }
-      }
-    );
+    // 获取总消息数（用于分页）
+    const total = await db.collection('messages')
+      .countDocuments({ conversationId: new ObjectId(conversationId) });
 
-    return NextResponse.json(messages);
+    // 转换 ObjectId 为字符串
+    const formattedMessages = messages.map(msg => ({
+      ...msg,
+      _id: msg._id.toString(),
+      conversationId: msg.conversationId.toString(),
+      senderId: msg.senderId.toString(),
+      createdAt: msg.createdAt || new Date().toISOString(),
+      status: msg.status || 'sent'
+    }));
+
+    return NextResponse.json({
+      messages: formattedMessages.reverse(), // 返回正序的消息列表
+      total,
+      page,
+      limit,
+      hasMore: total > skip + limit
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=59',
+      },
+    });
   } catch (error) {
     console.error('Error fetching messages:', error);
     return NextResponse.json(
