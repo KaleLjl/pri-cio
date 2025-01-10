@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { HistoryItem } from '@/lib/types/history';
+import { Profile, UseProfilePage } from '../types/users';
 
 export function useHistory(initialData: HistoryItem[] = []) {
   const { data: session } = useSession();
@@ -15,6 +16,14 @@ export function useHistory(initialData: HistoryItem[] = []) {
     return null;
   });
   const [canPost, setCanPost] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Profile>({
+    name: "",
+    about: "",
+    website: "",
+    avatarUrl: null,
+    updatedAt: new Date(),
+  });
 
   const deleteHistory = async (historyId: string) => {
     if (!session?.user?.email) {
@@ -227,6 +236,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
     isLoading,
     isSaving,
     error,
+    formData,
     deleteHistory,
     refreshHistories,
     saveToHistory,

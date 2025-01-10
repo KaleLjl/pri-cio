@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useHistory } from '@/lib/hooks/useHistory';
 import { HistoryItem } from '@/lib/types/history';
+import { useSession } from 'next-auth/react'; // To fetch user session data
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Switch } from '@headlessui/react';
@@ -9,6 +10,8 @@ import Modal from '@/components/ui/Modal';
 import Toast from '@/components/ui/Toast';
 import EditModal from '@/components/ui/EditModal';
 import LocationOptionModal from '../ui/LocationOptionModal';
+import { Avatar } from '@mui/material';
+import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
 
 export default function History({ histories: initialHistories }: { histories: HistoryItem[] }) {
   const {
@@ -17,6 +20,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
     isLoading,
     isSaving,
     error,
+    formData,
     deleteHistory,
     updateHistory,
     postHistoryToExplore,
@@ -30,6 +34,32 @@ export default function History({ histories: initialHistories }: { histories: Hi
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+
+  const { data: session } = useSession(); // User session
+  const userId = session?.user?.id || '';
+  const userEmail = session?.user?.email || '';
+  const emailInitial = userEmail.charAt(0).toUpperCase(); // Default avatar with email initial
+  const [isAvatarLoading, setIsAvatarLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); // State for avatar URL
+  const { fetchProfileData } = useProfilePage(userId);
+  const [activeTab, setActiveTab] = useState<'saved' | 'posted'>('saved');
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const profileData = await fetchProfileData(); // Fetch profile data
+        setAvatarUrl(profileData.avatarUrl || null); // Set avatar URL
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      }
+    };
+
+    loadProfile();
+  }, [fetchProfileData]);
+  
+  const handleTabChange = (tab: 'saved' | 'posted') => {
+    setActiveTab(tab);
+  };
 
   // Define the action with toast 
   const showNewToast = (message: string, type: 'success' | 'error' | 'info') => {
@@ -203,172 +233,243 @@ export default function History({ histories: initialHistories }: { histories: Hi
     return <div className="text-center py-10">Loading...</div>;
   }
 
+  console.log('Avatar URL:', formData.avatarUrl);
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">History</h1>
-
-      {histories.length === 0 ? (
-        <div className="text-center py-10 text-gray-500">No history records found</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {histories.filter(history => !history.exploreId).map((history) => (
-            <div
-              key={history._id}
-              className="relative bg-white rounded-lg shadow-md overflow-hidden group"
-              onMouseLeave={() => setActiveDropdown(null)}
-            >
-              <div className="relative h-80 w-full p-40">
-                <Image
-                  src={history.imageUrl}
-                  alt={history.description || 'Product image'}
-                  fill
-                  className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  placeholder="blur"
-                  blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
-                />
-                <div className="absolute top-2 right-2 flex items-center gap-2">
-                  <div className="relative">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveDropdown(activeDropdown === history._id ? null : history._id);
-                      }}
-                      className="text-white hover:text-gray-800 px-2 py-1 rounded"
-                    >
-                      •••
-                    </button>
-                    {activeDropdown === history._id && (
-                      <div className="absolute right-0 top-full mt-1 w-32 bg-white/80 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-50">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(history._id);
-                            setActiveDropdown(null);
-                          }}
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded disabled:opacity-50"
-                          disabled={!!actionInProgress[history._id]}
-                        >
-                          {actionInProgress[history._id] === 'deleting' ? 'Deleting...' : 'Delete'}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // handlePost(history);
-                            handlelocation(history);
-                          }}
-                          className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100 rounded disabled:opacity-50"
-                          // disabled={!!actionInProgress[history._id]}
-                        >
-                          {actionInProgress[history._id] === 'posting' ? 'Posting...' : 'Post'}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(history);
-                          }}
-                          className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100 rounded disabled:opacity-50"
-                          disabled={!!actionInProgress[history._id]}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <p className="text-lg font-semibold text-green-400">
-                    ${history.price || 'N/A'}
-                  </p>
-                  <p className="text-sm mt-1">{history.description || 'No description available'}</p>
-                  <p className="text-xs text-gray-300 mt-1">
-                    {history.createdAt
-                      ? new Date(history.createdAt).toLocaleString()
-                      : 'Date not available'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      <div className="mt-12">
-        <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
-          <span>Posted Items</span>
-          <span className="ml-3 text-sm font-normal text-gray-500">
-            ({postedHistories.length} items)
-          </span>
-        </h2>
-        
-        {postedHistories.length === 0 ? (
-          <div className="text-center py-10 text-white">No posted items yet</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {postedHistories.map((history) => (
-              <div
-                key={history._id}
-                className="relative bg-white rounded-lg shadow-md overflow-hidden group"
-                onMouseLeave={() => setActiveDropdown(null)}
-              >
-                <div className="relative h-80 w-full p-40">
-                  <Image
-                    src={history.imageUrl}
-                    alt={history.description || 'Product image'}
-                    fill
-                    className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    placeholder="blur"
-                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
-                  />
-                  <div className="absolute top-2 right-2 flex items-center gap-2">
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveDropdown(activeDropdown === history._id ? null : history._id);
-                        }}
-                        className="text-white hover:text-gray-800 px-2 py-1 rounded"
-                      >
-                        •••
-                      </button>
-                      {activeDropdown === history._id && (
-                        <div className="absolute right-0 top-full mt-1 w-32 bg-white/80 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-50">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (history.exploreId) {
-                                handleUnpublish(history._id, history.exploreId);
-                              }
-                              setActiveDropdown(null);
-                            }}
-                            className="block w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-gray-100 rounded disabled:opacity-50"
-                            disabled={!!actionInProgress[history._id]}
-                          >
-                            {actionInProgress[history._id] === 'unpublishing' ? 'Unpublishing...' : 'Unpublish'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <p className="text-lg font-semibold text-green-400">
-                      ${history.price || 'N/A'}
-                    </p>
-                    <p className="text-sm mt-1">{history.description || 'No description available'}</p>
-                    <p className="text-xs text-gray-300 mt-1">
-                      {history.createdAt
-                        ? new Date(history.createdAt).toLocaleString()
-                        : 'Date not available'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Header Section */}
+      <div className="relative flex flex-col items-center">
+        <Avatar
+          src={avatarUrl || undefined}
+          sx={{
+            bgcolor: avatarUrl ? "transparent" : "gray",
+            width: 150,
+            height: 150,
+          }}
+        >
+          {emailInitial}
+        </Avatar>
+        <h1 className="text-2xl text-white font-bold mt-4">{session?.user?.name || 'User'}</h1>
+        <p className="text-sm text-gray-400 mt-2">{userId || 'N/A'}</p>
+        <button
+          onClick={() => {
+            window.location.href = '/editprofile'; // Redirect to Edit Profile page
+          }}
+          className="mt-4 px-4 py-2 bg-gray-200 text-black rounded-full font-semibold hover:bg-gray-300 transition duration-200"
+        >
+          Edit Profile
+        </button>
       </div>
 
+
+      
+        <div className="mt-4 flex justify-center space-x-4">
+            <button
+              onClick={() => handleTabChange('saved')}
+              className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'saved' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
+            >
+              Saved Items
+            </button>
+            <button
+              onClick={() => handleTabChange('posted')}
+              className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'posted' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
+            >
+              Posted Items
+            </button>
+        </div>
+
+
+        <div className={`mt-6 transition-transform duration-300 ${activeTab === 'saved' ? 'translate-x-0' : 'translate-x-full'}`}>
+            {activeTab === 'saved' ? (
+                <div>
+                  {histories.length === 0 ? (
+                    <div className="text-center py-10 text-gray-500">No history records found</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {histories.filter(history => !history.exploreId).map((history) => (
+                        <div
+                          key={history._id}
+                          className="relative bg-white rounded-lg shadow-md overflow-hidden group"
+                          onMouseLeave={() => setActiveDropdown(null)}
+                        >
+                          <div className="relative h-80 w-full p-40">
+                            <Image
+                              src={history.imageUrl}
+                              alt={history.description || 'Product image'}
+                              fill
+                              className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              placeholder="blur"
+                              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
+                            />
+                            <div className="absolute top-2 right-2 flex items-center gap-2">
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdown(activeDropdown === history._id ? null : history._id);
+                                  }}
+                                  className="text-white hover:text-gray-800 px-2 py-1 rounded"
+                                >
+                                  •••
+                                </button>
+                                {activeDropdown === history._id && (
+                                  <div className="absolute right-0 top-full mt-1 w-32 bg-white/80 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-50">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(history._id);
+                                        setActiveDropdown(null);
+                                      }}
+                                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                                      disabled={!!actionInProgress[history._id]}
+                                    >
+                                      {actionInProgress[history._id] === 'deleting' ? 'Deleting...' : 'Delete'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // handlePost(history);
+                                        handlelocation(history);
+                                      }}
+                                      className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                                      // disabled={!!actionInProgress[history._id]}
+                                    >
+                                      {actionInProgress[history._id] === 'posting' ? 'Posting...' : 'Post'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEdit(history);
+                                      }}
+                                      className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                                      disabled={!!actionInProgress[history._id]}
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <p className="text-lg font-semibold text-green-400">
+                                ${history.price || 'N/A'}
+                              </p>
+                              <p className="text-sm mt-1">{history.description || 'No description available'}</p>
+                              <p className="text-xs text-gray-300 mt-1">
+                                {history.createdAt
+                                  ? new Date(history.createdAt).toLocaleString()
+                                  : 'Date not available'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                    <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
+                    <span>Posted Items</span>
+                    <span className="ml-3 text-sm font-normal text-gray-500">
+                      ({postedHistories.length} items)
+                    </span>
+                  </h2>
+                  
+                  {postedHistories.length === 0 ? (
+                    <div className="text-center py-10 text-white">No posted items yet</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {postedHistories.map((history) => (
+                        <div
+                          key={history._id}
+                          className="relative bg-white rounded-lg shadow-md overflow-hidden group"
+                          onMouseLeave={() => setActiveDropdown(null)}
+                        >
+                          <div className="relative h-80 w-full p-40">
+                            <Image
+                              src={history.imageUrl}
+                              alt={history.description || 'Product image'}
+                              fill
+                              className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              placeholder="blur"
+                              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
+                            />
+                            <div className="absolute top-2 right-2 flex items-center gap-2">
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdown(activeDropdown === history._id ? null : history._id);
+                                  }}
+                                  className="text-white hover:text-gray-800 px-2 py-1 rounded"
+                                >
+                                  •••
+                                </button>
+                                {activeDropdown === history._id && (
+                                  <div className="absolute right-0 top-full mt-1 w-32 bg-white/80 shadow-lg rounded-lg p-2 backdrop-blur-sm border border-gray-300 z-50">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (history.exploreId) {
+                                          handleUnpublish(history._id, history.exploreId);
+                                        }
+                                        setActiveDropdown(null);
+                                      }}
+                                      className="block w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                                      disabled={!!actionInProgress[history._id]}
+                                    >
+                                      {actionInProgress[history._id] === 'unpublishing' ? 'Unpublishing...' : 'Unpublish'}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <p className="text-lg font-semibold text-green-400">
+                                ${history.price || 'N/A'}
+                              </p>
+                              <p className="text-sm mt-1">{history.description || 'No description available'}</p>
+                              <p className="text-xs text-gray-300 mt-1">
+                                {history.createdAt
+                                  ? new Date(history.createdAt).toLocaleString()
+                                  : 'Date not available'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+            )}
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      
+    
       <Modal 
         title="Enable Location Services"
         message="Would you like to include your location with posts? This helps other users find items near them."

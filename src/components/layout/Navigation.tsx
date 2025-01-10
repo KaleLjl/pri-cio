@@ -55,7 +55,6 @@ const Navigation: React.FC = () => {
     ? [
         { label: 'Explore', href: '/explore' },
         { label: 'App', href: '/app' },
-        { label: 'History', href: '/history' },
         { label: 'Sign out', href: '/' },
         { 
           label: (
@@ -71,7 +70,7 @@ const Navigation: React.FC = () => {
               {!currentAvatarUrl && emailInitial}
             </Avatar>
           ), 
-          href: '/editprofile' 
+          href: '/history' 
         },
       ]
     : [

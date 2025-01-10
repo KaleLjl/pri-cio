@@ -130,6 +130,7 @@ export const useProfilePage = (userId: string): UseProfilePage => {
       throw error;
     }
   }, [session?.user?.email]);
+  
 
   return {
     avatarUrl,
