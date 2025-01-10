@@ -4,10 +4,10 @@ import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId } = params;
+    const { userId } = await params;
 
     if (!ObjectId.isValid(userId)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });

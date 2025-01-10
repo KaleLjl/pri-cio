@@ -25,7 +25,7 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
   const [error, setError] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
-  const socketRef = useRef<typeof Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Fetch messages
@@ -117,7 +117,7 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
       return;
     }
 
-    let socket: typeof Socket | null = null;
+    let socket: Socket | null = null;
 
     const socketInitializer = async () => {
       try {
