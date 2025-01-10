@@ -104,6 +104,9 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   const [enableLocation, setEnableLocation] = useState(false);
   const [noLimit, setNoLimit] = useState(false);
   const [locationName, setLocationName] = useState<string>('');
+  const [tempRadius, setTempRadius] = useState<number>(radius);
+  const [tempEnableLocation, setTempEnableLocation] = useState<boolean>(enableLocation);
+  const [tempNoLimit, setTempNoLimit] = useState<boolean>(noLimit);
   const apiKey = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
 
   const haversineDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -122,26 +125,33 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     if (!explores) return [];
     
     let filtered = [...explores];
+    console.log('Initial Explores:', explores);
 
     // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter((explore) =>
         explore.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
+      console.log('After Search Filter:', filtered);
     }
 
     // Apply location and radius filter
     if (!noLimit && enableLocation && userLocation) {
       filtered = filtered.filter((explore) => {
-        if (!explore.location) return false;
+        if (!explore.location) {
+          console.warn(`Post ID ${explore._id} missing location`);
+          return false;
+        }
         const distance = haversineDistance(
           userLocation.latitude,
           userLocation.longitude,
           explore.location.latitude,
           explore.location.longitude
         );
+        console.log(`Post ID: ${explore._id}, Distance: ${distance}`);
         return distance <= radius;
       });
+      console.log('After Location and Radius Filter:', filtered);
     }
 
     return filtered;
@@ -187,15 +197,17 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   }, [apiKey]);
 
   const handleApplyRadius = useCallback(() => {
-    if (noLimit) {
-      setEnableLocation(false);
-      setRadius(0);
-    } else if (enableLocation && radius) {
-      setEnableLocation(true);
-      setRadius(radius);
-    }
+    setEnableLocation(tempEnableLocation);
+    setRadius(tempRadius);
     setRadiusModalOpen(false);
-  }, [noLimit, enableLocation, radius]);
+  }, [tempEnableLocation, tempRadius]);
+
+  useEffect(() => {
+    if (radiusModalOpen) {
+      setTempRadius(radius);
+      setTempEnableLocation(enableLocation);
+    }
+  }, [radiusModalOpen, radius, enableLocation]);
 
   // Check loading state first
   if (isLoading) {
@@ -318,42 +330,42 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
           </label>
           <Switch
             onChange={(value) => {
-              setEnableLocation(value);
+              setTempEnableLocation(value);
               if (value) handleGetUserLocation();
             }}
-            checked={enableLocation}
+            checked={tempEnableLocation}
             onColor="#6D28D9"
             offColor="#ccc"
             className="react-switch"
           />
         </div>
-        {enableLocation && locationName && (
+        {tempEnableLocation && locationName && (
           <div className="mb-4 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-700">
             Location: {locationName}
           </div>
         )}
-        {enableLocation && (
+        {tempEnableLocation && (
           <div className="mb-4">
-            <RadiusDropdown radius={radius} setRadius={setRadius} />
+            <RadiusDropdown radius={tempRadius} setRadius={setTempRadius} />
           </div>
         )}
         <div className="flex items-center">
           <HeadlessSwitch
-            checked={noLimit}
+            checked={tempNoLimit}
             onChange={(value) => {
-              setNoLimit(value);
+              setTempNoLimit(value);
               if (value) {
-                setEnableLocation(false);
-                setRadius(0);
+                setTempEnableLocation(false);
+                setTempRadius(0);
               }
             }}
             className={`${
-              noLimit ? 'bg-purple-600' : 'bg-gray-200'
+              tempNoLimit ? 'bg-purple-600' : 'bg-gray-200'
             } relative inline-flex h-6 w-11 items-center rounded-full`}
           >
             <span
               className={`${
-                noLimit ? 'translate-x-6' : 'translate-x-1'
+                tempNoLimit ? 'translate-x-6' : 'translate-x-1'
               } inline-block h-4 w-4 transform bg-white rounded-full transition-transform`}
             />
           </HeadlessSwitch>

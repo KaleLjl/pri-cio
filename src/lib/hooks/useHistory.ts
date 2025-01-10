@@ -127,7 +127,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  const postHistoryToExplore = async (history: HistoryItem) => {
+  const postHistoryToExplore = async (history: HistoryItem & { location?: { latitude: number; longitude: number } }) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
     }
@@ -144,22 +144,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
     setIsSaving(true);
 
     try {
-      let locationData = null;
-      if (locationPermission === 'granted') {
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject);
-          });
-          
-          locationData = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-        } catch (error) {
-          console.warn('Failed to get location:', error);
-        }
-      }
-
       const response = await fetch('/api/explore', {
         method: 'POST',
         headers: {
@@ -170,7 +154,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
           description: history.description,
           imageUrl: history.imageUrl,
           userEmail: session.user.email,
-          location: locationData,
+          location: history.location, // Pass location directly
           historyId: history._id,
         }),
       });

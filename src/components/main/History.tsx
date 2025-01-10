@@ -8,6 +8,7 @@ import { Switch } from '@headlessui/react';
 import Modal from '@/components/ui/Modal';
 import Toast from '@/components/ui/Toast';
 import EditModal from '@/components/ui/EditModal';
+import LocationOptionModal from '../ui/LocationOptionModal';
 
 export default function History({ histories: initialHistories }: { histories: HistoryItem[] }) {
   const {
@@ -60,6 +61,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedHistory, setSelectedHistory] = useState<HistoryItem | null>(null);
+  const [showLocationOptionModal, setShowLocationOptionModal] = useState(false);
   
   const handlePost = async (history: HistoryItem) => {
     try {
@@ -85,6 +87,36 @@ export default function History({ histories: initialHistories }: { histories: Hi
       );
     } finally {
       setActionInProgress({...actionInProgress, [history._id]: ''});
+    }
+  };
+  
+  const handlelocation = async (history: HistoryItem) => {
+    setSelectedHistory(history); // Set the selected history
+    setShowLocationOptionModal(true);
+  }
+
+  const handleSetLocation = async (location: { lat: number; lng: number }) => {
+    if (!selectedHistory) return;
+
+    try {
+      setActionInProgress({ ...actionInProgress, [selectedHistory._id]: 'posting' });
+
+      const locationData = {
+        latitude: location.lat,
+        longitude: location.lng,
+      };
+
+      await postHistoryToExplore({ ...selectedHistory, location: locationData });
+
+      showNewToast('Successfully posted!', 'success');
+      setShowLocationOptionModal(false);
+    } catch (error) {
+      showNewToast(
+        error instanceof Error ? error.message : 'Failed to post history',
+        'error'
+      );
+    } finally {
+      setActionInProgress({ ...actionInProgress, [selectedHistory._id]: '' });
     }
   };
 
@@ -222,10 +254,11 @@ export default function History({ histories: initialHistories }: { histories: Hi
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePost(history);
+                            // handlePost(history);
+                            handlelocation(history);
                           }}
                           className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100 rounded disabled:opacity-50"
-                          disabled={!!actionInProgress[history._id]}
+                          // disabled={!!actionInProgress[history._id]}
                         >
                           {actionInProgress[history._id] === 'posting' ? 'Posting...' : 'Post'}
                         </button>
@@ -261,7 +294,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
       )}
       
       <div className="mt-12">
-        <h2 className="text-2xl font-bold mb-6 flex items-center">
+        <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
           <span>Posted Items</span>
           <span className="ml-3 text-sm font-normal text-gray-500">
             ({postedHistories.length} items)
@@ -269,7 +302,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
         </h2>
         
         {postedHistories.length === 0 ? (
-          <div className="text-center py-10 text-gray-500">No posted items yet</div>
+          <div className="text-center py-10 text-white">No posted items yet</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {postedHistories.map((history) => (
@@ -348,7 +381,11 @@ export default function History({ histories: initialHistories }: { histories: Hi
         confirmText="Allow Location"
         cancelText="Don't Allow"
       />
-
+      <LocationOptionModal
+        isOpen={showLocationOptionModal}
+        onClose={() => setShowLocationOptionModal(false)}
+        onUseCurrentLocation={handleSetLocation}
+      />
       <EditModal
         isOpen={!!editingHistory}
         onClose={() => setEditingHistory(null)}
@@ -369,10 +406,3 @@ export default function History({ histories: initialHistories }: { histories: Hi
     </div>
   );
 }
-
-
-
-
-
-
-

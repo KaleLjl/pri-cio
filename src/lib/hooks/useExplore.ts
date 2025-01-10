@@ -80,5 +80,6 @@ export function useExplore(initialData: ExploreItem[] = []) {
     isLoading,
     error: error instanceof Error ? error.message : null,
     deleteExplorePost: deletePost,
+    fetchExplorePosts,
   };
 }
