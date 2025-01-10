@@ -6,6 +6,7 @@ export interface ExploreItem {
     userEmail: string;
     historyId: string;
     userProfile?: {
+      _id?: string;
       name?: string;
       avatarUrl?: string | null;
     };
