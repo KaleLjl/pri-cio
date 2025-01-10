@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { default as socketIOClient } from 'socket.io-client';
 import { ChatMessage, ChatUser, MessageStatus } from '@/lib/types/chat';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+// Constants
+const MESSAGES_PER_PAGE = 10;
+const SOCKET_RECONNECT_DELAY = 1000;
 
 interface UseChatProps {
   conversationId: string;
@@ -22,29 +27,33 @@ interface ChatHookResult {
   loadMoreMessages: () => Promise<void>;
 }
 
+interface MessagesResponse {
+  messages: ChatMessage[];
+  hasMore: boolean;
+}
+
 export function useChat(props: UseChatProps | null): ChatHookResult {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [isTyping, setIsTyping] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
   const socketRef = useRef<Socket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
-  const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 3;
-  const retryTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Fetch messages with pagination and retry mechanism
-  const fetchMessages = useCallback(async (page = 1, shouldRetry = true) => {
-    if (!props?.conversationId) return;
-    
-    try {
-      setIsLoading(true);
+  // Fetch messages with React Query's useInfiniteQuery
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery<MessagesResponse, Error>({
+    queryKey: ['chat-messages', props?.conversationId],
+    queryFn: async ({ pageParam }) => {
+      if (!props?.conversationId) throw new Error('No conversation ID');
+      
       const response = await fetch(
-        `/api/chat/messages?conversationId=${props.conversationId}&page=${page}&limit=20`,
+        `/api/chat/messages?conversationId=${props.conversationId}&page=${pageParam}&limit=${MESSAGES_PER_PAGE}`,
         { 
           credentials: 'include',
           headers: {
@@ -58,82 +67,24 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
         throw new Error('Failed to fetch messages');
       }
       
-      const data = await response.json();
-      setHasMore(data.hasMore);
+      const data: MessagesResponse = await response.json();
+      return data;
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage: MessagesResponse, pages) => {
+      return lastPage.hasMore ? pages.length + 1 : undefined;
+    },
+    staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
+    gcTime: 1000 * 60 * 30, // Keep cache for 30 minutes
+    refetchOnWindowFocus: false,
+    enabled: !!props?.conversationId,
+  });
+
+  // Send message mutation
+  const sendMessageMutation = useMutation<ChatMessage, Error, string, { tempMessage: ChatMessage }>({
+    mutationFn: async (content: string) => {
+      if (!props?.conversationId) throw new Error('No conversation ID');
       
-      setMessages(prev => {
-        const newMessages = [...prev];
-        data.messages.forEach(message => {
-          if (!newMessages.find(m => m._id === message._id)) {
-            newMessages.push(message);
-          }
-        });
-        return newMessages.sort((a, b) => 
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-      });
-
-      // Reset retry count on successful fetch
-      setRetryCount(0);
-    } catch (err) {
-      console.error('Error fetching messages:', err);
-      
-      if (shouldRetry && retryCount < maxRetries) {
-        // Exponential backoff retry
-        const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-        console.log(`Retrying in ${retryDelay}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
-        
-        if (retryTimeoutRef.current) {
-          clearTimeout(retryTimeoutRef.current);
-        }
-        
-        retryTimeoutRef.current = setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-          fetchMessages(page, true);
-        }, retryDelay);
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to fetch messages');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [props?.conversationId, retryCount]);
-
-  // Cleanup retry timeout
-  useEffect(() => {
-    return () => {
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Load more messages
-  const loadMoreMessages = useCallback(async () => {
-    if (!hasMore) return;
-    const nextPage = currentPage + 1;
-    await fetchMessages(nextPage);
-    setCurrentPage(nextPage);
-  }, [currentPage, hasMore, fetchMessages]);
-
-  // Send message with status
-  const sendMessage = useCallback(async (content: string) => {
-    if (!props?.conversationId) return;
-    
-    setIsSending(true);
-    const tempId = Date.now().toString();
-    const tempMessage: ChatMessage = {
-      _id: tempId,
-      conversationId: props.conversationId,
-      senderId: props.currentUserId,
-      content,
-      createdAt: new Date().toISOString(),
-      status: 'sending',
-    };
-    
-    setMessages(prev => [...prev, tempMessage]);
-    
-    try {
       const response = await fetch('/api/chat/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,32 +96,150 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
         throw new Error('Failed to send message');
       }
 
-      const newMessage = await response.json();
+      return response.json();
+    },
+    onMutate: async (content) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['chat-messages', props?.conversationId] });
+
+      // Create optimistic message
+      const tempMessage: ChatMessage = {
+        _id: Date.now().toString(),
+        conversationId: props!.conversationId,
+        senderId: props!.currentUserId,
+        content,
+        createdAt: new Date().toISOString(),
+        status: 'sending',
+      };
+
+      // Add optimistic message to cache
+      queryClient.setQueryData<{ pages: { messages: ChatMessage[] }[] }>(['chat-messages', props?.conversationId], (old) => {
+        if (!old) return { pages: [{ messages: [tempMessage] }] };
+        const newPages = [...old.pages];
+        if (newPages.length > 0) {
+          newPages[newPages.length - 1].messages.push(tempMessage);
+        }
+        return { ...old, pages: newPages };
+      });
+
+      return { tempMessage };
+    },
+    onSuccess: (newMessage, _, context) => {
+      if (!context) return;
+      
+      // Update message status and emit to socket
       newMessage.status = 'sent';
-      
-      // Emit the message through socket
       socketRef.current?.emit('send-message', newMessage);
+
+      // Update cache with real message
+      queryClient.setQueryData<{ pages: { messages: ChatMessage[] }[] }>(['chat-messages', props?.conversationId], (old) => {
+        if (!old) return { pages: [{ messages: [newMessage] }] };
+        const newPages = [...old.pages];
+        if (newPages.length > 0) {
+          const messages = newPages[newPages.length - 1].messages;
+          const index = messages.findIndex(m => m._id === context.tempMessage._id);
+          if (index !== -1) {
+            messages[index] = newMessage;
+          }
+        }
+        return { ...old, pages: newPages };
+      });
+    },
+    onError: (_, __, context) => {
+      if (!context) return;
       
-      // Update local messages
-      setMessages(prev => prev.map(msg => 
-        msg._id === tempId ? newMessage : msg
-      ));
-      setInputMessage('');
-    } catch (err) {
-      // Update message status to error
-      setMessages(prev => prev.map(msg => 
-        msg._id === tempId ? { ...msg, status: 'error' as MessageStatus } : msg
-      ));
-      setError(err instanceof Error ? err.message : 'Failed to send message');
-    } finally {
-      setIsSending(false);
+      // Revert optimistic update
+      queryClient.setQueryData<{ pages: { messages: ChatMessage[] }[] }>(['chat-messages', props?.conversationId], (old) => {
+        if (!old) return { pages: [] };
+        const newPages = [...old.pages];
+        if (newPages.length > 0) {
+          const messages = newPages[newPages.length - 1].messages;
+          const index = messages.findIndex(m => m._id === context.tempMessage._id);
+          if (index !== -1) {
+            messages[index] = { ...context.tempMessage, status: 'error' };
+          }
+        }
+        return { ...old, pages: newPages };
+      });
     }
-  }, [props?.conversationId, props?.currentUserId]);
+  });
+
+  // Initialize socket connection
+  useEffect(() => {
+    if (!props?.conversationId || !props?.currentUserId) return;
+
+    const initSocket = async () => {
+      try {
+        const authResponse = await fetch('/api/users/me');
+        if (!authResponse.ok) {
+          throw new Error('Failed to authenticate');
+        }
+        const userData = await authResponse.json();
+        
+        const socket = socketIOClient(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
+          path: '/api/socket',
+          autoConnect: true,
+          reconnection: true,
+          reconnectionDelay: SOCKET_RECONNECT_DELAY,
+          transports: ['websocket'],
+          query: { userId: userData._id }
+        });
+
+        socket.on('connect', () => {
+          console.log('Connected to socket server');
+          socket.emit('join-room', props.conversationId);
+        });
+
+        socket.on('new-message', (message: ChatMessage) => {
+          queryClient.setQueryData(['chat-messages', props.conversationId], (old: any) => {
+            const newPages = [...(old?.pages || [])];
+            if (newPages.length > 0) {
+              newPages[newPages.length - 1].messages.push(message);
+            }
+            return { ...old, pages: newPages };
+          });
+        });
+
+        socket.on('user-typing', (data: { userId: string; typing: boolean }) => {
+          if (data.userId === props.otherUser._id) {
+            setIsTyping(data.typing);
+          }
+        });
+
+        socket.on('message-status-update', ({ messageId, status }: { messageId: string, status: MessageStatus }) => {
+          queryClient.setQueryData(['chat-messages', props.conversationId], (old: any) => {
+            const newPages = [...(old?.pages || [])];
+            newPages.forEach(page => {
+              const message = page.messages.find((m: ChatMessage) => m._id === messageId);
+              if (message) {
+                message.status = status;
+              }
+            });
+            return { ...old, pages: newPages };
+          });
+        });
+
+        socketRef.current = socket;
+      } catch (error) {
+        console.error('Socket initialization error:', error);
+        // Retry connection after delay
+        setTimeout(initSocket, SOCKET_RECONNECT_DELAY);
+      }
+    };
+
+    initSocket();
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.emit('leave-room', props.conversationId);
+        socketRef.current.disconnect();
+      }
+    };
+  }, [props?.conversationId, props?.currentUserId, props?.otherUser?._id, queryClient]);
 
   // Handle typing status
   const handleTyping = useCallback((typing: boolean) => {
     if (!props?.conversationId || !props?.currentUserId) return;
-    
     socketRef.current?.emit('typing', {
       conversationId: props.conversationId,
       userId: props.currentUserId,
@@ -182,122 +251,42 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
   const handleInputChange = useCallback((value: string) => {
     setInputMessage(value);
     
-    // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
 
-    // Emit typing start
     handleTyping(true);
-
-    // Set new timeout to emit typing stop
     typingTimeoutRef.current = setTimeout(() => {
       handleTyping(false);
     }, 1000);
   }, [handleTyping]);
 
-  // Initialize socket connection
+  // Cleanup typing timeout
   useEffect(() => {
-    if (!props?.conversationId || !props?.currentUserId || !props?.otherUser?._id) {
-      return;
-    }
-
-    let socket: Socket | null = null;
-
-    const socketInitializer = async () => {
-      try {
-        // Make sure socket server is initialized
-        const authResponse = await fetch('/api/users/me');
-        if (!authResponse.ok) {
-          throw new Error('Failed to authenticate');
-        }
-        const userData = await authResponse.json();
-        
-        const newSocket = socketIOClient(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-          path: '/api/socket',
-          autoConnect: true,
-          reconnection: true,
-          transports: ['websocket'],
-          query: {
-            userId: userData._id
-          }
-        });
-
-        newSocket.on('connect', () => {
-          console.log('Connected to socket server');
-          newSocket.emit('join-room', props.conversationId);
-        });
-
-        newSocket.on('new-message', (message: ChatMessage) => {
-          setMessages(prev => [...prev, message]);
-        });
-
-        newSocket.on('user-typing', (data: { userId: string; typing: boolean }) => {
-          if (data.userId === props.otherUser._id) {
-            setIsTyping(data.typing);
-          }
-        });
-
-        newSocket.on('disconnect', () => {
-          console.log('Disconnected from socket server');
-        });
-
-        socket = newSocket;
-        socketRef.current = newSocket;
-      } catch (error) {
-        console.error('Socket initialization error:', error);
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
       }
     };
+  }, []);
 
-    socketInitializer();
-
-    return () => {
-      if (socket) {
-        socket.emit('leave-room', props.conversationId);
-        socket.disconnect();
-      }
-    };
-  }, [props]);
-
-  // Initial message fetch
-  useEffect(() => {
-    if (props?.conversationId) {
-      fetchMessages();
-    }
-  }, [fetchMessages, props?.conversationId]);
-
-  // Socket event handlers for message status updates
-  useEffect(() => {
-    if (!socketRef.current || !props?.conversationId) return;
-
-    socketRef.current.on('message-delivered', (messageId: string) => {
-      setMessages(prev => prev.map(msg => 
-        msg._id === messageId ? { ...msg, status: 'delivered' as MessageStatus } : msg
-      ));
-    });
-
-    socketRef.current.on('message-read', (messageId: string) => {
-      setMessages(prev => prev.map(msg => 
-        msg._id === messageId ? { ...msg, status: 'read' as MessageStatus } : msg
-      ));
-    });
-
-    return () => {
-      socketRef.current?.off('message-delivered');
-      socketRef.current?.off('message-read');
-    };
-  }, [props?.conversationId]);
+  // Flatten messages from all pages
+  const allMessages = data?.pages.flatMap(page => page.messages) || [];
 
   return {
-    messages,
-    isLoading: isLoading && !!props,
-    error,
+    messages: allMessages,
+    isLoading,
+    error: error ? error.message : null,
     isTyping,
     inputMessage,
-    isSending,
-    hasMore,
+    isSending: sendMessageMutation.isPending,
+    hasMore: !!hasNextPage,
     setInputMessage: handleInputChange,
-    sendMessage,
-    loadMoreMessages,
+    sendMessage: async (content: string) => {
+      await sendMessageMutation.mutateAsync(content);
+    },
+    loadMoreMessages: async () => {
+      await fetchNextPage();
+    },
   };
 } 
