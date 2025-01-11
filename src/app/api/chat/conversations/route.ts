@@ -3,84 +3,90 @@ import { auth } from '@/lib/auth';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await auth();
-
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      );
+    if (!session?.user?.id) {
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
     const client = await clientPromise;
     const db = client.db('pri-cio');
 
-    const user = await db.collection('users').findOne({ email: session.user.email });
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
+    // Find all conversations where the current user is a participant
+    const conversations = await db.collection('conversations').aggregate([
+      {
+        $match: {
+          participants: session.user.id
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'participants',
+          foreignField: '_id',
+          as: 'participants'
+        }
+      },
+      {
+        $lookup: {
+          from: 'messages',
+          let: { conversationId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$conversationId', '$$conversationId'] }
+              }
+            },
+            {
+              $sort: { createdAt: -1 }
+            },
+            {
+              $limit: 1
+            }
+          ],
+          as: 'lastMessage'
+        }
+      },
+      {
+        $addFields: {
+          lastMessage: { $arrayElemAt: ['$lastMessage', 0] }
+        }
+      },
+      {
+        $sort: {
+          'lastMessage.createdAt': -1,
+          updatedAt: -1 // 如果没有最后消息，则按更新时间排序
+        }
+      }
+    ]).toArray();
 
-    const conversations = await db.collection('conversations')
-      .find({ participants: user._id.toString() })
-      .sort({ updatedAt: -1 })
-      .toArray();
+    // Convert ObjectIds to strings
+    const conversationsWithStringIds = conversations.map(conv => ({
+      ...conv,
+      _id: conv._id.toString(),
+      participants: conv.participants.map((p: any) => ({
+        ...p,
+        _id: p._id.toString()
+      })),
+      lastMessage: conv.lastMessage ? {
+        ...conv.lastMessage,
+        _id: conv.lastMessage._id.toString(),
+        conversationId: conv.lastMessage.conversationId.toString()
+      } : null
+    }));
 
-    // Get the last message and other participant's info for each conversation
-    const conversationsWithDetails = await Promise.all(
-      conversations.map(async (conv) => {
-        const otherParticipantId = conv.participants.find(
-          (id: string) => id !== user._id.toString()
-        );
-
-        const [otherParticipant, lastMessage] = await Promise.all([
-          db.collection('users').findOne(
-            { _id: new ObjectId(otherParticipantId) },
-            { projection: { _id: 1, name: 1, avatarUrl: 1 } }
-          ),
-          db.collection('messages')
-            .findOne(
-              { conversationId: conv._id.toString() },
-              { sort: { createdAt: -1 } }
-            )
-        ]);
-
-        return {
-          _id: conv._id.toString(),
-          otherParticipant: otherParticipant ? {
-            _id: otherParticipant._id.toString(),
-            name: otherParticipant.name,
-            avatarUrl: otherParticipant.avatarUrl,
-          } : null,
-          lastMessage: lastMessage ? {
-            ...lastMessage,
-            _id: lastMessage._id.toString(),
-          } : null,
-          updatedAt: conv.updatedAt,
-          createdAt: conv.createdAt,
-        };
-      })
-    );
-
-    return NextResponse.json(conversationsWithDetails);
+    return NextResponse.json(conversationsWithStringIds);
   } catch (error) {
     console.error('Error fetching conversations:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const session = await auth();
-
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
@@ -89,14 +95,6 @@ export async function POST(request: Request) {
 
     const client = await clientPromise;
     const db = client.db('pri-cio');
-
-    const user = await db.collection('users').findOne({ email: session.user.email });
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
 
     const { otherUserId } = await request.json();
     if (!otherUserId || !ObjectId.isValid(otherUserId)) {
@@ -120,7 +118,7 @@ export async function POST(request: Request) {
     // Check if conversation already exists
     const existingConversation = await db.collection('conversations').findOne({
       participants: {
-        $all: [user._id.toString(), otherUserId],
+        $all: [session.user.id, otherUserId],
         $size: 2
       }
     });
@@ -137,7 +135,7 @@ export async function POST(request: Request) {
     // Create new conversation
     const newConversation = {
       _id: new ObjectId(),
-      participants: [user._id.toString(), otherUserId],
+      participants: [session.user.id, otherUserId],
       updatedAt: new Date(),
       createdAt: new Date(),
     };
