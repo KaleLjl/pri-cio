@@ -24,6 +24,8 @@ export default function Chat({ userId }: ChatProps) {
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const { ref: loadMoreRef, inView } = useInView();
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
+  const lastMessageRef = useRef<string | null>(null);
 
   // Check authentication
   useEffect(() => {
@@ -99,14 +101,33 @@ export default function Chat({ userId }: ChatProps) {
 
   // Scroll to bottom when new messages arrive
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (shouldScrollToBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Check if we're at the bottom of the chat
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setShouldScrollToBottom(isNearBottom);
   };
 
   useEffect(() => {
-    if (chat.messages.length > 0) {
-      scrollToBottom();
+    if (!chat.messages.length) return;
+
+    const lastMessage = chat.messages[chat.messages.length - 1];
+    const isNewMessage = lastMessage._id !== lastMessageRef.current;
+    
+    if (isNewMessage) {
+      lastMessageRef.current = lastMessage._id;
+      // Only scroll if it's a new message and we're near the bottom
+      // or if it's our own message
+      if (shouldScrollToBottom || lastMessage.senderId === currentUserId) {
+        scrollToBottom();
+      }
     }
-  }, [chat.messages]);
+  }, [chat.messages, currentUserId, shouldScrollToBottom]);
 
   // Load more messages when scrolling up
   useEffect(() => {
@@ -200,9 +221,12 @@ export default function Chat({ userId }: ChatProps) {
           <div className="container max-w-4xl mx-auto h-full">
             <div className="h-full mx-4 bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-lg flex flex-col">
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
+              <div 
+                className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800"
+                onScroll={handleScroll}
+              >
                 {/* Load More Messages Indicator */}
-                {loadingMore && (
+                {chat.loadingMore && (
                   <div className="flex justify-center py-2">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
                   </div>

@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { default as socketIOClient } from 'socket.io-client';
 import { ChatMessage, ChatUser, MessageStatus } from '@/lib/types/chat';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 
 // Constants
-const MESSAGES_PER_PAGE = 10;
+const MESSAGES_PER_PAGE = 20;
 const SOCKET_RECONNECT_DELAY = 1000;
 
 interface UseChatProps {
@@ -22,6 +22,7 @@ interface ChatHookResult {
   inputMessage: string;
   isSending: boolean;
   hasMore: boolean;
+  loadingMore: boolean;
   setInputMessage: (value: string) => void;
   sendMessage: (content: string) => Promise<void>;
   loadMoreMessages: () => Promise<void>;
@@ -30,6 +31,7 @@ interface ChatHookResult {
 interface MessagesResponse {
   messages: ChatMessage[];
   hasMore: boolean;
+  nextPage?: number;
 }
 
 export function useChat(props: UseChatProps | null): ChatHookResult {
@@ -38,6 +40,34 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
   const [inputMessage, setInputMessage] = useState('');
   const socketRef = useRef<Socket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const [isSending, setIsSending] = useState(false);
+
+  // Handle typing status
+  const handleTyping = useCallback((typing: boolean) => {
+    if (!props?.conversationId || !props?.currentUserId) return;
+    socketRef.current?.emit('typing', {
+      conversationId: props.conversationId,
+      userId: props.currentUserId,
+      typing,
+    });
+  }, [props?.conversationId, props?.currentUserId]);
+
+  // Update message status in cache
+  const updateMessageStatus = useCallback((messageId: string, status: MessageStatus) => {
+    queryClient.setQueryData<InfiniteData<MessagesResponse>>(['chat-messages', props?.conversationId], (old) => {
+      if (!old) return old;
+
+      return {
+        ...old,
+        pages: old.pages.map(page => ({
+          ...page,
+          messages: page.messages.map(msg => 
+            msg._id === messageId ? { ...msg, status } : msg
+          )
+        }))
+      };
+    });
+  }, [props?.conversationId, queryClient]);
 
   // Fetch messages with React Query's useInfiniteQuery
   const {
@@ -47,9 +77,9 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteQuery<MessagesResponse, Error>({
-    queryKey: ['chat-messages', props?.conversationId],
-    queryFn: async ({ pageParam }) => {
+  } = useInfiniteQuery({
+    queryKey: ['chat-messages', props?.conversationId] as const,
+    queryFn: async ({ pageParam = 1 }) => {
       if (!props?.conversationId) throw new Error('No conversation ID');
       
       const response = await fetch(
@@ -67,13 +97,15 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
         throw new Error('Failed to fetch messages');
       }
       
-      const data: MessagesResponse = await response.json();
-      return data;
+      const data = await response.json();
+      return {
+        messages: data.messages as ChatMessage[],
+        hasMore: data.hasMore as boolean,
+        nextPage: data.hasMore ? (pageParam as number) + 1 : undefined
+      } as MessagesResponse;
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage: MessagesResponse, pages) => {
-      return lastPage.hasMore ? pages.length + 1 : undefined;
-    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
     gcTime: 1000 * 60 * 30, // Keep cache for 30 minutes
     refetchOnWindowFocus: false,
@@ -81,90 +113,54 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
   });
 
   // Send message mutation
-  const sendMessageMutation = useMutation<ChatMessage, Error, string, { tempMessage: ChatMessage }>({
+  const sendMessageMutation = useMutation<ChatMessage, Error, string>({
     mutationFn: async (content: string) => {
       if (!props?.conversationId) throw new Error('No conversation ID');
+      setIsSending(true);
       
-      const response = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: props.conversationId, content }),
-        credentials: 'include',
-      });
+      try {
+        const response = await fetch('/api/chat/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversationId: props.conversationId, content }),
+          credentials: 'include',
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to send message');
+        if (!response.ok) {
+          throw new Error('Failed to send message');
+        }
+
+        const newMessage = await response.json();
+        return { ...newMessage, status: 'sending' } as ChatMessage;
+      } finally {
+        setIsSending(false);
       }
-
-      return response.json();
     },
-    onMutate: async (content) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['chat-messages', props?.conversationId] });
-
-      // Create optimistic message
-      const tempMessage: ChatMessage = {
-        _id: Date.now().toString(),
-        conversationId: props!.conversationId,
-        senderId: props!.currentUserId,
-        content,
-        createdAt: new Date().toISOString(),
-        status: 'sending',
-      };
-
-      // Add optimistic message to cache
-      queryClient.setQueryData<{ pages: { messages: ChatMessage[] }[] }>(['chat-messages', props?.conversationId], (old) => {
-        if (!old) return { pages: [{ messages: [tempMessage] }] };
+    onSuccess: (newMessage) => {
+      // Update cache with new message
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(['chat-messages', props?.conversationId], (old) => {
+        if (!old) return { pages: [{ messages: [newMessage], hasMore: false }], pageParams: [1] };
+        
         const newPages = [...old.pages];
         if (newPages.length > 0) {
-          newPages[newPages.length - 1].messages.push(tempMessage);
+          const lastPage = newPages[newPages.length - 1];
+          lastPage.messages = [...lastPage.messages, newMessage];
         }
+        
         return { ...old, pages: newPages };
       });
 
-      return { tempMessage };
-    },
-    onSuccess: (newMessage, _, context) => {
-      if (!context) return;
-      
-      // Update message status and emit to socket
-      newMessage.status = 'sent';
+      // Emit to socket and update status
       socketRef.current?.emit('send-message', newMessage);
-
-      // Update cache with real message
-      queryClient.setQueryData<{ pages: { messages: ChatMessage[] }[] }>(['chat-messages', props?.conversationId], (old) => {
-        if (!old) return { pages: [{ messages: [newMessage] }] };
-        const newPages = [...old.pages];
-        if (newPages.length > 0) {
-          const messages = newPages[newPages.length - 1].messages;
-          const index = messages.findIndex(m => m._id === context.tempMessage._id);
-          if (index !== -1) {
-            messages[index] = newMessage;
-          }
-        }
-        return { ...old, pages: newPages };
-      });
+      updateMessageStatus(newMessage._id, 'sent');
     },
-    onError: (_, __, context) => {
-      if (!context) return;
-      
-      // Revert optimistic update
-      queryClient.setQueryData<{ pages: { messages: ChatMessage[] }[] }>(['chat-messages', props?.conversationId], (old) => {
-        if (!old) return { pages: [] };
-        const newPages = [...old.pages];
-        if (newPages.length > 0) {
-          const messages = newPages[newPages.length - 1].messages;
-          const index = messages.findIndex(m => m._id === context.tempMessage._id);
-          if (index !== -1) {
-            messages[index] = { ...context.tempMessage, status: 'error' };
-          }
-        }
-        return { ...old, pages: newPages };
-      });
+    onError: (error, content) => {
+      console.error('Failed to send message:', error);
+      // Optionally update UI to show error state
     }
   });
 
-  // Initialize socket connection
+  // Socket connection setup
   useEffect(() => {
     if (!props?.conversationId || !props?.currentUserId) return;
 
@@ -191,13 +187,35 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
         });
 
         socket.on('new-message', (message: ChatMessage) => {
-          queryClient.setQueryData(['chat-messages', props.conversationId], (old: any) => {
-            const newPages = [...(old?.pages || [])];
-            if (newPages.length > 0) {
-              newPages[newPages.length - 1].messages.push(message);
-            }
-            return { ...old, pages: newPages };
-          });
+          // Only add message if it's not from the current user
+          if (message.senderId !== props.currentUserId) {
+            queryClient.setQueryData<InfiniteData<MessagesResponse>>(['chat-messages', props.conversationId], (old) => {
+              if (!old) return { pages: [{ messages: [message], hasMore: false }], pageParams: [1] };
+              
+              // Check if message already exists
+              const messageExists = old.pages.some(page => 
+                page.messages.some(m => m._id === message._id)
+              );
+              
+              if (messageExists) return old;
+              
+              const newPages = [...old.pages];
+              if (newPages.length > 0) {
+                const lastPage = newPages[newPages.length - 1];
+                lastPage.messages = [...lastPage.messages, message];
+              }
+              
+              return { ...old, pages: newPages };
+            });
+          }
+        });
+
+        socket.on('message-delivered', (messageId: string) => {
+          updateMessageStatus(messageId, 'delivered');
+        });
+
+        socket.on('message-read', (messageId: string) => {
+          updateMessageStatus(messageId, 'read');
         });
 
         socket.on('user-typing', (data: { userId: string; typing: boolean }) => {
@@ -206,23 +224,9 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
           }
         });
 
-        socket.on('message-status-update', ({ messageId, status }: { messageId: string, status: MessageStatus }) => {
-          queryClient.setQueryData(['chat-messages', props.conversationId], (old: any) => {
-            const newPages = [...(old?.pages || [])];
-            newPages.forEach(page => {
-              const message = page.messages.find((m: ChatMessage) => m._id === messageId);
-              if (message) {
-                message.status = status;
-              }
-            });
-            return { ...old, pages: newPages };
-          });
-        });
-
         socketRef.current = socket;
       } catch (error) {
         console.error('Socket initialization error:', error);
-        // Retry connection after delay
         setTimeout(initSocket, SOCKET_RECONNECT_DELAY);
       }
     };
@@ -235,53 +239,44 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
         socketRef.current.disconnect();
       }
     };
-  }, [props?.conversationId, props?.currentUserId, props?.otherUser?._id, queryClient]);
+  }, [props?.conversationId, props?.currentUserId, props?.otherUser?._id, queryClient, updateMessageStatus]);
 
   // Handle typing status
-  const handleTyping = useCallback((typing: boolean) => {
-    if (!props?.conversationId || !props?.currentUserId) return;
-    socketRef.current?.emit('typing', {
-      conversationId: props.conversationId,
-      userId: props.currentUserId,
-      typing,
-    });
-  }, [props?.conversationId, props?.currentUserId]);
-
-  // Handle input change with debounced typing indicator
-  const handleInputChange = useCallback((value: string) => {
-    setInputMessage(value);
-    
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
+  useEffect(() => {
+    if (!inputMessage) {
+      handleTyping(false);
+      return;
     }
 
     handleTyping(true);
-    typingTimeoutRef.current = setTimeout(() => {
-      handleTyping(false);
-    }, 1000);
-  }, [handleTyping]);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => handleTyping(false), 2000);
 
-  // Cleanup typing timeout
-  useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
     };
-  }, []);
+  }, [inputMessage, handleTyping]);
 
-  // Flatten messages from all pages
-  const allMessages = data?.pages.flatMap(page => page.messages) || [];
+  // Combine all messages from all pages and sort them
+  const allMessages = data?.pages.flatMap(page => page.messages) ?? [];
+  const uniqueMessages = Array.from(
+    new Map(allMessages.map(message => [message._id, message])).values()
+  ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) as ChatMessage[];
 
   return {
-    messages: allMessages,
+    messages: uniqueMessages,
     isLoading,
     error: error ? error.message : null,
     isTyping,
     inputMessage,
-    isSending: sendMessageMutation.isPending,
+    isSending: isSending || sendMessageMutation.isPending,
     hasMore: !!hasNextPage,
-    setInputMessage: handleInputChange,
+    loadingMore: isFetchingNextPage,
+    setInputMessage,
     sendMessage: async (content: string) => {
       await sendMessageMutation.mutateAsync(content);
     },
