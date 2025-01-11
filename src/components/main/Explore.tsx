@@ -210,11 +210,27 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   }, [radiusModalOpen, radius, enableLocation]);
 
   // Check loading state first
+  // if (isLoading) {
+  //   return (
+  //     <div className="min-h-screen bg-black text-white flex justify-center items-center">
+  //       <div className="text-center py-20">
+  //         <h1 className="text-2xl font-bold">Loading...</h1>
+  //       </div>
+  //     </div>
+  //   );
+  // }
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
-          <h1 className="text-2xl font-bold">Loading...</h1>
+          <lottie-player
+            src="/loading/loading.json"
+            background="transparent"
+            speed="1"
+            style={{ width: '300px', height: '300px' }}
+            loop
+            autoplay
+          ></lottie-player>
         </div>
       </div>
     );
@@ -242,11 +258,27 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   }
 
   // Show loading if we have no explores data yet
-  if (!explores || explores.length === 0) {
+  // if (!explores || explores.length === 0) {
+  //   return (
+  //     <div className="min-h-screen bg-black text-white flex justify-center items-center">
+  //       <div className="text-center py-20">
+  //         <h1 className="text-2xl font-bold">Loading...</h1>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
-          <h1 className="text-2xl font-bold">Loading...</h1>
+          <lottie-player
+            src="/loading/loading.json"
+            background="transparent"
+            speed="1"
+            style={{ width: '300px', height: '300px' }}
+            loop
+            autoplay
+          ></lottie-player>
         </div>
       </div>
     );
