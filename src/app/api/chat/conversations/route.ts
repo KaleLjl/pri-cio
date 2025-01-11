@@ -6,25 +6,48 @@ import { ObjectId } from 'mongodb';
 export async function GET() {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
     const client = await clientPromise;
     const db = client.db('pri-cio');
 
+    // Get user ID from email
+    const user = await db.collection('users').findOne(
+      { email: session.user.email },
+      { projection: { _id: 1 } }
+    );
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const userId = user._id;
+
     // Find all conversations where the current user is a participant
     const conversations = await db.collection('conversations').aggregate([
       {
         $match: {
-          participants: session.user.id
+          participants: { $in: [userId.toString(), userId] }
         }
       },
       {
         $lookup: {
           from: 'users',
-          localField: 'participants',
-          foreignField: '_id',
+          let: { participants: '$participants' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: [
+                    { $toString: '$_id' },
+                    '$$participants'
+                  ]
+                }
+              }
+            }
+          ],
           as: 'participants'
         }
       },
@@ -35,7 +58,7 @@ export async function GET() {
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ['$conversationId', '$$conversationId'] }
+                $expr: { $eq: ['$conversationId', { $toString: '$$conversationId' }] }
               }
             },
             {
@@ -56,7 +79,7 @@ export async function GET() {
       {
         $sort: {
           'lastMessage.createdAt': -1,
-          updatedAt: -1 // 如果没有最后消息，则按更新时间排序
+          updatedAt: -1
         }
       }
     ]).toArray();
@@ -86,7 +109,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
@@ -96,6 +119,16 @@ export async function POST(request: Request) {
     const client = await clientPromise;
     const db = client.db('pri-cio');
 
+    // Get current user's ID from email
+    const currentUser = await db.collection('users').findOne(
+      { email: session.user.email },
+      { projection: { _id: 1 } }
+    );
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { otherUserId } = await request.json();
     if (!otherUserId || !ObjectId.isValid(otherUserId)) {
       return NextResponse.json(
@@ -103,6 +136,8 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const currentUserId = currentUser._id.toString();
 
     // Check if other user exists
     const otherUser = await db.collection('users').findOne(
@@ -118,7 +153,7 @@ export async function POST(request: Request) {
     // Check if conversation already exists
     const existingConversation = await db.collection('conversations').findOne({
       participants: {
-        $all: [session.user.id, otherUserId],
+        $all: [currentUserId, otherUserId],
         $size: 2
       }
     });
@@ -135,7 +170,7 @@ export async function POST(request: Request) {
     // Create new conversation
     const newConversation = {
       _id: new ObjectId(),
-      participants: [session.user.id, otherUserId],
+      participants: [currentUserId, otherUserId],
       updatedAt: new Date(),
       createdAt: new Date(),
     };
