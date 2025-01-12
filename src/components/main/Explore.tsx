@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { ExploreItem } from '@/lib/types/explore';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Switch from "react-switch";
 import { Switch as HeadlessSwitch } from "@headlessui/react";
 import { Menu } from '@headlessui/react';
@@ -97,6 +97,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   const [selectedCard, setSelectedCard] = useState<ExploreItem | null>(null);  
   const searchParams = useSearchParams();
   const searchQuery = searchParams?.get('search') || '';
+  const router = useRouter();
 
   const [radiusModalOpen, setRadiusModalOpen] = useState(false);
   const [radius, setRadius] = useState<number>(10);
@@ -208,6 +209,16 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
       setTempEnableLocation(enableLocation);
     }
   }, [radiusModalOpen, radius, enableLocation]);
+
+  const handleAvatarClick = useCallback((userId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the post modal from opening
+    console.log('Avatar clicked, userId:', userId);
+    if (!userId) {
+      console.log('No userId provided');
+      return;
+    }
+    router.push(`/chat/${userId}`);
+  }, [router]);
 
   // Check loading state first
   // if (isLoading) {
@@ -330,7 +341,19 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                 {new Date(explore.createdAt).toLocaleString()}
               </p>
               <div className="flex items-center justify-center space-x-2 mt-2">
-                <div className="relative w-6 h-6 rounded-full overflow-hidden">
+                <div 
+                  className="relative w-6 h-6 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-600"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Avatar clicked, userProfile:', explore.userProfile);
+                    if (explore.userProfile?._id) {
+                      handleAvatarClick(explore.userProfile._id, e);
+                    } else {
+                      console.log('No user ID found in profile');
+                    }
+                  }}
+                >
                   <Image
                     src={explore.userProfile?.avatarUrl || '/default-avatar.png'}
                     alt={explore.userProfile?.name || 'User'}
@@ -443,7 +466,19 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                 {/* Right Column: Content */}
                 <div className="flex flex-col space-y-4">
                   <div className="flex items-center space-x-3 mb-4">
-                    <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                    <div 
+                      className="relative w-10 h-10 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-600"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Modal avatar clicked, userProfile:', selectedCard.userProfile);
+                        if (selectedCard.userProfile?._id) {
+                          handleAvatarClick(selectedCard.userProfile._id, e);
+                        } else {
+                          console.log('No user ID found in profile');
+                        }
+                      }}
+                    >
                       <Image
                         src={selectedCard.userProfile?.avatarUrl || '/default-avatar.png'}
                         alt={selectedCard.userProfile?.name || 'User'}

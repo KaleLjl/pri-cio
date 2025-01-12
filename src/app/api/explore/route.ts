@@ -23,12 +23,13 @@ export async function GET(req: Request) {
       const updatedPosts = await Promise.all(posts.map(async (post) => {
         const userProfile = await db.collection('users').findOne(
           { email: post.userEmail },
-          { projection: { name: 1, avatarUrl: 1 } }
+          { projection: { _id: 1, name: 1, avatarUrl: 1 } }
         );
   
         return {
           ...post,
           userProfile: userProfile ? {
+            _id: userProfile._id.toString(),
             name: userProfile.name,
             avatarUrl: userProfile.avatarUrl
           } : undefined
