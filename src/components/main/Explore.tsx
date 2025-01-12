@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { ExploreItem } from '@/lib/types/explore';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Switch from "react-switch";
 import { Switch as HeadlessSwitch } from "@headlessui/react";
 import { Menu } from '@headlessui/react';
 import { motion, AnimatePresence} from 'framer-motion';
@@ -379,21 +378,30 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
         ariaHideApp={false}
       >
         <h2 className="text-black text-xl font-bold mb-4">Set Radius</h2>
-        <div className="flex items-center mb-4">
+
+        {/* Enable Location */}
+        <div className="flex items-center justify-between mb-4">
           <label htmlFor="locationSwitch" className="mr-3 text-gray-600">
             Enable Location
           </label>
-          <Switch
+          <HeadlessSwitch
+            checked={tempEnableLocation}
             onChange={(value) => {
               setTempEnableLocation(value);
               if (value) handleGetUserLocation();
             }}
-            checked={tempEnableLocation}
-            onColor="#6D28D9"
-            offColor="#ccc"
-            className="react-switch"
-          />
+            className={`${
+              tempEnableLocation ? 'bg-purple-600' : 'bg-gray-200'
+            } relative inline-flex h-6 w-11 items-center rounded-full`}
+          >
+            <span
+              className={`${
+                tempEnableLocation ? 'translate-x-6' : 'translate-x-1'
+              } inline-block h-4 w-4 transform bg-white rounded-full transition-transform`}
+            />
+          </HeadlessSwitch>
         </div>
+
         {tempEnableLocation && locationName && (
           <div className="mb-4 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-700">
             Location: {locationName}
@@ -404,7 +412,12 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
             <RadiusDropdown radius={tempRadius} setRadius={setTempRadius} />
           </div>
         )}
-        <div className="flex items-center">
+
+        {/* No Limit */}
+        <div className="flex items-center justify-between mb-4">
+          <label htmlFor="noLimitSwitch" className="text-gray-600 mr-3">
+            No Limit
+          </label>
           <HeadlessSwitch
             checked={tempNoLimit}
             onChange={(value) => {
@@ -424,7 +437,6 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               } inline-block h-4 w-4 transform bg-white rounded-full transition-transform`}
             />
           </HeadlessSwitch>
-          <span className="ml-3 text-gray-600">No Limit</span>
         </div>
         <div className="mt-6 flex justify-end">
           <button

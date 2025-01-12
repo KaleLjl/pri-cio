@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Modal from './Modal'; // Assuming you have a base Modal component
+import { Switch as HeadlessSwitch } from "@headlessui/react";
 
 interface LocationOptionModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ const LocationOptionModal: React.FC<LocationOptionModalProps> = ({
   const [inputCoordinates, setInputCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [errorMessage, setErrorMessage] = useState(''); // For displaying errors
+  const [enableLocation, setEnableLocation] = useState(false);
 
   const handleUseCurrentLocation = async () => {
     if (navigator.geolocation) {
@@ -105,19 +107,33 @@ const LocationOptionModal: React.FC<LocationOptionModalProps> = ({
       cancelText="Cancel"
     >
       <div className="flex flex-col space-y-4">
-        <button
-          className="px-4 py-2 bg-blue-500 text-white rounded-md"
-          onClick={handleUseCurrentLocation}
-          disabled={isFetchingLocation}
+        <div className="flex items-center justify-between">
+          <label htmlFor="locationSwitch" className="text-black font-medium">
+            Enable Location
+          </label>
+          <HeadlessSwitch
+          checked={enableLocation}
+          onChange={(checked) => {
+            setEnableLocation(checked);
+            if (checked) handleUseCurrentLocation();
+          }}
+          className={`${
+            enableLocation ? 'bg-purple-600' : 'bg-gray-200'
+          } relative inline-flex h-6 w-11 items-center rounded-full`}
         >
-          {isFetchingLocation ? 'Fetching Current Location...' : 'Use Current Location'}
-        </button>
+          <span
+            className={`${
+              enableLocation ? 'translate-x-6' : 'translate-x-1'
+            } inline-block h-4 w-4 transform bg-white rounded-full transition-transform`}
+          />
+        </HeadlessSwitch>
+        </div>
         <input
           type="text"
           value={inputAddress}
           onChange={(e) => setInputAddress(e.target.value)}
           placeholder="Enter your location"
-          className="px-4 py-2 border rounded-md text-black"
+          className="px-4 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-1 focus:ring-[#6D28D9] focus:ring-opacity-50 focus:border-[#6D28D9]"
         />
         <button
           onClick={handleGeocodeInputLocation}
@@ -130,13 +146,13 @@ const LocationOptionModal: React.FC<LocationOptionModalProps> = ({
         <div className="flex justify-end space-x-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-300 text-black rounded-md hover:bg-gray-400"
+            className="px-4 py-2 bg-transparent text-black rounded-md hover:bg-gray-300 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+            className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
           >
             Confirm
           </button>
