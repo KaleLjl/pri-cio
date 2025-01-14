@@ -232,7 +232,7 @@ const Around = () => {
         {
           center: { lat: 51.5074, lng: -0.1278 }, // London
           zoom: 8,
-          minZoom: 5, // Limit how far user can zoom out
+          minZoom: 4, // Limit how far user can zoom out
           maxZoom: 15, // Limit how far user can zoom in
         }
       );
