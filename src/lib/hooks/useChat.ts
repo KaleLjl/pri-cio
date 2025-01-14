@@ -198,14 +198,15 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
         status: 'sending'
       };
 
-      // Add to cache immediately
-      messageCache.current.set(optimisticMessage._id, optimisticMessage);
-      
       try {
         const response = await fetch('/api/chat/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ conversationId: props.conversationId, content }),
+          body: JSON.stringify({ 
+            conversationId: props.conversationId, 
+            content,
+            recipientId: props.otherUser._id // Add recipient ID
+          }),
           credentials: 'include',
         });
 
@@ -214,9 +215,13 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
         }
 
         const newMessage = await response.json();
-        // Update cache with real message
-        messageCache.current.delete(optimisticMessage._id);
-        messageCache.current.set(newMessage._id, { ...newMessage, status: 'sending' });
+        
+        // Emit the message through socket immediately after successful API call
+        socketRef.current?.emit('send-message', {
+          ...newMessage,
+          conversationId: props.conversationId,
+          recipientId: props.otherUser._id
+        });
         
         return { ...newMessage, status: 'sending' } as ChatMessage;
       } finally {
@@ -329,23 +334,49 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
           autoConnect: true,
           reconnection: true,
           reconnectionDelay: SOCKET_RECONNECT_DELAY,
+          reconnectionAttempts: Infinity,
+          timeout: 10000,
           transports: ['websocket'],
-          query: { userId: userData._id }
+          query: { 
+            userId: userData._id,
+            conversationId: props.conversationId
+          }
         });
 
         socket.on('connect', () => {
           console.log('Connected to socket server');
           socket.emit('join-room', props.conversationId);
+          
+          // Re-subscribe to conversation on reconnect
+          socket.emit('subscribe', {
+            userId: props.currentUserId,
+            conversationId: props.conversationId
+          });
+        });
+
+        socket.on('connect_error', (error) => {
+          console.error('Socket connection error:', error);
+          setTimeout(() => {
+            socket.connect();
+          }, SOCKET_RECONNECT_DELAY);
         });
 
         socket.on('new-message', (message: ChatMessage) => {
-          // Only add message if it's not from the current user and not in cache
-          if (message.senderId !== props.currentUserId && !messageCache.current.has(message._id)) {
+          console.log('Received new message:', message);
+          // Add message regardless of sender, but prevent duplicates
+          if (!messageCache.current.has(message._id)) {
             messageCache.current.set(message._id, message);
             
             // Update messages cache
             queryClient.setQueryData<InfiniteData<MessagesResponse>>(['chat-messages', props.conversationId], (old) => {
               if (!old) return { pages: [{ messages: [message], hasMore: false }], pageParams: [1] };
+              
+              // Check if message already exists in any page
+              const messageExists = old.pages.some(page => 
+                page.messages.some(m => m._id === message._id)
+              );
+              
+              if (messageExists) return old;
               
               const newPages = [...old.pages];
               if (newPages.length > 0) {
@@ -376,6 +407,15 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
                 return chat;
               }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
             });
+
+            // Send delivery confirmation for messages from other users
+            if (message.senderId !== props.currentUserId) {
+              socket.emit('message-received', {
+                messageId: message._id,
+                conversationId: props.conversationId,
+                receiverId: props.currentUserId
+              });
+            }
           }
         });
 
@@ -395,10 +435,19 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
 
         socket.on('disconnect', () => {
           console.log('Disconnected from socket server');
-          setTimeout(initSocket, SOCKET_RECONNECT_DELAY);
+          // Attempt to reconnect
+          setTimeout(() => {
+            socket.connect();
+          }, SOCKET_RECONNECT_DELAY);
         });
 
         socketRef.current = socket;
+
+        // Cleanup function
+        return () => {
+          socket.emit('leave-room', props.conversationId);
+          socket.disconnect();
+        };
       } catch (error) {
         console.error('Socket initialization error:', error);
         setTimeout(initSocket, SOCKET_RECONNECT_DELAY);
