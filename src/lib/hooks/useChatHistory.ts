@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 
 interface ChatRecord {
@@ -25,42 +25,63 @@ interface UseChatHistoryReturn {
   refetch: () => Promise<void>;
 }
 
+const CHAT_HISTORY_CACHE_TIME = 1000 * 60 * 30; // 30 minutes
+const CHAT_HISTORY_STALE_TIME = 1000 * 60 * 5; // 5 minutes
+
 export function useChatHistory(): UseChatHistoryReturn {
-  const [chats, setChats] = useState<ChatRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
 
-  const fetchChats = async () => {
-    if (!session) {
-      setChats([]);
-      setLoading(false);
-      return;
-    }
-
-    try {
+  const {
+    data: chats = [],
+    isLoading: loading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['chat-history'],
+    queryFn: async () => {
       const response = await fetch('/api/chat/conversations');
       if (!response.ok) {
         throw new Error('Failed to fetch chat history');
       }
       const data = await response.json();
-      setChats(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data as ChatRecord[];
+    },
+    staleTime: CHAT_HISTORY_STALE_TIME,
+    gcTime: CHAT_HISTORY_CACHE_TIME,
+    enabled: !!session,
+    refetchOnWindowFocus: false
+  });
 
-  useEffect(() => {
-    fetchChats();
-  }, [session]);
+  // Update chat history when receiving new message
+  const updateChatHistory = (newMessage: any, conversationId: string) => {
+    queryClient.setQueryData<ChatRecord[]>(['chat-history'], (oldChats) => {
+      if (!oldChats) return oldChats;
+
+      return oldChats.map(chat => {
+        if (chat._id === conversationId) {
+          return {
+            ...chat,
+            lastMessage: {
+              _id: newMessage._id,
+              content: newMessage.content,
+              createdAt: newMessage.createdAt,
+              senderId: newMessage.senderId
+            },
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return chat;
+      }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    });
+  };
 
   return {
     chats,
     loading,
-    error,
-    refetch: fetchChats
+    error: error as Error | null,
+    refetch: async () => {
+      await refetch();
+    }
   };
 } 

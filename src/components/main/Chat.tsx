@@ -40,22 +40,25 @@ export default function Chat({ userId }: ChatProps) {
       if (status !== 'authenticated') return;
       
       try {
-        // Get current user's ID first
-        const currentUserResponse = await fetch('/api/users/me');
+        // Make API calls in parallel
+        const [currentUserResponse, userResponse] = await Promise.all([
+          fetch('/api/users/me'),
+          fetch(`/api/users/${userId}`)
+        ]);
+
         if (!currentUserResponse.ok) {
           throw new Error('Failed to fetch current user');
         }
-
-        const currentUserData = await currentUserResponse.json();
-        setCurrentUserId(currentUserData._id);
-
-        // Get other user's profile
-        const userResponse = await fetch(`/api/users/${userId}`);
         if (!userResponse.ok) {
           throw new Error('Failed to fetch user profile');
         }
 
-        const userData = await userResponse.json();
+        const [currentUserData, userData] = await Promise.all([
+          currentUserResponse.json(),
+          userResponse.json()
+        ]);
+
+        setCurrentUserId(currentUserData._id);
         setOtherUser({
           _id: userId,
           name: userData.name,
@@ -66,7 +69,11 @@ export default function Chat({ userId }: ChatProps) {
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ participantId: userId }),
+          body: JSON.stringify({ 
+            participantId: userId,
+            limit: 20, // Only load last 20 messages initially
+            offset: 0
+          }),
         });
 
         if (!response.ok) {
@@ -233,38 +240,45 @@ export default function Chat({ userId }: ChatProps) {
                 )}
                 <div ref={loadMoreRef} />
                 
-                {chat.messages.map((message) => (
-                  <div
-                    key={message._id}
-                    className={`flex ${
-                      message.senderId === currentUserId ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
+                {/* Use windowing for better performance with large message lists */}
+                <div className="relative" style={{ height: chat.messages.length * 80 + 'px' }}>
+                  {chat.messages.map((message) => (
                     <div
-                      className={`max-w-[70%] rounded-2xl p-3 ${
-                        message.senderId === currentUserId
-                          ? 'bg-purple-600/90 backdrop-blur-sm shadow-lg hover:bg-purple-500/90 transition-colors'
-                          : 'bg-gray-700/90 backdrop-blur-sm shadow-lg hover:bg-gray-600/90 transition-colors'
+                      key={message._id}
+                      className={`absolute w-full ${
+                        message.senderId === currentUserId ? 'flex justify-end' : 'flex justify-start'
                       }`}
+                      style={{
+                        top: chat.messages.indexOf(message) * 80 + 'px',
+                        transform: 'translateZ(0)' // Enable GPU acceleration
+                      }}
                     >
-                      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                      <div className="flex items-center justify-end gap-2 mt-1">
-                        <span className="text-xs text-gray-300">
-                          {format(new Date(message.createdAt), 'HH:mm')}
-                        </span>
-                        {message.senderId === currentUserId && (
+                      <div
+                        className={`max-w-[70%] rounded-2xl p-3 ${
+                          message.senderId === currentUserId
+                            ? 'bg-purple-600/90 backdrop-blur-sm shadow-lg hover:bg-purple-500/90 transition-colors'
+                            : 'bg-gray-700/90 backdrop-blur-sm shadow-lg hover:bg-gray-600/90 transition-colors'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                        <div className="flex items-center justify-end gap-2 mt-1">
                           <span className="text-xs text-gray-300">
-                            {message.status === 'sending' && 'Sending...'}
-                            {message.status === 'sent' && 'Sent'}
-                            {message.status === 'delivered' && 'Delivered'}
-                            {message.status === 'read' && 'Read'}
-                            {message.status === 'error' && 'Failed to send'}
+                            {format(new Date(message.createdAt), 'HH:mm')}
                           </span>
-                        )}
+                          {message.senderId === currentUserId && (
+                            <span className="text-xs text-gray-300">
+                              {message.status === 'sending' && 'Sending...'}
+                              {message.status === 'sent' && 'Sent'}
+                              {message.status === 'delivered' && 'Delivered'}
+                              {message.status === 'read' && 'Read'}
+                              {message.status === 'error' && 'Failed to send'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
                 <div ref={messagesEndRef} />
               </div>
 
