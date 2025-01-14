@@ -15,6 +15,7 @@
     "@aws-sdk/s3-request-presigner": "^3.705.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@googlemaps/markerclusterer": "^2.5.3",
     "@headlessui/react": "^2.2.0",
     "@mui/material": "^6.3.0",
     "@react-google-maps/api": "^2.20.5",
@@ -30,6 +31,7 @@
     "classnames": "^2.5.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^11.15.0",
+    "lodash": "^4.17.21",
     "mapbox-gl": "^3.9.1",
     "mongodb": "^6.12.0",
     "next": "15.0.3",
@@ -50,6 +52,7 @@
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/formidable": "^3.4.5",
+    "@types/lodash": "^4.17.14",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
