@@ -79,17 +79,48 @@ io.on('connection', (socket) => {
     if (!socket.rooms.has(message.conversationId)) {
       console.log(`Auto-joining sender to room ${message.conversationId}`);
       socket.join(message.conversationId);
+      if (!conversationRooms.has(message.conversationId)) {
+        conversationRooms.set(message.conversationId, new Set());
+      }
       conversationRooms.get(message.conversationId)?.add(socket.id);
     }
     
     // Debug: Check room existence and members
     const roomMembers = conversationRooms.get(message.conversationId);
     console.log(`Room ${message.conversationId} exists:`, !!roomMembers);
-    console.log(`Room members:`, Array.from(roomMembers || []));
+    console.log(`Room members before broadcast:`, Array.from(roomMembers || []));
+    console.log(`Socket rooms:`, Array.from(socket.rooms));
     
-    // Broadcast to all users in the conversation (including sender for consistency)
-    io.in(message.conversationId).emit('new-message', message);
+    // Prepare message for broadcast
+    const broadcastMessage = {
+      ...message,
+      _id: message._id,
+      conversationId: message.conversationId,
+      content: message.content,
+      senderId: message.senderId,
+      createdAt: message.createdAt || new Date().toISOString()
+    };
+    
+    // Debug: Print message to be broadcasted
+    console.log('Broadcasting message:', broadcastMessage);
+    
+    // Broadcast to all users in the conversation
+    io.in(message.conversationId).emit('new-message', broadcastMessage);
     console.log(`Broadcasted message to room ${message.conversationId}`);
+    
+    // Debug: Verify the broadcast
+    const room = io.sockets.adapter.rooms.get(message.conversationId);
+    const sockets = Array.from(room || []);
+    console.log(`Room ${message.conversationId} has ${sockets.length} connected sockets:`, sockets);
+    
+    // Debug: Print all connected sockets in the room
+    sockets.forEach(socketId => {
+      const socket = io.sockets.sockets.get(socketId);
+      console.log(`Socket ${socketId} in room:`, {
+        userId: socket?.handshake.query.userId,
+        rooms: Array.from(socket?.rooms || [])
+      });
+    });
     
     // Mark as delivered for other users
     socket.to(message.conversationId).emit('message-delivered', message._id);

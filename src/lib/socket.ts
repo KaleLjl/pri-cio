@@ -234,6 +234,16 @@ class SocketService {
   isConnected(): boolean {
     return this.socket?.connected || false;
   }
+
+  removeEventListener(event: string, handler: (...args: any[]) => void) {
+    if (this.socket) {
+      this.socket.off(event, handler);
+      const handlers = this.eventHandlers.get(event);
+      if (handlers) {
+        handlers.delete(handler);
+      }
+    }
+  }
 }
 
 export const socketService = SocketService.getInstance(); 

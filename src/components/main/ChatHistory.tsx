@@ -6,11 +6,53 @@ import { useChatHistory } from '@/lib/hooks/useChatHistory';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
+import { socketService } from '@/lib/socket';
 
 export default function ChatHistoryClient() {
   const { data: session } = useSession();
   const { chats, loading, error } = useChatHistory();
   const [currentUserId, setCurrentUserId] = useState<string>('');
+
+  // Effect for fetching user and initializing socket
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch('/api/users/me');
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUserId(data._id);
+          
+          // Initialize socket connection after getting user ID
+          if (!socketService.isConnected()) {
+            console.log('Connecting socket with user ID:', data._id);
+            socketService.connect(data._id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    };
+
+    if (session) {
+      fetchCurrentUser();
+    }
+  }, [session]);
+
+  // Separate effect for joining/leaving chat rooms
+  useEffect(() => {
+    if (!currentUserId || !chats.length || !socketService.isConnected()) {
+      console.log('Not ready to join rooms:', { currentUserId, chatsLength: chats.length, isConnected: socketService.isConnected() });
+      return;
+    }
+
+    console.log('Joining chat rooms:', chats.map(chat => chat._id));
+    chats.forEach(chat => {
+      socketService.joinRoom(chat._id);
+    });
+
+    // Don't leave rooms when component unmounts
+    // This allows us to receive messages even when not on the chat history page
+  }, [currentUserId, chats]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -22,24 +64,6 @@ export default function ChatHistoryClient() {
       return dateString;
     }
   };
-
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await fetch('/api/users/me');
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentUserId(data._id);
-        }
-      } catch (error) {
-        console.error('Error fetching current user:', error);
-      }
-    };
-
-    if (session) {
-      fetchCurrentUser();
-    }
-  }, [session]);
 
   if (!session) {
     return (
