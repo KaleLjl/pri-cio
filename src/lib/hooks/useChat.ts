@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Socket } from 'socket.io-client';
-import { default as socketIOClient } from 'socket.io-client';
 import { ChatMessage, ChatUser, MessageStatus } from '@/lib/types/chat';
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
+import { socketService } from '@/lib/socket';
 
 // Constants
 const MESSAGES_PER_PAGE = 20;
-const SOCKET_RECONNECT_DELAY = 1000;
 const MESSAGE_CACHE_TIME = 1000 * 60 * 30; // 30 minutes
 const MESSAGE_STALE_TIME = 1000 * 60 * 5; // 5 minutes
 
@@ -60,7 +58,6 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
   const queryClient = useQueryClient();
   const [isTyping, setIsTyping] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
-  const socketRef = useRef<Socket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const [isSending, setIsSending] = useState(false);
   const messageCache = useRef<Map<string, ChatMessage>>(new Map());
@@ -68,7 +65,7 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
   // Handle typing status
   const handleTyping = useCallback((typing: boolean) => {
     if (!props?.conversationId || !props?.currentUserId) return;
-    socketRef.current?.emit('typing', {
+    socketService.sendTyping({
       conversationId: props.conversationId,
       userId: props.currentUserId,
       typing,
@@ -91,6 +88,76 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
       };
     });
   }, [props?.conversationId, queryClient]);
+
+  // Socket connection setup
+  useEffect(() => {
+    if (!props?.conversationId || !props?.currentUserId) return;
+
+    // Connect to socket
+    socketService.connect(props.currentUserId);
+    socketService.joinRoom(props.conversationId);
+
+    // Set up event listeners
+    socketService.onNewMessage((message: ChatMessage) => {
+      messageCache.current.set(message._id, message);
+      
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(['chat-messages', props.conversationId], (old) => {
+        if (!old) return { pages: [{ messages: [message], hasMore: false }], pageParams: [1] };
+        
+        const newPages = [...old.pages];
+        if (newPages.length > 0) {
+          const lastPage = newPages[newPages.length - 1];
+          if (!lastPage.messages.some(msg => msg._id === message._id)) {
+            lastPage.messages = [...lastPage.messages, message];
+          }
+        }
+        
+        return { ...old, pages: newPages };
+      });
+
+      // Update chat history cache
+      queryClient.setQueryData<ChatHistoryRecord[]>(['chat-history'], (oldChats) => {
+        if (!oldChats) return oldChats;
+
+        return oldChats.map((chat) => {
+          if (chat._id === props.conversationId) {
+            return {
+              ...chat,
+              lastMessage: {
+                _id: message._id,
+                content: message.content,
+                createdAt: message.createdAt,
+                senderId: message.senderId
+              },
+              updatedAt: message.createdAt
+            };
+          }
+          return chat;
+        }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      });
+    });
+
+    socketService.onMessageDelivered((messageId: string) => {
+      updateMessageStatus(messageId, 'delivered');
+    });
+
+    socketService.onMessageRead((messageId: string) => {
+      updateMessageStatus(messageId, 'read');
+    });
+
+    socketService.onUserTyping((data: { userId: string; typing: boolean }) => {
+      if (data.userId === props.otherUser._id) {
+        setIsTyping(data.typing);
+      }
+    });
+
+    return () => {
+      if (props.conversationId) {
+        socketService.leaveRoom(props.conversationId);
+      }
+      socketService.removeAllListeners();
+    };
+  }, [props?.conversationId, props?.currentUserId, props?.otherUser?._id, queryClient, updateMessageStatus]);
 
   // Prefetch next page of messages
   const prefetchNextPage = useCallback(async (pageParam: number) => {
@@ -290,7 +357,7 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
       });
 
       // Emit to socket and update status
-      socketRef.current?.emit('send-message', newMessage);
+      socketService.sendMessage(newMessage);
       updateMessageStatus(newMessage._id, 'sent');
     },
     onError: (error, _, context) => {
@@ -311,109 +378,6 @@ export function useChat(props: UseChatProps | null): ChatHookResult {
       }
     }
   });
-
-  // Socket connection setup with reconnection handling
-  useEffect(() => {
-    if (!props?.conversationId || !props?.currentUserId) return;
-
-    const initSocket = async () => {
-      try {
-        const authResponse = await fetch('/api/users/me');
-        if (!authResponse.ok) {
-          throw new Error('Failed to authenticate');
-        }
-        const userData = await authResponse.json();
-        
-        const socket = socketIOClient(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-          path: '/api/socket',
-          autoConnect: true,
-          reconnection: true,
-          reconnectionDelay: SOCKET_RECONNECT_DELAY,
-          transports: ['websocket'],
-          query: { userId: userData._id }
-        });
-
-        socket.on('connect', () => {
-          console.log('Connected to socket server');
-          socket.emit('join-room', props.conversationId);
-        });
-
-        socket.on('new-message', (message: ChatMessage) => {
-          // Only add message if it's not from the current user and not in cache
-          if (message.senderId !== props.currentUserId && !messageCache.current.has(message._id)) {
-            messageCache.current.set(message._id, message);
-            
-            // Update messages cache
-            queryClient.setQueryData<InfiniteData<MessagesResponse>>(['chat-messages', props.conversationId], (old) => {
-              if (!old) return { pages: [{ messages: [message], hasMore: false }], pageParams: [1] };
-              
-              const newPages = [...old.pages];
-              if (newPages.length > 0) {
-                const lastPage = newPages[newPages.length - 1];
-                lastPage.messages = [...lastPage.messages, message];
-              }
-              
-              return { ...old, pages: newPages };
-            });
-
-            // Update chat history cache
-            queryClient.setQueryData<ChatHistoryRecord[]>(['chat-history'], (oldChats) => {
-              if (!oldChats) return oldChats;
-
-              return oldChats.map((chat) => {
-                if (chat._id === props.conversationId) {
-                  return {
-                    ...chat,
-                    lastMessage: {
-                      _id: message._id,
-                      content: message.content,
-                      createdAt: message.createdAt,
-                      senderId: message.senderId
-                    },
-                    updatedAt: message.createdAt
-                  };
-                }
-                return chat;
-              }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-            });
-          }
-        });
-
-        socket.on('message-delivered', (messageId: string) => {
-          updateMessageStatus(messageId, 'delivered');
-        });
-
-        socket.on('message-read', (messageId: string) => {
-          updateMessageStatus(messageId, 'read');
-        });
-
-        socket.on('user-typing', (data: { userId: string; typing: boolean }) => {
-          if (data.userId === props.otherUser._id) {
-            setIsTyping(data.typing);
-          }
-        });
-
-        socket.on('disconnect', () => {
-          console.log('Disconnected from socket server');
-          setTimeout(initSocket, SOCKET_RECONNECT_DELAY);
-        });
-
-        socketRef.current = socket;
-      } catch (error) {
-        console.error('Socket initialization error:', error);
-        setTimeout(initSocket, SOCKET_RECONNECT_DELAY);
-      }
-    };
-
-    initSocket();
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.emit('leave-room', props.conversationId);
-        socketRef.current.disconnect();
-      }
-    };
-  }, [props?.conversationId, props?.currentUserId, props?.otherUser?._id, queryClient, updateMessageStatus]);
 
   // Handle typing status
   useEffect(() => {

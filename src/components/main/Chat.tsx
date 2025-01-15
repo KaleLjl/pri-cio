@@ -207,10 +207,12 @@ export default function Chat({ userId }: ChatProps) {
               </button>
               <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-purple-500/50">
                 <Image
-                  src={otherUser.avatarUrl || '/default-avatar.png'}
+                  src={otherUser.avatarUrl || '/images/default-avatar.png'}
                   alt={otherUser.name || 'User'}
-                  layout="fill"
-                  objectFit="cover"
+                  width={48}
+                  height={48}
+                  className="object-cover"
+                  priority
                 />
               </div>
               <div className="flex-1">
