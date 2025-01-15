@@ -54,11 +54,16 @@ export async function GET() {
       {
         $lookup: {
           from: 'messages',
-          let: { conversationId: '$_id' },
+          let: { conversationId: { $toString: '$_id' } },
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ['$conversationId', { $toString: '$$conversationId' }] }
+                $expr: { 
+                  $eq: [
+                    { $toString: '$conversationId' },
+                    '$$conversationId'
+                  ]
+                }
               }
             },
             {
@@ -73,7 +78,24 @@ export async function GET() {
       },
       {
         $addFields: {
-          lastMessage: { $arrayElemAt: ['$lastMessage', 0] }
+          lastMessage: { 
+            $cond: {
+              if: { $eq: [{ $size: '$lastMessage' }, 0] },
+              then: null,
+              else: {
+                $let: {
+                  vars: { msg: { $arrayElemAt: ['$lastMessage', 0] } },
+                  in: {
+                    _id: { $toString: '$$msg._id' },
+                    content: '$$msg.content',
+                    createdAt: { $toDate: '$$msg.createdAt' },
+                    senderId: { $toString: '$$msg.senderId' },
+                    conversationId: { $toString: '$$msg.conversationId' }
+                  }
+                }
+              }
+            }
+          }
         }
       },
       {

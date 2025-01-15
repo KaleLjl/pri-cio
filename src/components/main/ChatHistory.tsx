@@ -12,6 +12,17 @@ export default function ChatHistoryClient() {
   const { chats, loading, error } = useChatHistory();
   const [currentUserId, setCurrentUserId] = useState<string>('');
 
+  const formatDate = (dateString: string) => {
+    try {
+      // 将 UTC 时间字符串转换为本地时间
+      const date = new Date(dateString);
+      return format(date, 'MMM d, yyyy HH:mm');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
+  };
+
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
@@ -76,6 +87,11 @@ export default function ChatHistoryClient() {
       <h1 className="text-2xl font-bold text-white mb-6">Chat History</h1>
       <div className="space-y-4">
         {chats.map((chat) => {
+          console.log('Chat data:', {
+            chatId: chat._id,
+            lastMessage: chat.lastMessage,
+            createdAt: chat.createdAt
+          });
           const otherParticipant = chat.participants.find(p => p._id !== currentUserId);
           if (!otherParticipant) return null;
 
@@ -106,9 +122,7 @@ export default function ChatHistoryClient() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-gray-400 text-xs">
-                    {chat.lastMessage
-                      ? format(new Date(chat.lastMessage.createdAt), 'MMM d, yyyy')
-                      : format(new Date(chat.createdAt), 'MMM d, yyyy')}
+                    {formatDate(chat.lastMessage?.createdAt || chat.createdAt)}
                   </p>
                 </div>
               </div>
