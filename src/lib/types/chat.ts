@@ -10,9 +10,11 @@ export interface ChatMessage {
   _id: string;
   conversationId: string;
   senderId: string;
+  receiverId: string;
   content: string;
   createdAt: string;
-  status: MessageStatus;
+  status?: MessageStatus;
+  read?: boolean;
 }
 
 export interface ChatHookResult {
