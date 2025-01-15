@@ -78,11 +78,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { conversationId, content } = await req.json();
+    const { conversationId, content, receiverId } = await req.json();
 
-    if (!conversationId || !content) {
+    if (!content || !receiverId) {
       return NextResponse.json(
-        { error: 'Conversation ID and content are required' },
+        { error: 'Content and receiver ID are required' },
         { status: 400 }
       );
     }
@@ -100,28 +100,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Sender not found' }, { status: 404 });
     }
 
-    // Get conversation and verify sender is a participant
-    const conversation = await db.collection('conversations').findOne({
-      _id: new ObjectId(conversationId),
-      participants: sender._id.toString()
-    });
+    const senderId = sender._id.toString();
 
-    if (!conversation) {
-      return NextResponse.json(
-        { error: 'Conversation not found or unauthorized' },
-        { status: 404 }
-      );
+    // Find or create conversation
+    let conversation;
+    if (conversationId) {
+      conversation = await db.collection('conversations').findOne({
+        _id: new ObjectId(conversationId),
+        participants: { $all: [senderId, receiverId] }
+      });
     }
 
-    // Get receiver ID (the other participant)
-    const receiverId = conversation.participants.find(
-      (id: string) => id !== sender._id.toString()
-    );
+    if (!conversation) {
+      // Create new conversation
+      conversation = {
+        _id: new ObjectId(),
+        participants: [senderId, receiverId],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      await db.collection('conversations').insertOne(conversation);
+    }
 
     // Create new message
     const newMessage = {
-      conversationId: new ObjectId(conversationId),
-      senderId: sender._id.toString(),
+      conversationId: conversation._id,
+      senderId,
       receiverId,
       content,
       createdAt: new Date(),
@@ -132,13 +136,14 @@ export async function POST(req: Request) {
 
     // Update conversation's updatedAt timestamp
     await db.collection('conversations').updateOne(
-      { _id: new ObjectId(conversationId) },
+      { _id: conversation._id },
       { $set: { updatedAt: new Date() } }
     );
 
     return NextResponse.json({
       _id: result.insertedId,
-      ...newMessage
+      ...newMessage,
+      conversationId: conversation._id.toString()
     });
   } catch (error) {
     console.error('Error sending message:', error);
