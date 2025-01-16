@@ -45,8 +45,11 @@ export function useChatHistory(): UseChatHistoryReturn {
       queryClient.setQueryData<ChatRecord[]>(['chat-history'], (oldChats) => {
         if (!oldChats) return oldChats;
 
-        return oldChats.map((chat) => {
+        let chatExists = false;
+        const updatedChats = oldChats.map((chat) => {
           if (chat._id === message.conversationId) {
+            chatExists = true;
+            // Update the chat with the new message
             return {
               ...chat,
               lastMessage: {
@@ -59,12 +62,28 @@ export function useChatHistory(): UseChatHistoryReturn {
             };
           }
           return chat;
-        }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        });
+
+        // If this is a new conversation, we need to fetch the updated chat list
+        if (!chatExists) {
+          console.log('New conversation detected, triggering refetch');
+          queryClient.invalidateQueries({ queryKey: ['chat-history'] });
+          return oldChats;
+        }
+
+        // Sort chats by last message time, most recent first
+        return updatedChats.sort((a, b) => {
+          const timeA = a.lastMessage?.createdAt || a.updatedAt;
+          const timeB = b.lastMessage?.createdAt || b.updatedAt;
+          return new Date(timeB).getTime() - new Date(timeA).getTime();
+        });
       });
     };
 
+    // Set up socket event listeners
     socketService.onNewMessage(handleNewMessage);
 
+    // Only remove the message handler, don't disconnect or leave rooms
     return () => {
       socketService.removeEventListener('new-message', handleNewMessage);
     };
@@ -78,14 +97,34 @@ export function useChatHistory(): UseChatHistoryReturn {
   } = useQuery({
     queryKey: ['chat-history'],
     queryFn: async () => {
-      console.log('Fetching chat history from server...');
+      console.log('Fetching initial chat history...');
       const response = await fetch('/api/chat/conversations');
       if (!response.ok) {
         throw new Error('Failed to fetch chat history');
       }
       const data = await response.json();
-      console.log('Fetched chat history:', data.length, 'conversations');
-      return data as ChatRecord[];
+      
+      // Sort chats by last message time before returning
+      const sortedChats = (data as ChatRecord[]).sort((a, b) => {
+        const timeA = a.lastMessage?.createdAt || a.updatedAt;
+        const timeB = b.lastMessage?.createdAt || b.updatedAt;
+        return new Date(timeB).getTime() - new Date(timeA).getTime();
+      });
+
+      // Join all chat rooms after fetching
+      if (socketService.isConnected()) {
+        console.log('Joining all chat rooms after initial fetch');
+        sortedChats.forEach(chat => {
+          socketService.joinRoom(chat._id);
+        });
+      } else if (session?.user?.id) {
+        // If socket is not connected, try to connect and then join rooms
+        console.log('Socket not connected, attempting to connect...');
+        socketService.connect(session.user.id);
+        // Rooms will be joined automatically after connection due to activeRooms tracking
+      }
+
+      return sortedChats;
     },
     staleTime: Infinity, // Don't refetch automatically
     enabled: !!session,

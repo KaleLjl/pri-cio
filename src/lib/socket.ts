@@ -9,6 +9,8 @@ class SocketService {
   private maxReconnectAttempts = 5;
   private eventHandlers = new Map<string, Set<(...args: any[]) => void>>();
   private activeRooms = new Set<string>();
+  private autoReconnectEnabled = true;
+  private reconnectTimer: NodeJS.Timeout | null = null;
 
   private constructor() {}
 
@@ -39,7 +41,7 @@ class SocketService {
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
+      reconnectionDelayMax: 5000,
       timeout: 20000,
       transports: ['websocket', 'polling'],
       forceNew: true
@@ -54,6 +56,7 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log('Connected to socket server with ID:', this.socket?.id);
       this.reconnectAttempts = 0;
+      this.clearReconnectTimer();
       
       // Rejoin all active rooms after reconnection
       this.activeRooms.forEach(roomId => {
@@ -67,25 +70,17 @@ class SocketService {
 
     this.socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
-      this.reconnectAttempts++;
-      
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('Max reconnection attempts reached');
-        this.disconnect();
-      }
+      this.handleDisconnection('connect_error');
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('Disconnected from socket server. Reason:', reason);
-      if (reason === 'io server disconnect') {
-        // Reconnect if the server disconnected us
-        console.log('Attempting to reconnect...');
-        this.socket?.connect();
-      }
+      this.handleDisconnection(reason);
     });
 
     this.socket.on('error', (error) => {
       console.error('Socket error:', error);
+      this.handleDisconnection('error');
     });
 
     // Handle room events
@@ -96,6 +91,32 @@ class SocketService {
     this.socket.on('user-left', (data: { userId: string; socketId: string }) => {
       console.log(`User ${data.userId} left with socket ${data.socketId}`);
     });
+  }
+
+  private handleDisconnection(reason: string) {
+    this.reconnectAttempts++;
+    console.log(`Handling disconnection (attempt ${this.reconnectAttempts}). Reason:`, reason);
+
+    if (this.autoReconnectEnabled && this.userId) {
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        // Set up reconnection timer
+        this.clearReconnectTimer();
+        this.reconnectTimer = setTimeout(() => {
+          console.log('Attempting to reconnect...');
+          this.connect(this.userId!);
+        }, Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000)); // Exponential backoff, max 10s
+      } else {
+        console.error('Max reconnection attempts reached');
+        this.autoReconnectEnabled = false;
+      }
+    }
+  }
+
+  private clearReconnectTimer() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   }
 
   private reattachEventHandlers() {
@@ -114,6 +135,7 @@ class SocketService {
   }
 
   disconnect() {
+    this.clearReconnectTimer();
     if (this.socket) {
       console.log('Disconnecting socket...');
       this.socket.removeAllListeners();
@@ -122,12 +144,15 @@ class SocketService {
       this.userId = null;
       this.reconnectAttempts = 0;
       this.eventHandlers.clear();
+      this.autoReconnectEnabled = true;
     }
   }
 
   joinRoom(conversationId: string) {
     if (!this.socket?.connected) {
       console.error('Cannot join room: Socket not connected');
+      // Store the room ID even if we're not connected
+      this.activeRooms.add(conversationId);
       return;
     }
     console.log('Joining room:', conversationId);
@@ -136,12 +161,12 @@ class SocketService {
   }
 
   leaveRoom(conversationId: string) {
+    this.activeRooms.delete(conversationId);
     if (!this.socket?.connected) {
       console.error('Cannot leave room: Socket not connected');
       return;
     }
     console.log('Leaving room:', conversationId);
-    this.activeRooms.delete(conversationId);
     this.socket.emit('leave-room', conversationId);
   }
 

@@ -6,14 +6,13 @@ import { useChatHistory } from '@/lib/hooks/useChatHistory';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
-import { socketService } from '@/lib/socket';
 
 export default function ChatHistoryClient() {
   const { data: session } = useSession();
   const { chats, loading, error } = useChatHistory();
   const [currentUserId, setCurrentUserId] = useState<string>('');
 
-  // Effect for fetching user and initializing socket
+  // Effect for fetching user
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
@@ -21,12 +20,6 @@ export default function ChatHistoryClient() {
         if (response.ok) {
           const data = await response.json();
           setCurrentUserId(data._id);
-          
-          // Initialize socket connection after getting user ID
-          if (!socketService.isConnected()) {
-            console.log('Connecting socket with user ID:', data._id);
-            socketService.connect(data._id);
-          }
         }
       } catch (error) {
         console.error('Error fetching current user:', error);
@@ -36,33 +29,10 @@ export default function ChatHistoryClient() {
     if (session) {
       fetchCurrentUser();
     }
-
-    // Cleanup socket connection when component unmounts
-    return () => {
-      // Don't disconnect socket when leaving ChatHistory
-      // Let it persist for the entire session
-    };
   }, [session]);
-
-  // Separate effect for joining chat rooms
-  useEffect(() => {
-    if (!currentUserId || !chats.length || !socketService.isConnected()) {
-      console.log('Not ready to join rooms:', { currentUserId, chatsLength: chats.length, isConnected: socketService.isConnected() });
-      return;
-    }
-
-    console.log('Joining chat rooms:', chats.map(chat => chat._id));
-    chats.forEach(chat => {
-      socketService.joinRoom(chat._id);
-    });
-
-    // Don't leave rooms when component unmounts
-    // This allows us to receive messages even when not on the chat history page
-  }, [currentUserId, chats]);
 
   const formatDate = (dateString: string) => {
     try {
-      // 将 UTC 时间字符串转换为本地时间
       const date = new Date(dateString);
       return format(date, 'MMM d, yyyy HH:mm');
     } catch (error) {
@@ -117,13 +87,11 @@ export default function ChatHistoryClient() {
       <h1 className="text-2xl font-bold text-white mb-6">Chat History</h1>
       <div className="space-y-4">
         {chats.map((chat) => {
-          console.log('Chat data:', {
-            chatId: chat._id,
-            lastMessage: chat.lastMessage,
-            createdAt: chat.createdAt
-          });
           const otherParticipant = chat.participants.find(p => p._id !== currentUserId);
           if (!otherParticipant) return null;
+
+          // Get the most recent timestamp
+          const lastActivityTime = chat.lastMessage?.createdAt || chat.updatedAt;
 
           return (
             <Link
@@ -152,7 +120,7 @@ export default function ChatHistoryClient() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-gray-400 text-xs">
-                    {formatDate(chat.lastMessage?.createdAt || chat.createdAt)}
+                    {formatDate(lastActivityTime)}
                   </p>
                 </div>
               </div>
