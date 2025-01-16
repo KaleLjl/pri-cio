@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
 // Use your key from .env or wherever:
 const OPENCAGE_API_KEY = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
@@ -295,6 +297,14 @@ const Around = () => {
         });
 
         marker.addListener('click', () => {
+          // 1) Close any open cluster modal
+          setShowClusterModal(false);
+          setClusterModalPosts([]);
+
+          // 2) Close any open single post
+          setSelectedPost(null);
+
+          // 3) Now open the correct post details
           setSelectedPost(post);
         });
 
@@ -310,6 +320,10 @@ const Around = () => {
         });
 
         marker.addListener('click', () => {
+          // 1) Close any single post
+          setSelectedPost(null);
+
+          // 2) Show this cluster’s posts
           setClusterModalPosts(c.posts);
           setShowClusterModal(true);
         });
@@ -400,7 +414,27 @@ const Around = () => {
   const handleCloseClusterModal = () => {
     setShowClusterModal(false);
     setClusterModalPosts([]);
+    document.body.style.overflow = 'auto'; // Re-enable scrolling on the body
   };
+
+  React.useEffect(() => {
+    if (selectedPost || showClusterModal) {
+      document.body.style.overflow = 'hidden'; // Disable scrolling on the body
+    } else {
+      document.body.style.overflow = 'auto'; // Re-enable scrolling on the body
+    }
+  }, [selectedPost, showClusterModal]);
+
+  const router = useRouter();
+  const handleAvatarClick = useCallback((userId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the post modal from opening
+    console.log('Avatar clicked, userId:', userId);
+    if (!userId) {
+      console.log('No userId provided');
+      return;
+    }
+    router.push(`/chat/${userId}`);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex flex-col bg-black">
@@ -415,7 +449,7 @@ const Around = () => {
       >
         <h1>Navigation Bar</h1>
       </nav>
-
+  
       <div
         id="map"
         style={{
@@ -424,118 +458,181 @@ const Around = () => {
           width: '100vw',
         }}
       ></div>
-
-      {/* Single Post Popup Modal */}
+  
+      {/* Posts Popup Modal */}
       <AnimatePresence>
-        {selectedPost && (
+        {(selectedPost || showClusterModal) && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, x: -100 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -100 }}
             transition={{ duration: 0.5 }}
-            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
-            onClick={handleCloseModal}
+            className="absolute top-[60px] left-0 h-[calc(100vh-60px)] w-[500px] bg-white shadow-lg z-50 overflow-y-auto"
           >
-            <motion.div
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-xl w-[90%] max-w-4xl p-8 text-black"
+            <div
+              className="relative bg-white w-[500px] h-full overflow-y-auto shadow-lg"
+              style={{
+                zIndex: 500,
+                top: '0',
+              }}
             >
-              <div className="grid grid-cols-2 gap-6">
-                {/* Left Column */}
-                <div className="overflow-hidden rounded-lg">
-                  <img
-                    src={selectedPost.imageUrl}
-                    alt="Post"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                {/* Right Column */}
-                <div className="flex flex-col space-y-4">
-                  <h2 className="text-2xl font-bold">
-                    {selectedPost.description || 'No description available'}
-                  </h2>
-                  <p className="text-gray-600 text-sm">
-                    Created at:{' '}
-                    {new Date(selectedPost.createdAt).toLocaleString()}
-                  </p>
-                  <p className="text-lg font-semibold text-black">
-                    ${selectedPost.price}
-                  </p>
-                  {selectedPost.location && (
-                    <p className="text-gray-600">
-                      Location: {selectedPost.location.city},{' '}
-                      {selectedPost.location.country}
-                    </p>
-                  )}
-                  <div className="border-t border-gray-200 pt-4 space-y-2">
-                    <p className="text-gray-500 text-sm">Comments Section</p>
-                    <div className="flex items-start space-x-4">
-                      <div className="h-10 w-10 rounded-full bg-gray-300" />
-                      <input
-                        type="text"
-                        placeholder="Write a comment..."
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
+              <div className="p-4">
+                {/* For Single Post */}
+                {selectedPost && (
+                  <div className="space-y-4">
+                    {/* User Avatar, Name, and Close Button */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className="relative w-10 h-10 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-600"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Avatar clicked, userProfile:', selectedPost.userProfile);
+                            if (selectedPost.userProfile?._id) {
+                              handleAvatarClick(selectedPost.userProfile._id, e);
+                            } else {
+                              console.log('No user ID found in profile');
+                            }
+                          }}
+                        >
+                          <Image
+                            src={selectedPost.userProfile?.avatarUrl || '/default-avatar.png'}
+                            alt={selectedPost.userProfile?.name || 'User'}
+                            layout="fill"
+                            objectFit="cover"
+                          />
+                        </div>
+                        <span className="font-semibold text-black">
+                          {selectedPost.userProfile?.name || 'Anonymous'}
+                        </span>
+                      </div>
+  
+                      {/* Close Button */}
+                      <button
+                        onClick={selectedPost ? handleCloseModal : handleCloseClusterModal}
+                        className="text-gray-500 hover:text-gray-800 focus:outline-none"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '1.5rem',
+                          padding: '0',
+                        }}
+                      >
+                        &times;
+                      </button>
+                    </div>
+  
+                    {/* Post Image */}
+                    <div className="overflow-hidden rounded-lg">
+                      <img
+                        src={selectedPost.imageUrl}
+                        alt="Post"
+                        className="w-full h-100 object-cover"
                       />
                     </div>
+  
+                    {/* Post Details */}
+                    <div className="space-y-2">
+                      <h2 className="text-xl font-bold text-black">
+                        {selectedPost.description || 'No description available'}
+                      </h2>
+                      <p className="text-sm text-gray-500">
+                        Created at: {new Date(selectedPost.createdAt).toLocaleString()}
+                      </p>
+                      <p className="text-lg font-semibold text-black">${selectedPost.price}</p>
+                      {selectedPost.location && (
+                        <p className="text-sm text-gray-500">
+                          Location: {selectedPost.location.city}, {selectedPost.location.country}
+                        </p>
+                      )}
+                    </div>
+  
+                    {/* Comments Section */}
+                    <div className="border-t border-gray-200 pt-4 space-y-2">
+                      <p className="text-gray-500 text-sm">0 comments</p>
+                      <div className="flex items-start space-x-4">
+                        <div className="h-10 w-10 rounded-full bg-gray-300" />
+                        <input
+                          type="text"
+                          placeholder="Write a comment..."
+                          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none text-black"
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Cluster Popup Modal */}
-      <AnimatePresence>
-        {showClusterModal && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.5 }}
-            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
-            onClick={handleCloseClusterModal}
-          >
-            <motion.div
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-xl w-[90%] max-w-4xl p-8 text-black relative"
-            >
-              <h2 className="text-2xl font-bold mb-4">Posts in This Cluster</h2>
-              <button
-                onClick={handleCloseClusterModal}
-                className="absolute top-4 right-4 bg-gray-200 px-3 py-1 rounded"
-              >
-                Close
-              </button>
-
-              <div className="grid grid-cols-2 gap-4">
-                {clusterModalPosts.map((post, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2 border border-gray-200 rounded-md flex flex-col"
-                  >
-                    <img
-                      src={post.imageUrl}
-                      alt="Post"
-                      className="w-full h-32 object-cover rounded-md"
-                    />
-                    <h3 className="font-semibold mt-2">
-                      {post.description || 'No description'}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      ${post.price} -{' '}
-                      {new Date(post.createdAt).toLocaleString()}
-                    </p>
+                )}
+  
+                {/* For Cluster of Posts */}
+                {showClusterModal && (
+                  <div className="space-y-4">
+                    {/* Header with Close Button */}
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-black">Posts in This Cluster</h2>
+                      <button
+                        onClick={handleCloseClusterModal}
+                        className="text-gray-500 hover:text-gray-800 focus:outline-none"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '1.5rem',
+                          padding: '0',
+                        }}
+                      >
+                        &times;
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      {clusterModalPosts.map((post) => (
+                        <div
+                          key={post._id}
+                          className="cursor-pointer p-4 border-b border-gray-200 hover:bg-gray-100"
+                          onClick={() => {
+                            setSelectedPost(post); // Set the selected post to display in the single post modal
+                            setShowClusterModal(false); // Close the cluster modal
+                          }}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                              <Image
+                                src={post.userProfile?.avatarUrl || '/default-avatar.png'}
+                                alt={post.userProfile?.name || 'User'}
+                                layout="fill"
+                                objectFit="cover"
+                              />
+                            </div>
+                            <span className="font-semibold text-black">
+                              {post.userProfile?.name || 'Anonymous'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500">{post.description || 'No description available'}</p>
+                          <p className="text-lg font-semibold text-black">${post.price}</p>
+                          <div className="overflow-hidden rounded-lg mt-2">
+                            <Image
+                              src={post.imageUrl}
+                              alt="Post"
+                              width={500}
+                              height={200} // Adjust the height to make it shorter
+                              className="object-cover w-full h-full"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
-            </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
+  
+  
+  
 };
 
 export default Around;

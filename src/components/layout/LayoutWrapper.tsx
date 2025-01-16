@@ -7,6 +7,7 @@ import Footer from '@/components/layout/Footer';
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthPage = pathname === '/signin';
+  const isAroundPage = pathname === '/around'; 
 
   return (
     <>
@@ -14,7 +15,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       <main className="min-h-screen">
         {children}
       </main>
-      {!isAuthPage && <Footer />}
+      {!isAuthPage && !isAroundPage && <Footer />}
     </>
   );
 } 

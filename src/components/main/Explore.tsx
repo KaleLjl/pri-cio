@@ -319,7 +319,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
             onClick={() => setSelectedCard(explore)}
           >
             <div className="rounded-[2rem] overflow-hidden shadow-md bg-gray-800">
-              <div className="relative w-full h-80">
+              <div className="relative w-full h-[400px]">
                 <ImageWithFallback
                   src={explore.imageUrl}
                   alt={`Post created on ${new Date(explore.createdAt).toLocaleString()}`}
