@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { useEffect } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { socketService } from '@/lib/socket';
 import { ChatMessage } from '@/lib/types/chat';
 
@@ -31,64 +31,56 @@ interface UseChatHistoryReturn {
 export function useChatHistory(): UseChatHistoryReturn {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const chatCacheRef = useRef<Map<string, ChatRecord>>(new Map());
 
-  // Set up socket event listeners for real-time updates
+  // 处理新消息更新
+  const handleNewMessage = useCallback((message: ChatMessage) => {
+    console.log('Received new message in chat history:', message);
+    
+    // 立即更新React Query缓存
+    queryClient.setQueriesData({ queryKey: ['chat-history'] }, (oldData: ChatRecord[] | undefined) => {
+      if (!oldData) return oldData;
+
+      const currentChats = new Map(oldData.map(chat => [chat._id, chat]));
+      
+      // 更新或添加新消息到缓存
+      if (currentChats.has(message.conversationId)) {
+        const chat = currentChats.get(message.conversationId)!;
+        currentChats.set(message.conversationId, {
+          ...chat,
+          lastMessage: {
+            _id: message._id,
+            content: message.content,
+            createdAt: message.createdAt,
+            senderId: message.senderId
+          },
+          updatedAt: message.createdAt
+        });
+      } else {
+        // 如果是新对话，触发重新获取
+        queryClient.invalidateQueries({ queryKey: ['chat-history'] });
+        return oldData;
+      }
+
+      // 转换回数组并排序
+      const updatedChats = Array.from(currentChats.values());
+      return updatedChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    });
+  }, [queryClient]);
+
+  // 设置socket事件监听
   useEffect(() => {
     if (!session?.user?.id) return;
 
     console.log('Setting up message handler in useChatHistory');
-    
-    const handleNewMessage = (message: ChatMessage) => {
-      console.log('Received new message in chat history:', message);
-      
-      // Update the chat history in cache
-      queryClient.setQueryData<ChatRecord[]>(['chat-history'], (oldChats) => {
-        if (!oldChats) return oldChats;
-
-        let chatExists = false;
-        const updatedChats = oldChats.map((chat) => {
-          if (chat._id === message.conversationId) {
-            chatExists = true;
-            // Update the chat with the new message
-            return {
-              ...chat,
-              lastMessage: {
-                _id: message._id,
-                content: message.content,
-                createdAt: message.createdAt,
-                senderId: message.senderId
-              },
-              updatedAt: message.createdAt
-            };
-          }
-          return chat;
-        });
-
-        // If this is a new conversation, we need to fetch the updated chat list
-        if (!chatExists) {
-          console.log('New conversation detected, triggering refetch');
-          queryClient.invalidateQueries({ queryKey: ['chat-history'] });
-          return oldChats;
-        }
-
-        // Sort chats by last message time, most recent first
-        return updatedChats.sort((a, b) => {
-          const timeA = a.lastMessage?.createdAt || a.updatedAt;
-          const timeB = b.lastMessage?.createdAt || b.updatedAt;
-          return new Date(timeB).getTime() - new Date(timeA).getTime();
-        });
-      });
-    };
-
-    // Set up socket event listeners
     socketService.onNewMessage(handleNewMessage);
 
-    // Only remove the message handler, don't disconnect or leave rooms
     return () => {
       socketService.removeEventListener('new-message', handleNewMessage);
     };
-  }, [session?.user?.id, queryClient]);
+  }, [session?.user?.id, handleNewMessage]);
 
+  // 使用React Query获取和维护数据
   const {
     data: chats = [],
     isLoading: loading,
@@ -97,36 +89,30 @@ export function useChatHistory(): UseChatHistoryReturn {
   } = useQuery({
     queryKey: ['chat-history'],
     queryFn: async () => {
-      console.log('Fetching initial chat history...');
+      console.log('Fetching chat history...');
       const response = await fetch('/api/chat/conversations');
       if (!response.ok) {
         throw new Error('Failed to fetch chat history');
       }
       const data = await response.json();
       
-      // Sort chats by last message time before returning
-      const sortedChats = (data as ChatRecord[]).sort((a, b) => {
+      // 更新缓存引用
+      chatCacheRef.current = new Map(
+        (data as ChatRecord[]).map(chat => [chat._id, chat])
+      );
+      
+      // 返回排序后的数据
+      return Array.from(chatCacheRef.current.values()).sort((a, b) => {
         const timeA = a.lastMessage?.createdAt || a.updatedAt;
         const timeB = b.lastMessage?.createdAt || b.updatedAt;
         return new Date(timeB).getTime() - new Date(timeA).getTime();
       });
-
-      // Join all chat rooms after fetching
-      if (socketService.isConnected()) {
-        console.log('Joining all chat rooms after initial fetch');
-        sortedChats.forEach(chat => {
-          socketService.joinRoom(chat._id);
-        });
-      } else if (session?.user?.id) {
-        // If socket is not connected, try to connect and then join rooms
-        console.log('Socket not connected, attempting to connect...');
-        socketService.connect(session.user.id);
-        // Rooms will be joined automatically after connection due to activeRooms tracking
-      }
-
-      return sortedChats;
     },
-    staleTime: Infinity, // Don't refetch automatically
+    staleTime: Infinity, // 永不过期，由socket更新触发刷新
+    gcTime: Infinity, // 永久缓存
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
     enabled: !!session,
   });
 

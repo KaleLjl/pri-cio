@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Providers from "@/components/poviders/Providers";
+import Providers from "@/lib/Providers";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
