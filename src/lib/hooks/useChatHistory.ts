@@ -32,42 +32,41 @@ export function useChatHistory(): UseChatHistoryReturn {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
-  // Message handler setup - independent of chats
+  // Set up socket event listeners for real-time updates
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    console.log('Setting up message handler in useChatHistory, user ID:', session.user.id);
+    console.log('Setting up message handler in useChatHistory');
     
-    const messageHandler = async (message: ChatMessage) => {
+    const handleNewMessage = (message: ChatMessage) => {
       console.log('Received new message in chat history:', message);
-      console.log('Message details:', {
-        conversationId: message.conversationId,
-        senderId: message.senderId,
-        content: message.content,
-        createdAt: message.createdAt
-      });
-
-      // Immediately invalidate and refetch
-      console.log('Invalidating and refetching chat history...');
-      await queryClient.invalidateQueries({ queryKey: ['chat-history'] });
       
-      // Double check if the data was updated
-      const currentData = queryClient.getQueryData(['chat-history']);
-      console.log('Current chat history data after invalidation:', currentData);
+      // Update the chat history in cache
+      queryClient.setQueryData<ChatRecord[]>(['chat-history'], (oldChats) => {
+        if (!oldChats) return oldChats;
+
+        return oldChats.map((chat) => {
+          if (chat._id === message.conversationId) {
+            return {
+              ...chat,
+              lastMessage: {
+                _id: message._id,
+                content: message.content,
+                createdAt: message.createdAt,
+                senderId: message.senderId
+              },
+              updatedAt: message.createdAt
+            };
+          }
+          return chat;
+        }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      });
     };
 
-    // Set up socket connection if not already connected
-    if (!socketService.isConnected()) {
-      console.log('Connecting socket in useChatHistory');
-      socketService.connect(session.user.id);
-    }
-
-    socketService.onNewMessage(messageHandler);
-    console.log('Message handler registered for user:', session?.user?.id);
+    socketService.onNewMessage(handleNewMessage);
 
     return () => {
-      console.log('Cleaning up message handler for user:', session?.user?.id);
-      socketService.removeEventListener('new-message', messageHandler);
+      socketService.removeEventListener('new-message', handleNewMessage);
     };
   }, [session?.user?.id, queryClient]);
 
@@ -88,18 +87,9 @@ export function useChatHistory(): UseChatHistoryReturn {
       console.log('Fetched chat history:', data.length, 'conversations');
       return data as ChatRecord[];
     },
-    staleTime: 0, // Always fetch new data
-    gcTime: 0,
+    staleTime: Infinity, // Don't refetch automatically
     enabled: !!session,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: 3000, // Poll every 3 seconds as a fallback
   });
-
-  // Log whenever chats data changes
-  useEffect(() => {
-    console.log('Chat history data updated:', chats.length, 'conversations');
-  }, [chats]);
 
   return {
     chats,

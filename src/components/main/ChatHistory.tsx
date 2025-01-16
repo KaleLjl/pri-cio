@@ -36,9 +36,15 @@ export default function ChatHistoryClient() {
     if (session) {
       fetchCurrentUser();
     }
+
+    // Cleanup socket connection when component unmounts
+    return () => {
+      // Don't disconnect socket when leaving ChatHistory
+      // Let it persist for the entire session
+    };
   }, [session]);
 
-  // Separate effect for joining/leaving chat rooms
+  // Separate effect for joining chat rooms
   useEffect(() => {
     if (!currentUserId || !chats.length || !socketService.isConnected()) {
       console.log('Not ready to join rooms:', { currentUserId, chatsLength: chats.length, isConnected: socketService.isConnected() });
