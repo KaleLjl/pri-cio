@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { useEffect, useCallback, useRef } from 'react';
-import { socketService } from '@/lib/socket';
+import { useRef } from 'react';
 import { ChatMessage } from '@/lib/types/chat';
 
 interface ChatRecord {
@@ -32,67 +31,6 @@ export function useChatHistory(): UseChatHistoryReturn {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const chatCacheRef = useRef<Map<string, ChatRecord>>(new Map());
-
-  // 处理新消息更新
-  const handleNewMessage = useCallback((message: ChatMessage) => {
-    console.log('Received new message in chat history:', message);
-    
-    // 立即强制刷新数据
-    queryClient.invalidateQueries({ queryKey: ['chat-history'] });
-
-    // 同时更新缓存
-    queryClient.setQueriesData(
-      { queryKey: ['chat-history'] },
-      (oldData: ChatRecord[] | undefined) => {
-        if (!oldData) return oldData;
-
-        // 创建新数组以确保引用变化
-        const currentChats = [...oldData];
-        const chatIndex = currentChats.findIndex(
-          chat => chat._id === message.conversationId
-        );
-
-        if (chatIndex !== -1) {
-          // 创建新对象以确保引用变化
-          currentChats[chatIndex] = {
-            ...currentChats[chatIndex],
-            lastMessage: {
-              _id: message._id,
-              content: message.content,
-              createdAt: message.createdAt,
-              senderId: message.senderId
-            },
-            updatedAt: message.createdAt
-          };
-        }
-
-        // 返回新数组并重新排序
-        return currentChats.sort(
-          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
-      }
-    );
-  }, [queryClient]);
-
-  // 设置socket事件监听
-  useEffect(() => {
-    if (!session?.user?.id) return;
-
-    console.log('Setting up socket connection in useChatHistory');
-    socketService.connect(session.user.id);
-
-    console.log('Setting up message handler in useChatHistory');
-    const messageHandler = (message: ChatMessage) => {
-      console.log('New message received in useChatHistory:', message);
-      handleNewMessage(message);
-    };
-
-    socketService.onNewMessage(messageHandler);
-
-    return () => {
-      socketService.removeEventListener('new-message', messageHandler);
-    };
-  }, [session?.user?.id, handleNewMessage]);
 
   // 使用React Query获取和维护数据
   const {
