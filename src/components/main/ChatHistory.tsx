@@ -3,16 +3,17 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useChatHistory } from '@/lib/hooks/useChatHistory';
+import { socketService } from '@/lib/socket';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
 
 export default function ChatHistoryClient() {
   const { data: session } = useSession();
-  const { chats, loading, error } = useChatHistory();
+  const { chats, loading, error, refetch } = useChatHistory();
   const [currentUserId, setCurrentUserId] = useState<string>('');
 
-  // Effect for fetching user
+  // Effect for fetching user and setting up socket connections
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
@@ -20,6 +21,16 @@ export default function ChatHistoryClient() {
         if (response.ok) {
           const data = await response.json();
           setCurrentUserId(data._id);
+          
+          // 确保 socket 连接
+          if (data._id) {
+            socketService.connect(data._id);
+            
+            // 加入所有聊天室
+            chats?.forEach(chat => {
+              socketService.joinRoom(chat._id);
+            });
+          }
         }
       } catch (error) {
         console.error('Error fetching current user:', error);
@@ -29,7 +40,27 @@ export default function ChatHistoryClient() {
     if (session) {
       fetchCurrentUser();
     }
-  }, [session]);
+
+    // 清理函数
+    return () => {
+      // 离开时不要离开聊天室，只在组件卸载时移除消息监听器
+      socketService.removeEventListener('new-message', handleNewMessage);
+    };
+  }, [session, chats]);
+
+  // 添加新消息处理函数
+  const handleNewMessage = async () => {
+    console.log('New message received in ChatHistory, triggering refetch');
+    await refetch();
+  };
+
+  // 设置消息监听
+  useEffect(() => {
+    if (currentUserId) {
+      console.log('Setting up message listener in ChatHistory');
+      socketService.onNewMessage(handleNewMessage);
+    }
+  }, [currentUserId]);
 
   const formatDate = (dateString: string) => {
     try {

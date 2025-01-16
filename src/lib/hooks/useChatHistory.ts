@@ -37,46 +37,60 @@ export function useChatHistory(): UseChatHistoryReturn {
   const handleNewMessage = useCallback((message: ChatMessage) => {
     console.log('Received new message in chat history:', message);
     
-    // 立即更新React Query缓存
-    queryClient.setQueriesData({ queryKey: ['chat-history'] }, (oldData: ChatRecord[] | undefined) => {
-      if (!oldData) return oldData;
+    // 立即强制刷新数据
+    queryClient.invalidateQueries({ queryKey: ['chat-history'] });
 
-      const currentChats = new Map(oldData.map(chat => [chat._id, chat]));
-      
-      // 更新或添加新消息到缓存
-      if (currentChats.has(message.conversationId)) {
-        const chat = currentChats.get(message.conversationId)!;
-        currentChats.set(message.conversationId, {
-          ...chat,
-          lastMessage: {
-            _id: message._id,
-            content: message.content,
-            createdAt: message.createdAt,
-            senderId: message.senderId
-          },
-          updatedAt: message.createdAt
-        });
-      } else {
-        // 如果是新对话，触发重新获取
-        queryClient.invalidateQueries({ queryKey: ['chat-history'] });
-        return oldData;
+    // 同时更新缓存
+    queryClient.setQueriesData(
+      { queryKey: ['chat-history'] },
+      (oldData: ChatRecord[] | undefined) => {
+        if (!oldData) return oldData;
+
+        // 创建新数组以确保引用变化
+        const currentChats = [...oldData];
+        const chatIndex = currentChats.findIndex(
+          chat => chat._id === message.conversationId
+        );
+
+        if (chatIndex !== -1) {
+          // 创建新对象以确保引用变化
+          currentChats[chatIndex] = {
+            ...currentChats[chatIndex],
+            lastMessage: {
+              _id: message._id,
+              content: message.content,
+              createdAt: message.createdAt,
+              senderId: message.senderId
+            },
+            updatedAt: message.createdAt
+          };
+        }
+
+        // 返回新数组并重新排序
+        return currentChats.sort(
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
       }
-
-      // 转换回数组并排序
-      const updatedChats = Array.from(currentChats.values());
-      return updatedChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    });
+    );
   }, [queryClient]);
 
   // 设置socket事件监听
   useEffect(() => {
     if (!session?.user?.id) return;
 
+    console.log('Setting up socket connection in useChatHistory');
+    socketService.connect(session.user.id);
+
     console.log('Setting up message handler in useChatHistory');
-    socketService.onNewMessage(handleNewMessage);
+    const messageHandler = (message: ChatMessage) => {
+      console.log('New message received in useChatHistory:', message);
+      handleNewMessage(message);
+    };
+
+    socketService.onNewMessage(messageHandler);
 
     return () => {
-      socketService.removeEventListener('new-message', handleNewMessage);
+      socketService.removeEventListener('new-message', messageHandler);
     };
   }, [session?.user?.id, handleNewMessage]);
 
@@ -95,6 +109,7 @@ export function useChatHistory(): UseChatHistoryReturn {
         throw new Error('Failed to fetch chat history');
       }
       const data = await response.json();
+      console.log('Fetched chat history:', data);
       
       // 更新缓存引用
       chatCacheRef.current = new Map(
@@ -108,11 +123,11 @@ export function useChatHistory(): UseChatHistoryReturn {
         return new Date(timeB).getTime() - new Date(timeA).getTime();
       });
     },
-    staleTime: Infinity, // 永不过期，由socket更新触发刷新
-    gcTime: Infinity, // 永久缓存
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    staleTime: 0, // 修改为0，允许立即重新获取
+    gcTime: 1000 * 60 * 5, // 5分钟后进行垃圾回收
+    refetchOnWindowFocus: true, // 允许窗口聚焦时重新获取
+    refetchOnMount: true, // 允许组件挂载时重新获取
+    refetchOnReconnect: true, // 允许重新连接时重新获取
     enabled: !!session,
   });
 

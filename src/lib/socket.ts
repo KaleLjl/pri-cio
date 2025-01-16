@@ -250,9 +250,14 @@ class SocketService {
 
   removeAllListeners() {
     if (this.socket) {
-      console.log('Removing all socket listeners');
-      this.socket.removeAllListeners();
-      this.eventHandlers.clear();
+      console.log('Removing specific event listeners');
+      this.socket.off('user-typing');
+      this.socket.off('message-delivered');
+      this.socket.off('message-read');
+      
+      ['user-typing', 'message-delivered', 'message-read'].forEach(event => {
+        this.eventHandlers.delete(event);
+      });
     }
   }
 
