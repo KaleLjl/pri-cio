@@ -30,34 +30,44 @@ export default function ChatHistoryClient() {
   const { currentUser, loadingUser } = useCurrentUser();
   const { chats, loading, error, updateChatHistory } = useChatHistory();
 
-  // 修改 socket 事件监听的设置
+  // 处理实时消息更新和房间管理
   useEffect(() => {
-    if (!currentUser?._id) return;
+    if (!currentUser?._id || !chats?.length) return;
 
-    // 确保连接 socket
-    if (!socketService.isConnected()) {
-      socketService.connect(currentUser._id);
-    }
-
-    // 为所有聊天记录加入对应的房间
-    chats?.forEach(chat => {
+    // 加入所有聊天室
+    chats.forEach(chat => {
       socketService.joinRoom(chat._id);
     });
 
+    // 监听新消息
     const handleNewMessage = (message: ChatMessage) => {
-      console.log("New message received in ChatHistory:", message);
       updateChatHistory(message);
     };
 
-    // 设置消息监听
     socketService.onNewMessage(handleNewMessage);
 
+    // 清理函数
     return () => {
-      // 清理时只移除事件监听，不断开连接
+      // 离开所有聊天室
+      chats.forEach(chat => {
+        socketService.leaveRoom(chat._id);
+      });
       socketService.removeEventListener("new-message", handleNewMessage);
     };
   }, [currentUser, chats, updateChatHistory]);
 
+  // 格式化日期
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, "MMM d, yyyy HH:mm");
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dateString;
+    }
+  };
+
+  // Loading states
   if (loadingUser) {
     return (
       <div className="text-white text-center p-8">
@@ -106,16 +116,6 @@ export default function ChatHistoryClient() {
       </div>
     );
   }
-
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return format(date, "MMM d, yyyy HH:mm");
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return dateString;
-    }
-  };
 
   return (
     <div className="max-w-4xl mx-auto p-4">

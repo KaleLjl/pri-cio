@@ -25,7 +25,6 @@ io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId as string;
   if (userId) {
     activeUsers.set(userId, socket.id);
-    console.log(`User ${userId} connected with socket ${socket.id}`);
   }
 
   socket.on("join-room", (conversationId: string) => {
@@ -34,7 +33,6 @@ io.on("connection", (socket) => {
     }
     socket.join(conversationId);
     conversationRooms.get(conversationId)?.add(socket.id);
-    console.log(`User ${userId} joined room ${conversationId} with socket ${socket.id}`);
 
     socket.to(conversationId).emit("user-joined", { userId, socketId: socket.id });
   });
@@ -45,22 +43,16 @@ io.on("connection", (socket) => {
     if (conversationRooms.get(conversationId)?.size === 0) {
       conversationRooms.delete(conversationId);
     }
-    console.log(`User ${userId} left room ${conversationId}`);
     socket.to(conversationId).emit("user-left", { userId, socketId: socket.id });
   });
 
   socket.on("send-message", (message: ChatMessage) => {
-    console.log(`Received message from ${message.senderId} in conversation ${message.conversationId}`);
-
     const broadcastMessage = {
       ...message,
       createdAt: message.createdAt || new Date().toISOString(),
     };
 
-    // 广播给所有相关用户
     io.in(message.conversationId).emit("new-message", broadcastMessage);
-    
-    // 发送已送达通知
     socket.to(message.conversationId).emit("message-delivered", message._id);
   });
 
@@ -92,7 +84,6 @@ io.on("connection", (socket) => {
         }
       });
       activeUsers.delete(userId);
-      console.log(`User ${userId} disconnected. Reason: ${reason}`);
     }
   });
 });
