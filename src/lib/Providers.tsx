@@ -26,16 +26,6 @@ function SocketInitializer() {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
 
-  // 获取聊天历史记录
-  const { data: chats } = useQuery({
-    queryKey: ['chat-history'],
-    queryFn: async () => {
-      const response = await fetch('/api/chat/history');
-      if (!response.ok) throw new Error('Failed to fetch chat history');
-      return response.json();
-    },
-    enabled: !!session
-  });
 
   const handleNewMessage = useCallback((message: ChatMessage) => {
     console.log('Received new message in provider:', message);
@@ -93,6 +83,7 @@ function SocketInitializer() {
             socketService.onConnect(() => {
               console.log('Socket connected, joining rooms');
               // 在连接成功后加入聊天室
+              const chats = queryClient.getQueryData(['chat-history']) as ChatRecord[];
               if (chats) {
                 chats.forEach((chat: ChatRecord) => {
                   socketService.joinRoom(chat._id);
@@ -121,7 +112,7 @@ function SocketInitializer() {
         socketService.disconnect();
       }
     };
-  }, [session, handleNewMessage, chats]);
+  }, [session, handleNewMessage, queryClient]);
 
   return null;
 }
