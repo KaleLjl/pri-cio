@@ -1,5 +1,6 @@
-import { io, Socket } from 'socket.io-client';
-import { ChatMessage } from './types/chat';
+// lib/socket.ts
+import { io, Socket } from "socket.io-client";
+import { ChatMessage } from "./types/chat";
 
 class SocketService {
   private static instance: SocketService;
@@ -23,28 +24,27 @@ class SocketService {
 
   connect(userId: string) {
     if (this.socket?.connected && this.userId === userId) {
-      console.log('Already connected with the same user ID');
+      console.log("Already connected with the same user ID");
       return;
     }
 
-    // Cleanup existing connection if any
     if (this.socket) {
-      console.log('Cleaning up existing connection');
+      console.log("Cleaning up existing connection");
       this.disconnect();
     }
 
     this.userId = userId;
-    console.log('Initiating socket connection for user:', userId);
+    console.log("Initiating socket connection for user:", userId);
 
-    this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001', {
+    this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001", {
       query: { userId },
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
-      transports: ['websocket', 'polling'],
-      forceNew: true
+      transports: ["websocket", "polling"],
+      forceNew: true,
     });
 
     this.setupSocketListeners();
@@ -53,43 +53,33 @@ class SocketService {
   private setupSocketListeners() {
     if (!this.socket) return;
 
-    this.socket.on('connect', () => {
-      console.log('Connected to socket server with ID:', this.socket?.id);
+    this.socket.on("connect", () => {
+      console.log("Connected to socket server with ID:", this.socket?.id);
       this.reconnectAttempts = 0;
       this.clearReconnectTimer();
-      
-      // Rejoin all active rooms after reconnection
-      this.activeRooms.forEach(roomId => {
-        console.log('Rejoining room after reconnection:', roomId);
-        this.socket?.emit('join-room', roomId);
+
+      // Rejoin rooms
+      this.activeRooms.forEach((roomId) => {
+        console.log("Rejoining room:", roomId);
+        this.socket?.emit("join-room", roomId);
       });
-      
-      // Re-register all event handlers after reconnection
+      // Re-register event handlers
       this.reattachEventHandlers();
     });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      this.handleDisconnection('connect_error');
+    this.socket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+      this.handleDisconnection("connect_error");
     });
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('Disconnected from socket server. Reason:', reason);
+    this.socket.on("disconnect", (reason) => {
+      console.log("Disconnected from socket server. Reason:", reason);
       this.handleDisconnection(reason);
     });
 
-    this.socket.on('error', (error) => {
-      console.error('Socket error:', error);
-      this.handleDisconnection('error');
-    });
-
-    // Handle room events
-    this.socket.on('user-joined', (data: { userId: string; socketId: string }) => {
-      console.log(`User ${data.userId} joined with socket ${data.socketId}`);
-    });
-
-    this.socket.on('user-left', (data: { userId: string; socketId: string }) => {
-      console.log(`User ${data.userId} left with socket ${data.socketId}`);
+    this.socket.on("error", (error) => {
+      console.error("Socket error:", error);
+      this.handleDisconnection("error");
     });
   }
 
@@ -99,14 +89,13 @@ class SocketService {
 
     if (this.autoReconnectEnabled && this.userId) {
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
-        // Set up reconnection timer
         this.clearReconnectTimer();
         this.reconnectTimer = setTimeout(() => {
-          console.log('Attempting to reconnect...');
+          console.log("Attempting to reconnect...");
           this.connect(this.userId!);
-        }, Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000)); // Exponential backoff, max 10s
+        }, Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000));
       } else {
-        console.error('Max reconnection attempts reached');
+        console.error("Max reconnection attempts reached");
         this.autoReconnectEnabled = false;
       }
     }
@@ -121,7 +110,7 @@ class SocketService {
 
   private reattachEventHandlers() {
     this.eventHandlers.forEach((handlers, event) => {
-      handlers.forEach(handler => {
+      handlers.forEach((handler) => {
         this.socket?.on(event, handler);
       });
     });
@@ -137,125 +126,128 @@ class SocketService {
   disconnect() {
     this.clearReconnectTimer();
     if (this.socket) {
-      console.log('Disconnecting socket...');
+      console.log("Disconnecting socket...");
       this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
       this.userId = null;
       this.reconnectAttempts = 0;
       this.eventHandlers.clear();
+      this.activeRooms.clear();
       this.autoReconnectEnabled = true;
     }
   }
 
   joinRoom(conversationId: string) {
     if (!this.socket?.connected) {
-      console.error('Cannot join room: Socket not connected');
-      // Store the room ID even if we're not connected
+      console.error("Cannot join room: Socket not connected");
       this.activeRooms.add(conversationId);
       return;
     }
-    console.log('Joining room:', conversationId);
+    console.log("Joining room:", conversationId);
     this.activeRooms.add(conversationId);
-    this.socket.emit('join-room', conversationId);
+    this.socket.emit("join-room", conversationId);
   }
 
   leaveRoom(conversationId: string) {
     this.activeRooms.delete(conversationId);
     if (!this.socket?.connected) {
-      console.error('Cannot leave room: Socket not connected');
+      console.error("Cannot leave room: Socket not connected");
       return;
     }
-    console.log('Leaving room:', conversationId);
-    this.socket.emit('leave-room', conversationId);
+    console.log("Leaving room:", conversationId);
+    this.socket.emit("leave-room", conversationId);
   }
 
   sendMessage(message: ChatMessage) {
     if (!this.socket?.connected) {
-      console.error('Cannot send message: Socket not connected');
+      console.error("Cannot send message: Socket not connected");
       return;
     }
-    console.log('Sending message:', message);
-    this.socket.emit('send-message', message);
+    console.log("Sending message:", message);
+    this.socket.emit("send-message", message);
   }
 
   sendTyping(data: { conversationId: string; userId: string; typing: boolean }) {
     if (!this.socket?.connected) {
-      console.error('Cannot send typing status: Socket not connected');
+      console.error("Cannot send typing status: Socket not connected");
       return;
     }
-    this.socket.emit('typing', data);
+    this.socket.emit("typing", data);
   }
 
   markMessageRead(data: { messageId: string; conversationId: string }) {
     if (!this.socket?.connected) {
-      console.error('Cannot mark message as read: Socket not connected');
+      console.error("Cannot mark message as read: Socket not connected");
       return;
     }
-    this.socket.emit('mark-read', data);
+    this.socket.emit("mark-read", data);
   }
 
   onNewMessage(callback: (message: ChatMessage) => void) {
     if (!this.socket) {
-      console.error('Cannot set up message listener: Socket not initialized');
+      console.error("Cannot set up new-message listener: Socket not initialized");
       return;
     }
-    console.log('Setting up new message listener');
+
     const handler = (message: ChatMessage) => {
-      console.log('Received new message:', message);
+      console.log("Socket received new message:", message);
       callback(message);
     };
-    this.socket.on('new-message', handler);
-    this.addEventHandler('new-message', handler);
+
+    // 先移除旧的监听器
+    this.socket.off("new-message", handler);
+    // 添加新的监听器
+    this.socket.on("new-message", handler);
+    this.addEventHandler("new-message", handler);
+
+    return () => {
+      this.socket?.off("new-message", handler);
+      const handlers = this.eventHandlers.get("new-message");
+      if (handlers) {
+        handlers.delete(handler);
+      }
+    };
   }
 
   onMessageDelivered(callback: (messageId: string) => void) {
-    if (!this.socket) {
-      console.error('Cannot set up message delivered listener: Socket not initialized');
-      return;
-    }
+    if (!this.socket) return;
     const handler = (messageId: string) => {
-      console.log('Message delivered:', messageId);
+      console.log("Message delivered:", messageId);
       callback(messageId);
     };
-    this.socket.on('message-delivered', handler);
-    this.addEventHandler('message-delivered', handler);
+    this.socket.on("message-delivered", handler);
+    this.addEventHandler("message-delivered", handler);
   }
 
   onMessageRead(callback: (messageId: string) => void) {
-    if (!this.socket) {
-      console.error('Cannot set up message read listener: Socket not initialized');
-      return;
-    }
+    if (!this.socket) return;
     const handler = (messageId: string) => {
-      console.log('Message read:', messageId);
+      console.log("Message read:", messageId);
       callback(messageId);
     };
-    this.socket.on('message-read', handler);
-    this.addEventHandler('message-read', handler);
+    this.socket.on("message-read", handler);
+    this.addEventHandler("message-read", handler);
   }
 
   onUserTyping(callback: (data: { userId: string; typing: boolean }) => void) {
-    if (!this.socket) {
-      console.error('Cannot set up typing listener: Socket not initialized');
-      return;
-    }
+    if (!this.socket) return;
     const handler = (data: { userId: string; typing: boolean }) => {
-      console.log('User typing status:', data);
+      console.log("User typing status:", data);
       callback(data);
     };
-    this.socket.on('user-typing', handler);
-    this.addEventHandler('user-typing', handler);
+    this.socket.on("user-typing", handler);
+    this.addEventHandler("user-typing", handler);
   }
 
   removeAllListeners() {
     if (this.socket) {
-      console.log('Removing specific event listeners');
-      this.socket.off('user-typing');
-      this.socket.off('message-delivered');
-      this.socket.off('message-read');
-      
-      ['user-typing', 'message-delivered', 'message-read'].forEach(event => {
+      console.log("Removing specific event listeners");
+      this.socket.off("user-typing");
+      this.socket.off("message-delivered");
+      this.socket.off("message-read");
+      // 也可以继续下去
+      ["user-typing", "message-delivered", "message-read", "new-message"].forEach((event) => {
         this.eventHandlers.delete(event);
       });
     }
@@ -267,6 +259,7 @@ class SocketService {
 
   removeEventListener(event: string, handler: (...args: any[]) => void) {
     if (this.socket) {
+      console.log(`Removing listener for event: ${event}`);
       this.socket.off(event, handler);
       const handlers = this.eventHandlers.get(event);
       if (handlers) {
@@ -276,8 +269,8 @@ class SocketService {
   }
 
   onConnect(callback: () => void) {
-    this.socket?.on('connect', callback);
+    this.socket?.on("connect", callback);
   }
 }
 
-export const socketService = SocketService.getInstance(); 
+export const socketService = SocketService.getInstance();

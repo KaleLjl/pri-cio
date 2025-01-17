@@ -1,70 +1,72 @@
-'use client';
+// components/ChatHistory.tsx
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { useChatHistory } from '@/lib/hooks/useChatHistory';
-import { socketService } from '@/lib/socket';
-import Link from 'next/link';
-import Image from 'next/image';
-import { format } from 'date-fns';
+import { useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { format } from "date-fns";
+import { useChatHistory } from "@/lib/hooks/useChatHistory";
+import { socketService } from "@/lib/socket";
+import { useCurrentUser } from "@/lib/context/CurrentUserContext";
+import { ChatMessage } from "@/lib/types/chat";
+
+interface ChatParticipant {
+  _id: string;
+  name: string;
+  avatarUrl?: string;
+}
+
+interface Chat {
+  _id: string;
+  participants: ChatParticipant[];
+  lastMessage?: {
+    content: string;
+    createdAt: string;
+  };
+  updatedAt: string;
+}
 
 export default function ChatHistoryClient() {
-  const { data: session } = useSession();
-  const { chats, loading, error, refetch } = useChatHistory();
-  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const { currentUser, loadingUser } = useCurrentUser();
+  const { chats, loading, error, updateChatHistory } = useChatHistory();
 
-  // Effect for fetching user and setting up socket connections
+  // 修改 socket 事件监听的设置
   useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await fetch('/api/users/me');
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentUserId(data._id);
-        }
-      } catch (error) {
-        console.error('Error fetching current user:', error);
-      }
+    if (!currentUser?._id) return;
+
+    // 确保连接 socket
+    if (!socketService.isConnected()) {
+      socketService.connect(currentUser._id);
+    }
+
+    // 为所有聊天记录加入对应的房间
+    chats?.forEach(chat => {
+      socketService.joinRoom(chat._id);
+    });
+
+    const handleNewMessage = (message: ChatMessage) => {
+      console.log("New message received in ChatHistory:", message);
+      updateChatHistory(message);
     };
 
-    if (session) {
-      fetchCurrentUser();
-    }
+    // 设置消息监听
+    socketService.onNewMessage(handleNewMessage);
 
     return () => {
-      socketService.removeEventListener('new-message', handleNewMessage);
+      // 清理时只移除事件监听，不断开连接
+      socketService.removeEventListener("new-message", handleNewMessage);
     };
-  }, [session]);
+  }, [currentUser, chats, updateChatHistory]);
 
-  // 添加新消息处理函数
-  const handleNewMessage = async () => {
-    console.log('New message received in ChatHistory, triggering refetch');
-    await refetch();
-  };
+  if (loadingUser) {
+    return (
+      <div className="text-white text-center p-8">
+        <p>Loading user info...</p>
+      </div>
+    );
+  }
 
-  // 设置消息监听
-  useEffect(() => {
-    if (currentUserId && socketService.isConnected()) {
-      console.log('Setting up message listener in ChatHistory');
-      socketService.onNewMessage(handleNewMessage);
-      
-      return () => {
-        socketService.removeEventListener('new-message', handleNewMessage);
-      };
-    }
-  }, [currentUserId, socketService.isConnected()]);
-
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return format(date, 'MMM d, yyyy HH:mm');
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return dateString;
-    }
-  };
-
-  if (!session) {
+  if (!currentUser) {
     return (
       <div className="text-center text-white">
         <p>Please sign in to view your chat history.</p>
@@ -105,15 +107,26 @@ export default function ChatHistoryClient() {
     );
   }
 
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, "MMM d, yyyy HH:mm");
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dateString;
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold text-white mb-6">Chat History</h1>
       <div className="space-y-4">
-        {chats.map((chat) => {
-          const otherParticipant = chat.participants.find(p => p._id !== currentUserId);
+        {chats.map((chat: Chat) => {
+          const otherParticipant = chat.participants.find(
+            (p: ChatParticipant) => p._id !== currentUser._id
+          );
           if (!otherParticipant) return null;
 
-          // Get the most recent timestamp
           const lastActivityTime = chat.lastMessage?.createdAt || chat.updatedAt;
 
           return (
@@ -125,26 +138,20 @@ export default function ChatHistoryClient() {
               <div className="flex items-center space-x-4">
                 <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
                   <Image
-                    src={otherParticipant.avatarUrl || '/default-avatar.png'}
+                    src={otherParticipant.avatarUrl || "/default-avatar.png"}
                     alt={otherParticipant.name}
-                    layout="fill"
-                    objectFit="cover"
+                    fill
+                    style={{ objectFit: "cover" }}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-white truncate">
-                    {otherParticipant.name}
-                  </h3>
+                  <h3 className="text-lg font-semibold text-white truncate">{otherParticipant.name}</h3>
                   {chat.lastMessage && (
-                    <p className="text-gray-300 text-sm truncate">
-                      {chat.lastMessage.content}
-                    </p>
+                    <p className="text-gray-300 text-sm truncate">{chat.lastMessage.content}</p>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-gray-400 text-xs">
-                    {formatDate(lastActivityTime)}
-                  </p>
+                  <p className="text-gray-400 text-xs">{formatDate(lastActivityTime)}</p>
                 </div>
               </div>
             </Link>
@@ -153,4 +160,4 @@ export default function ChatHistoryClient() {
       </div>
     </div>
   );
-} 
+}

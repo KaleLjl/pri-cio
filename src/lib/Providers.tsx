@@ -1,137 +1,72 @@
-'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query'
-import { SessionProvider, useSession } from 'next-auth/react'
-import { socketService } from '@/lib/socket'
-import { ChatMessage } from '@/lib/types/chat'
+// app/Providers.tsx (若使用App Router) 或 pages/_app.tsx (若使用Pages Router)
+"use client";
 
-interface ChatRecord {
-  _id: string;
-  participants: {
-    _id: string;
-    name: string;
-    avatarUrl: string;
-  }[];
-  lastMessage?: {
-    _id: string;
-    content: string;
-    createdAt: string;
-    senderId: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
+import { useState, useEffect} from "react";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { SessionProvider, useSession } from "next-auth/react";
+import { CurrentUserProvider, useCurrentUser } from "@/lib/context/CurrentUserContext";
+import { socketService } from "@/lib/socket";
+import { ChatRecord } from "@/lib/types/chat";
 
-function SocketInitializer() {
-  const { data: session } = useSession()
-  const queryClient = useQueryClient()
-
-
-  const handleNewMessage = useCallback((message: ChatMessage) => {
-    console.log('Received new message in provider:', message);
-    
-    // 立即强制刷新数据
-    queryClient.invalidateQueries({ queryKey: ['chat-history'] });
-
-    // 同时更新缓存
-    queryClient.setQueriesData(
-      { queryKey: ['chat-history'] },
-      (oldData: ChatRecord[] | undefined) => {
-        if (!oldData) return oldData;
-
-        // 创建新数组以确保引用变化
-        const currentChats = [...oldData];
-        const chatIndex = currentChats.findIndex(
-          chat => chat._id === message.conversationId
-        );
-
-        if (chatIndex !== -1) {
-          // 创建新对象以确保引用变化
-          currentChats[chatIndex] = {
-            ...currentChats[chatIndex],
-            lastMessage: {
-              _id: message._id,
-              content: message.content,
-              createdAt: message.createdAt,
-              senderId: message.senderId
-            },
-            updatedAt: message.createdAt
-          };
-        }
-
-        // 返回新数组并重新排序
-        return currentChats.sort(
-          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
-      }
-    );
-  }, [queryClient]);
+/**
+ * 这个组件只执行一次，用于全局初始化 Socket 及其事件监听。
+ * 依赖：当前用户信息（如果登录）
+ */
+function GlobalSocketInitializer() {
+  const { data: session } = useSession();
+  const { currentUser } = useCurrentUser();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await fetch('/api/users/me');
-        if (response.ok) {
-          const data = await response.json();
-          if (!socketService.isConnected()) {
-            console.log('Connecting socket with user ID:', data._id);
-            
-            // 先进行连接
-            socketService.connect(data._id);
+    // 如果已登录，且有 currentUser，才初始化 Socket
+    if (session && currentUser?._id) {
+      if (!socketService.isConnected()) {
+        console.log("SocketInitializer: Connecting socket with user ID:", currentUser._id);
+        socketService.connect(currentUser._id);
 
-            // 然后设置连接成功的回调
-            socketService.onConnect(() => {
-              console.log('Socket connected, joining rooms');
-              // 在连接成功后加入聊天室
-              const chats = queryClient.getQueryData(['chat-history']) as ChatRecord[];
-              if (chats) {
-                chats.forEach((chat: ChatRecord) => {
-                  socketService.joinRoom(chat._id);
-                });
-              }
-
-              // 设置消息处理器
-              socketService.onNewMessage((message: ChatMessage) => {
-                console.log('New message received in provider:', message);
-                handleNewMessage(message);
-              });
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching current user:', error);
+        socketService.onConnect(() => {
+          console.log("Socket connected, joining rooms");
+          // 加入当前已经存在于缓存中的房间
+          const chats = queryClient.getQueryData<ChatRecord[]>(["chat-history"]) || [];
+          chats.forEach((chat) => {
+            socketService.joinRoom(chat._id);
+          });
+        });
       }
-    };
-
-    if (session) {
-      fetchCurrentUser();
     }
 
     return () => {
-      if (socketService.isConnected()) {
+      // 组件卸载时不要断开连接，只在用户登出时断开
+      if (!session && socketService.isConnected()) {
         socketService.disconnect();
       }
     };
-  }, [session, handleNewMessage, queryClient]);
+  }, [session, currentUser, queryClient]);
 
   return null;
 }
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 1000 * 60 * 5, // 5分钟
-      },
-    },
-  }))
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 1000 * 60 * 5, // 5 分钟
+            gcTime: 1000 * 60 * 10, // 10 分钟
+          },
+        },
+      })
+  );
 
   return (
     <SessionProvider>
-      <QueryClientProvider client={queryClient}>
-        <SocketInitializer />
-        {children}
-      </QueryClientProvider>
+      <CurrentUserProvider>
+        <QueryClientProvider client={queryClient}>
+          <GlobalSocketInitializer />
+          {children}
+        </QueryClientProvider>
+      </CurrentUserProvider>
     </SessionProvider>
-  )
+  );
 }

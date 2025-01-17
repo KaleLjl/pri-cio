@@ -1,7 +1,8 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
-import { useRef } from 'react';
-import { ChatMessage } from '@/lib/types/chat';
+// components/useChatHistory.ts
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+import { useRef, useCallback } from "react";
+import { ChatMessage } from "@/lib/types/chat";
 
 interface ChatRecord {
   _id: string;
@@ -25,6 +26,7 @@ interface UseChatHistoryReturn {
   loading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
+  updateChatHistory: (message: ChatMessage) => void;
 }
 
 export function useChatHistory(): UseChatHistoryReturn {
@@ -32,50 +34,86 @@ export function useChatHistory(): UseChatHistoryReturn {
   const queryClient = useQueryClient();
   const chatCacheRef = useRef<Map<string, ChatRecord>>(new Map());
 
-  // 使用React Query获取和维护数据
   const {
     data: chats = [],
     isLoading: loading,
     error,
-    refetch
+    refetch,
   } = useQuery({
-    queryKey: ['chat-history'],
+    queryKey: ["chat-history"],
     queryFn: async () => {
-      console.log('Fetching chat history...');
-      const response = await fetch('/api/chat/conversations');
+      console.log("Fetching chat history...");
+      const response = await fetch("/api/chat/conversations");
       if (!response.ok) {
-        throw new Error('Failed to fetch chat history');
+        throw new Error("Failed to fetch chat history");
       }
       const data = await response.json();
-      console.log('Fetched chat history:', data);
-      
-      // 更新缓存引用
-      chatCacheRef.current = new Map(
-        (data as ChatRecord[]).map(chat => [chat._id, chat])
-      );
-      
-      // 返回排序后的数据
+      console.log("Fetched chat history:", data);
+
+      chatCacheRef.current = new Map((data as ChatRecord[]).map((chat) => [chat._id, chat]));
+
       return Array.from(chatCacheRef.current.values()).sort((a, b) => {
         const timeA = a.lastMessage?.createdAt || a.updatedAt;
         const timeB = b.lastMessage?.createdAt || b.updatedAt;
         return new Date(timeB).getTime() - new Date(timeA).getTime();
       });
     },
-    staleTime: 0, // 修改为0，允许立即重新获取
-    gcTime: 1000 * 60 * 5, // 5分钟后进行垃圾回收
-    refetchOnWindowFocus: true, // 允许窗口聚焦时重新获取
-    refetchOnMount: true, // 允许组件挂载时重新获取
-    refetchOnReconnect: true, // 允许重新连接时重新获取
+    staleTime: 0,
+    gcTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
     enabled: !!session,
   });
+
+  const updateChatHistory = useCallback(
+    (message: ChatMessage) => {
+      console.log("Updating chat history with message:", message);
+      
+      queryClient.setQueryData<ChatRecord[]>(
+        ["chat-history"],
+        (oldChats) => {
+          if (!oldChats) return oldChats;
+
+          const updated = [...oldChats];
+          const chatIndex = updated.findIndex((chat) => chat._id === message.conversationId);
+
+          if (chatIndex !== -1) {
+            // 更新现有对话
+            updated[chatIndex] = {
+              ...updated[chatIndex],
+              lastMessage: {
+                _id: message._id,
+                content: message.content,
+                createdAt: message.createdAt,
+                senderId: message.senderId,
+              },
+              updatedAt: message.createdAt,
+            };
+          } else {
+            // 如果是新对话，可能需要从服务器获取完整的对话信息
+            // 这里可以触发一个重新获取聊天历史的操作
+            queryClient.invalidateQueries(["chat-history"]);
+          }
+
+          // 重新排序，最新消息在前
+          return updated.sort(
+            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+        }
+      );
+    },
+    [queryClient]
+  );
 
   return {
     chats,
     loading,
     error: error as Error | null,
     refetch: async () => {
-      console.log('Manual refetch triggered');
+      console.log("Manual refetch triggered");
       await refetch();
-    }
+    },
+    updateChatHistory,
   };
-} 
+}
