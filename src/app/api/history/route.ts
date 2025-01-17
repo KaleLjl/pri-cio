@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { price, description, imageUrl } = await request.json();
+    const { price, description, imageUrl, currency } = await request.json();
     
     // 1. 先上传图片到 S3
     const fileName = `history-${session.user.email}-${Date.now()}.jpg`;
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       description,
       userEmail: session.user.email,
       imageUrl: s3ImageUrl,  // 使用 S3 URL
+      currency,
       createdAt: new Date(),
     });
 

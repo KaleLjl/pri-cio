@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import { CURRENCIES } from '@/components/main/App';
 
 // Use your key from .env or wherever:
 const OPENCAGE_API_KEY = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
@@ -606,7 +607,9 @@ const Around = () => {
                       <p className="text-sm text-gray-500">
                         Created at: {new Date(selectedPost.createdAt).toLocaleString()}
                       </p>
-                      <p className="text-lg font-semibold text-white">${selectedPost.price}</p>
+                      <p className="text-lg font-semibold text-white">
+                        {CURRENCIES.find(c => c.value === selectedPost.currency)?.symbol} {selectedPost.price}
+                      </p>
                       {selectedPost.location && (
                         <div>
                           <p className="text-sm text-gray-500">
@@ -719,7 +722,9 @@ const Around = () => {
                             </span>
                           </div>
                           <p className="text-sm text-gray-500">{post.description || 'No description available'}</p>
-                          <p className="text-lg font-semibold text-white">${post.price}</p>
+                          <p className="text-lg font-semibold text-white">
+                            {CURRENCIES.find(c => c.value === post.currency)?.symbol} {post.price}
+                          </p>
                           <div className="overflow-hidden rounded-lg mt-2">
                             <Image
                               src={post.imageUrl}

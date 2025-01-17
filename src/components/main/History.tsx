@@ -12,6 +12,7 @@ import EditModal from '@/components/ui/EditModal';
 import LocationOptionModal from '../ui/LocationOptionModal';
 import { Avatar } from '@mui/material';
 import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
+import { CURRENCIES, Currency } from '@/components/main/App'; // Import types and data
 
 export default function History({ histories: initialHistories }: { histories: HistoryItem[] }) {
   const {
@@ -398,7 +399,10 @@ export default function History({ histories: initialHistories }: { histories: Hi
                       }}
                     >
                       <p className="text-lg font-semibold text-white">
-                        ${history.price || 'N/A'}
+                        {
+                          CURRENCIES.find((c: Currency) => c.value === history.currency)?.symbol || 
+                          history.currency // Fallback to the currency code if no symbol is found
+                        } {history.price || 'N/A'}
                       </p>
                       <p className="text-sm mt-1">{history.description || 'No description available'}</p>
                       <p className="text-xs text-gray-300 mt-1">
@@ -485,7 +489,10 @@ export default function History({ histories: initialHistories }: { histories: Hi
                       }}
                     >
                       <p className="text-lg font-semibold text-white">
-                        ${history.price || 'N/A'}
+                        {
+                          CURRENCIES.find((c: Currency) => c.value === history.currency)?.symbol || 
+                          history.currency // Fallback to the currency code if no symbol is found
+                        } {history.price || 'N/A'}
                       </p>
                       <p className="text-sm mt-1">{history.description || 'No description available'}</p>
                       <p className="text-xs text-gray-300 mt-1">

@@ -50,7 +50,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  const saveToHistory = async (price: string, description: string, imageUrl: string) => {
+  const saveToHistory = async (price: string, description: string, imageUrl: string, currency: string) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
     }
@@ -66,6 +66,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
           price,
           description,
           imageUrl,
+          currency, // Include currency here
           userEmail: session.user.email,
         }),
       });
@@ -163,6 +164,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
           description: history.description,
           imageUrl: history.imageUrl,
           userEmail: session.user.email,
+          currency: history.currency,
           location: history.location, // Pass location directly
           historyId: history._id,
         }),

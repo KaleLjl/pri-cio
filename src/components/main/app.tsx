@@ -5,15 +5,31 @@ import Image from 'next/image';
 import { useShareCard } from '@/lib/hooks/useShareCard';
 import Modal from '@/components/ui/Modal';
 
+export type Currency = {
+  value: string;
+  label: string;
+  symbol: string;
+};
+
 // 提取常量
-const CURRENCIES = [
+// const CURRENCIES = [
+//   { value: 'GBP', label: '£ GBP', symbol: '£' },
+//   { value: 'USD', label: '$ USD', symbol: '$' },
+//   { value: 'EUR', label: '€ EUR', symbol: '€' },
+//   { value: 'CNY', label: '¥ CNY', symbol: '¥' },
+// ].map(curr => ({
+//   ...curr,
+//   label: `  ${curr.label}  `
+// }));
+
+export const CURRENCIES: Currency[] = [
   { value: 'GBP', label: '£ GBP', symbol: '£' },
   { value: 'USD', label: '$ USD', symbol: '$' },
   { value: 'EUR', label: '€ EUR', symbol: '€' },
   { value: 'CNY', label: '¥ CNY', symbol: '¥' },
-].map(curr => ({
+].map((curr) => ({
   ...curr,
-  label: `  ${curr.label}  `
+  label: `  ${curr.label}  `,
 }));
 
 export default function ImageCapture() {
@@ -54,7 +70,8 @@ export default function ImageCapture() {
         saveToHistory(
           state.price, 
           state.description, 
-          state.selectedImage
+          state.selectedImage,
+          state.currency
         ).catch(error => {
           console.error('Failed to save to history:', {
             error: error.message,
@@ -62,7 +79,8 @@ export default function ImageCapture() {
             requestData: {
               price: state.price,
               description: state.description,
-              imageUrl: state.selectedImage
+              imageUrl: state.selectedImage,
+              currency: state.currency
             }
           });
           throw error;

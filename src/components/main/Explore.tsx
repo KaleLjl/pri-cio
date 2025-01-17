@@ -9,6 +9,7 @@ import { Switch as HeadlessSwitch } from "@headlessui/react";
 import { Menu } from '@headlessui/react';
 import { motion, AnimatePresence} from 'framer-motion';
 import Modal from 'react-modal';
+import { CURRENCIES } from '@/components/main/App';
 
 interface DisplayExploreProps {
   explores: ExploreItem[];
@@ -332,7 +333,9 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               </div>
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-white">${explore.price}</p>
+              <p className="text-sm font-medium text-white">
+                {CURRENCIES.find(c => c.value === explore.currency)?.symbol} {explore.price}
+              </p>
               <p className="text-xs text-gray-400">
                 {explore.description || 'No description available'}
               </p>
@@ -463,6 +466,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-2xl shadow-xl w-[90%] max-w-4xl p-8 text-black"
             >
+              
               <div className="grid grid-cols-2 gap-6">
                 {/* Left Column: Image */}
                 <div className="overflow-hidden rounded-lg">
@@ -511,8 +515,9 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                   <p className="text-gray-600 text-sm">
                     Created at: {new Date(selectedCard.createdAt).toLocaleString()}
                   </p>
-                  <p className="text-lg font-semibold text-black">${selectedCard.price}</p>
-
+                  <p className="text-lg font-semibold text-black">
+                    {CURRENCIES.find(c => c.value === selectedCard?.currency)?.symbol} {selectedCard?.price}
+                  </p>
                   {selectedCard?.location && (
                     <p className="text-gray-600">
                       Location: {selectedCard.location.city}, {selectedCard.location.country}

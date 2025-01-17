@@ -28,6 +28,7 @@ const fetchExplorePosts = async (): Promise<ExploreItem[]> => {
       createdAt: item.createdAt || new Date().toISOString(),
       description: item.description || 'No description available',
       price: item.price || 0,
+      currency: item.currency,
       userProfile: {
         ...item.userProfile,
         avatarUrl: item.userProfile?.avatarUrl || '/image/default-avatar.png',

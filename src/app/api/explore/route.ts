@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { price, description, imageUrl, location, historyId } = body;
+    const { price, description, imageUrl, location, historyId, currency } = body;
 
     // 添加详细的验证
     const validationErrors = [];
@@ -58,6 +58,7 @@ export async function POST(req: Request) {
     if (!description) validationErrors.push('Description is required');
     if (!imageUrl) validationErrors.push('Image URL is required');
     if (!historyId) validationErrors.push('History ID is required');
+    if (!currency) validationErrors.push('Currency is required'); 
 
     if (validationErrors.length > 0) {
       return NextResponse.json({ 
@@ -140,7 +141,8 @@ export async function POST(req: Request) {
       } : undefined,
       location: enrichedLocation,
       createdAt: new Date(),
-      historyId: historyId // 存储原始的 history ID
+      historyId: historyId, // 存储原始的 history ID
+      currency
     };
 
     const result = await db.collection('explore').insertOne(newPublication);

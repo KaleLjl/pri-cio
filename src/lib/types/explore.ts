@@ -5,6 +5,7 @@ export interface ExploreItem {
     description: string;
     userEmail: string;
     historyId: string;
+    currency: string;
     userProfile?: {
       _id?: string;
       name?: string;
