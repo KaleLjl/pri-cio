@@ -21,16 +21,6 @@ export default function ChatHistoryClient() {
         if (response.ok) {
           const data = await response.json();
           setCurrentUserId(data._id);
-          
-          // 确保 socket 连接
-          if (data._id) {
-            socketService.connect(data._id);
-            
-            // 加入所有聊天室
-            chats?.forEach(chat => {
-              socketService.joinRoom(chat._id);
-            });
-          }
         }
       } catch (error) {
         console.error('Error fetching current user:', error);
@@ -41,12 +31,10 @@ export default function ChatHistoryClient() {
       fetchCurrentUser();
     }
 
-    // 清理函数
     return () => {
-      // 离开时不要离开聊天室，只在组件卸载时移除消息监听器
       socketService.removeEventListener('new-message', handleNewMessage);
     };
-  }, [session, chats]);
+  }, [session]);
 
   // 添加新消息处理函数
   const handleNewMessage = async () => {
@@ -56,11 +44,15 @@ export default function ChatHistoryClient() {
 
   // 设置消息监听
   useEffect(() => {
-    if (currentUserId) {
+    if (currentUserId && socketService.isConnected()) {
       console.log('Setting up message listener in ChatHistory');
       socketService.onNewMessage(handleNewMessage);
+      
+      return () => {
+        socketService.removeEventListener('new-message', handleNewMessage);
+      };
     }
-  }, [currentUserId]);
+  }, [currentUserId, socketService.isConnected()]);
 
   const formatDate = (dateString: string) => {
     try {

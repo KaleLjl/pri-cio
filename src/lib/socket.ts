@@ -274,6 +274,10 @@ class SocketService {
       }
     }
   }
+
+  onConnect(callback: () => void) {
+    this.socket?.on('connect', callback);
+  }
 }
 
 export const socketService = SocketService.getInstance(); 

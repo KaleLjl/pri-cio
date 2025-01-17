@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query'
 import { SessionProvider, useSession } from 'next-auth/react'
 import { socketService } from '@/lib/socket'
 import { ChatMessage } from '@/lib/types/chat'
@@ -25,6 +25,17 @@ interface ChatRecord {
 function SocketInitializer() {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
+
+  // 获取聊天历史记录
+  const { data: chats } = useQuery({
+    queryKey: ['chat-history'],
+    queryFn: async () => {
+      const response = await fetch('/api/chat/history');
+      if (!response.ok) throw new Error('Failed to fetch chat history');
+      return response.json();
+    },
+    enabled: !!session
+  });
 
   const handleNewMessage = useCallback((message: ChatMessage) => {
     console.log('Received new message in provider:', message);
@@ -74,13 +85,25 @@ function SocketInitializer() {
           const data = await response.json();
           if (!socketService.isConnected()) {
             console.log('Connecting socket with user ID:', data._id);
+            
+            // 先进行连接
             socketService.connect(data._id);
 
-            // 设置消息处理器
-            console.log('Setting up message handler in provider');
-            socketService.onNewMessage((message: ChatMessage) => {
-              console.log('New message received in provider:', message);
-              handleNewMessage(message);
+            // 然后设置连接成功的回调
+            socketService.onConnect(() => {
+              console.log('Socket connected, joining rooms');
+              // 在连接成功后加入聊天室
+              if (chats) {
+                chats.forEach((chat: ChatRecord) => {
+                  socketService.joinRoom(chat._id);
+                });
+              }
+
+              // 设置消息处理器
+              socketService.onNewMessage((message: ChatMessage) => {
+                console.log('New message received in provider:', message);
+                handleNewMessage(message);
+              });
             });
           }
         }
@@ -98,7 +121,7 @@ function SocketInitializer() {
         socketService.disconnect();
       }
     };
-  }, [session, handleNewMessage]);
+  }, [session, handleNewMessage, chats]);
 
   return null;
 }
