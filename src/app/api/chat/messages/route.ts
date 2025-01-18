@@ -17,15 +17,35 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Invalid conversation ID" }, { status: 400 });
     }
 
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const client = await clientPromise;
     const db = client.db("pri-cio");
+
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const userId = user._id.toString();
 
     await db.collection("messages").createIndex({ conversationId: 1, createdAt: -1 });
 
     const skip = (page - 1) * limit;
     const messages = await db
       .collection("messages")
-      .find({ conversationId: new ObjectId(conversationId) })
+      .find({ 
+        conversationId: new ObjectId(conversationId),
+        $or: [
+          { deletedBy: { $exists: false } },
+          { deletedBy: { $ne: userId } }
+        ]
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -33,7 +53,13 @@ export async function GET(req: Request) {
 
     const total = await db
       .collection("messages")
-      .countDocuments({ conversationId: new ObjectId(conversationId) });
+      .countDocuments({ 
+        conversationId: new ObjectId(conversationId),
+        $or: [
+          { deletedBy: { $exists: false } },
+          { deletedBy: { $ne: userId } }
+        ]
+      });
 
     const formattedMessages = messages.map((msg) => ({
       ...msg,
@@ -96,6 +122,15 @@ export async function POST(req: Request) {
         updatedAt: new Date(),
       };
       await db.collection("conversations").insertOne(conversation);
+    } else {
+      // 如果对话存在，恢复被删除的对话（如果被删除了的话）
+      await db.collection("conversations").updateOne(
+        { _id: conversation._id },
+        { 
+          $set: { updatedAt: new Date() },
+          $unset: { deletedBy: "" } // 移除 deletedBy 字段，恢复对话
+        }
+      );
     }
 
     const newMessage = {
@@ -171,5 +206,71 @@ export async function PATCH(req: Request) {
   } catch (error) {
     console.error("Error marking messages as read:", error);
     return NextResponse.json({ error: "Failed to mark messages as read" }, { status: 500 });
+  }
+}
+
+// DELETE: soft delete messages for a conversation
+export async function DELETE(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { conversationId } = await req.json();
+    if (!conversationId) {
+      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("pri-cio");
+
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const userId = user._id.toString();
+
+    // Start a session for transaction
+    const mongoSession = client.startSession();
+    try {
+      await mongoSession.withTransaction(async () => {
+        // Soft delete all messages in the conversation for this user
+        await db.collection("messages").updateMany(
+          {
+            conversationId: new ObjectId(conversationId),
+            $or: [
+              { deletedBy: { $exists: false } },
+              { deletedBy: { $ne: userId } }
+            ]
+          },
+          {
+            $set: { deletedBy: userId }
+          },
+          { session: mongoSession }
+        );
+
+        // Soft delete the conversation for this user
+        await db.collection("conversations").updateOne(
+          { _id: new ObjectId(conversationId) },
+          {
+            $set: { deletedBy: userId }
+          },
+          { session: mongoSession }
+        );
+      });
+    } finally {
+      await mongoSession.endSession();
+    }
+
+    return NextResponse.json({
+      success: true
+    });
+  } catch (error) {
+    console.error("Error deleting messages:", error);
+    return NextResponse.json({ error: "Failed to delete messages" }, { status: 500 });
   }
 }

@@ -312,5 +312,22 @@ export function useChat(props: UseChatProps | null) {
     loadMoreMessages: async () => {
       await fetchNextPage();
     },
+    deleteMessages: async () => {
+      if (!props?.conversationId) throw new Error("No conversation ID");
+      
+      const response = await fetch("/api/chat/messages", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: props.conversationId }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete messages");
+      }
+
+      // Invalidate and refetch messages
+      await queryClient.invalidateQueries({ queryKey: ["chat-messages", props.conversationId] });
+    },
   };
 }

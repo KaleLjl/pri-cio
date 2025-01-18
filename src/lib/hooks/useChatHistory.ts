@@ -28,6 +28,7 @@ interface UseChatHistoryReturn {
   error: Error | null;
   refetch: () => Promise<void>;
   updateChatHistory: (message: ChatMessage) => void;
+  deleteMessages: (conversationId: string) => Promise<void>;
 }
 
 export function useChatHistory(): UseChatHistoryReturn {
@@ -105,5 +106,25 @@ export function useChatHistory(): UseChatHistoryReturn {
       await refetch();
     },
     updateChatHistory,
+    deleteMessages: async (conversationId: string) => {
+      try {
+        const response = await fetch("/api/chat/messages", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId }),
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete messages");
+        }
+
+        // Invalidate and refetch chat history
+        await queryClient.invalidateQueries({ queryKey: ["chat-history"] });
+      } catch (error) {
+        console.error("Error deleting messages:", error);
+        throw error;
+      }
+    },
   };
 }

@@ -23,7 +23,15 @@ export async function GET() {
     const conversations = await db
       .collection("conversations")
       .aggregate([
-        { $match: { participants: userId } },
+        { 
+          $match: { 
+            participants: userId,
+            $or: [
+              { deletedBy: { $exists: false } },
+              { deletedBy: { $ne: userId } }
+            ]
+          } 
+        },
         {
           $lookup: {
             from: "messages",
