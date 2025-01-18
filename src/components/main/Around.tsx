@@ -244,39 +244,60 @@ const Around = () => {
 
   // Load Google Maps
   useEffect(() => {
-    if (document.getElementById('google-maps')) return;
-
-    const script = document.createElement('script');
-    script.id = 'google-maps';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAP_API_KEY}&callback=initMap`;
-    script.async = true;
-    script.defer = true;
-    document.body.appendChild(script);
-
-    // Global callback
-    window.initMap = () => {
-      const mapInstance = new window.google.maps.Map(
-        document.getElementById('map') as HTMLElement,
-        {
-          center: { lat: 51.5074, lng: -0.1278 }, // London
-          zoom: 8,
-          minZoom: 4, // Limit how far user can zoom out
-          maxZoom: 15, // Limit how far user can zoom in
-        }
-      );
-      setMap(mapInstance);
-
-      // Add geolocation if you want
-      addGeolocationControl(mapInstance);
-
-      // Extra clamp
-      window.google.maps.event.addListener(mapInstance, 'zoom_changed', () => {
-        const newZoom = mapInstance.getZoom() || 8;
-        if (newZoom < 5) mapInstance.setZoom(5);
-        if (newZoom > 15) mapInstance.setZoom(15);
-      });
+    const initializeMap = () => {
+      if (window.google && !map) {
+        const mapInstance = new window.google.maps.Map(
+          document.getElementById('map') as HTMLElement,
+          {
+            center: { lat: 51.5074, lng: -0.1278 }, // Default center (e.g., London)
+            zoom: 8,
+            minZoom: 4,
+            maxZoom: 15,
+          }
+        );
+        setMap(mapInstance);
+  
+        // Add geolocation control
+        addGeolocationControl(mapInstance);
+  
+        // Add zoom constraints
+        window.google.maps.event.addListener(mapInstance, 'zoom_changed', () => {
+          const newZoom = mapInstance.getZoom() || 8;
+          if (newZoom < 5) mapInstance.setZoom(5);
+          if (newZoom > 15) mapInstance.setZoom(15);
+        });
+      }
     };
-  }, []);
+  
+    if (!window.google) {
+      // Load the Google Maps script if not already loaded
+      const existingScript = document.getElementById('google-maps') as HTMLScriptElement;
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.id = 'google-maps';
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAP_API_KEY}&callback=initMap`;
+        script.async = true;
+        script.defer = true;
+        document.body.appendChild(script);
+  
+        // Set up the global callback for script load
+        script.onload = initializeMap;
+      } else {
+        initializeMap();
+      }
+    } else {
+      initializeMap();
+    }
+  
+    // Cleanup on component unmount
+    return () => {
+      if (map) {
+        window.google.maps.event.clearInstanceListeners(map);
+        setMap(null);
+      }
+    };
+  }, [map]);
+  
 
   // Re‐cluster on map idle or when data changes
   useEffect(() => {
