@@ -177,9 +177,11 @@ export function useChat(props: UseChatProps | null) {
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => lastPage.nextPage,
-    staleTime: MESSAGE_STALE_TIME,
+    staleTime: 0,
     gcTime: MESSAGE_CACHE_TIME,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
     enabled: !!props?.conversationId,
   });
 

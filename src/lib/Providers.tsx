@@ -34,6 +34,7 @@ function GlobalSocketInitializer() {
 
           // 新消息处理
           socketService.onNewMessage((message: ChatMessage) => {
+            // 更新聊天历史缓存
             queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
               if (!oldChats) return oldChats;
               
@@ -51,7 +52,6 @@ function GlobalSocketInitializer() {
                     senderId: message.senderId,
                   },
                   updatedAt: message.createdAt,
-                  // 如果当前用户是接收者，增加未读消息计数
                   unreadCount: isReceiver 
                     ? (updated[chatIndex].unreadCount || 0) + 1 
                     : updated[chatIndex].unreadCount || 0
@@ -61,6 +61,31 @@ function GlobalSocketInitializer() {
                 (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
               );
             });
+
+            // 更新具体对话的消息缓存
+            queryClient.setQueryData<any>(
+              ["chat-messages", message.conversationId],
+              (old: any) => {
+                if (!old) return {
+                  pages: [{
+                    messages: [message],
+                    hasMore: false
+                  }],
+                  pageParams: [1]
+                };
+
+                const newPages = [...old.pages];
+                const lastPage = newPages[newPages.length - 1];
+                if (lastPage) {
+                  lastPage.messages = [...lastPage.messages, message];
+                }
+
+                return {
+                  ...old,
+                  pages: newPages
+                };
+              }
+            );
           });
 
           // 消息状态更新处理
@@ -112,6 +137,7 @@ function GlobalSocketInitializer() {
 
   // 辅助函数：更新消息状态
   const updateMessageStatus = (messageId: string, status: "delivered" | "read") => {
+    // 更新消息缓存中的状态
     queryClient.setQueriesData(
       { queryKey: ["chat-messages"] },
       (old: any) => {
@@ -127,6 +153,24 @@ function GlobalSocketInitializer() {
         };
       }
     );
+
+    // 如果是已读状态，更新聊天历史中的未读计数
+    if (status === "read") {
+      queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
+        if (!oldChats) return oldChats;
+        
+        return oldChats.map(chat => {
+          const hasMessage = chat.lastMessage && chat.lastMessage._id === messageId;
+          if (hasMessage) {
+            return {
+              ...chat,
+              unreadCount: 0
+            };
+          }
+          return chat;
+        });
+      });
+    }
   };
 
   return null;
