@@ -19,6 +19,7 @@ interface ChatRecord {
   };
   createdAt: string;
   updatedAt: string;
+  unreadCount: number;
 }
 
 interface UseChatHistoryReturn {
@@ -81,6 +82,9 @@ export function useChatHistory(): UseChatHistoryReturn {
                 senderId: message.senderId,
               },
               updatedAt: message.createdAt,
+              unreadCount: message.senderId !== session?.user?.id 
+                ? (updated[chatIndex].unreadCount || 0) + 1 
+                : (updated[chatIndex].unreadCount || 0),
             };
           }
 
@@ -90,7 +94,7 @@ export function useChatHistory(): UseChatHistoryReturn {
         }
       );
     },
-    [queryClient]
+    [queryClient, session?.user?.id]
   );
 
   return {

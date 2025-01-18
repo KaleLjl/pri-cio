@@ -34,7 +34,6 @@ function GlobalSocketInitializer() {
 
         // 新消息处理
         socketService.onNewMessage((message: ChatMessage) => {
-          // 更新聊天历史
           queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
             if (!oldChats) return oldChats;
             
@@ -50,47 +49,13 @@ function GlobalSocketInitializer() {
                   createdAt: message.createdAt,
                   senderId: message.senderId,
                 },
-                updatedAt: message.createdAt,
+                updatedAt: message.createdAt
               };
-            } else {
-              // 如果是新对话，触发重新获取聊天历史
-              queryClient.invalidateQueries({ queryKey: ["chat-history"] });
             }
-
             return updated.sort(
               (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
             );
           });
-
-          // 更新当前聊天消息列表
-          queryClient.setQueryData<any>(
-            ["chat-messages", message.conversationId],
-            (old: any) => {
-              if (!old) {
-                return {
-                  pages: [{ messages: [message], hasMore: false }],
-                  pageParams: [1],
-                };
-              }
-
-              const messageExists = old.pages.some((page: any) =>
-                page.messages.some((msg: any) => msg._id === message._id)
-              );
-
-              if (messageExists) return old;
-
-              const newPages = [...old.pages];
-              const lastPage = newPages[newPages.length - 1];
-              if (lastPage) {
-                lastPage.messages = [...lastPage.messages, message];
-              }
-
-              return {
-                ...old,
-                pages: newPages,
-              };
-            }
-          );
         });
 
         // 消息状态更新处理

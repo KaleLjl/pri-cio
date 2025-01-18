@@ -1,6 +1,5 @@
 // components/ChatHistory.tsx
 "use client";
-
 import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,53 +7,28 @@ import { format } from "date-fns";
 import { useChatHistory } from "@/lib/hooks/useChatHistory";
 import { socketService } from "@/lib/socket";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
-import { ChatMessage } from "@/lib/types/chat";
-
-interface ChatParticipant {
-  _id: string;
-  name: string;
-  avatarUrl?: string;
-}
-
-interface Chat {
-  _id: string;
-  participants: ChatParticipant[];
-  lastMessage?: {
-    content: string;
-    createdAt: string;
-  };
-  updatedAt: string;
-}
+import { ChatRecord } from "@/lib/types/chat";
 
 export default function ChatHistoryClient() {
   const { currentUser, loadingUser } = useCurrentUser();
-  const { chats, loading, error, updateChatHistory } = useChatHistory();
+  const { chats, loading, error } = useChatHistory();
 
   // 处理实时消息更新和房间管理
   useEffect(() => {
     if (!currentUser?._id || !chats?.length) return;
 
-    // 加入所有聊天室
+    // 只处理房间的加入和离开
     chats.forEach(chat => {
       socketService.joinRoom(chat._id);
     });
 
-    // 监听新消息
-    const handleNewMessage = (message: ChatMessage) => {
-      updateChatHistory(message);
-    };
-
-    socketService.onNewMessage(handleNewMessage);
-
     // 清理函数
     return () => {
-      // 离开所有聊天室
       chats.forEach(chat => {
         socketService.leaveRoom(chat._id);
       });
-      socketService.removeEventListener("new-message", handleNewMessage);
     };
-  }, [currentUser, chats, updateChatHistory]);
+  }, [currentUser?._id, chats]);
 
   // 格式化日期
   const formatDate = (dateString: string) => {
@@ -121,9 +95,9 @@ export default function ChatHistoryClient() {
     <div className="max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold text-white mb-6">Chat History</h1>
       <div className="space-y-4">
-        {chats.map((chat: Chat) => {
+        {chats.map((chat: ChatRecord) => {
           const otherParticipant = chat.participants.find(
-            (p: ChatParticipant) => p._id !== currentUser._id
+            (p) => p._id !== currentUser._id
           );
           if (!otherParticipant) return null;
 
@@ -136,13 +110,15 @@ export default function ChatHistoryClient() {
               className="block p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
             >
               <div className="flex items-center space-x-4">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                  <Image
-                    src={otherParticipant.avatarUrl || "/default-avatar.png"}
-                    alt={otherParticipant.name}
-                    fill
-                    style={{ objectFit: "cover" }}
-                  />
+                <div className="relative w-12 h-12">
+                  <div className="rounded-full overflow-hidden w-full h-full">
+                    <Image
+                      src={otherParticipant.avatarUrl || "/default-avatar.png"}
+                      alt={otherParticipant.name}
+                      fill
+                      style={{ objectFit: "cover" }}
+                    />
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-semibold text-white truncate">{otherParticipant.name}</h3>

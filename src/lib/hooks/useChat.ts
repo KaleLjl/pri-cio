@@ -89,6 +89,59 @@ export function useChat(props: UseChatProps | null) {
     };
   }, [inputMessage, handleTyping]);
 
+  // Socket effect for message status updates
+  useEffect(() => {
+    if (!props?.conversationId) return;
+
+    const handleMessageDelivered = (messageId: string) => {
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+        ["chat-messages", props.conversationId],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((msg) =>
+                msg._id === messageId
+                  ? { ...msg, status: "delivered" as MessageStatus }
+                  : msg
+              ),
+            })),
+          };
+        }
+      );
+    };
+
+    const handleMessageRead = (messageId: string) => {
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+        ["chat-messages", props.conversationId],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((msg) =>
+                msg._id === messageId
+                  ? { ...msg, status: "read" as MessageStatus, read: true }
+                  : msg
+              ),
+            })),
+          };
+        }
+      );
+    };
+
+    socketService.onMessageDelivered(handleMessageDelivered);
+    socketService.onMessageRead(handleMessageRead);
+
+    return () => {
+      socketService.removeEventListener("message-delivered", handleMessageDelivered);
+      socketService.removeEventListener("message-read", handleMessageRead);
+    };
+  }, [props?.conversationId, queryClient]);
+
   // useInfiniteQuery
   const {
     data,
@@ -149,7 +202,7 @@ export function useChat(props: UseChatProps | null) {
           throw new Error("Failed to send message");
         }
         const newMessage = await response.json();
-        return { ...newMessage, status: "sending" } as ChatMessage;
+        return { ...newMessage, status: "sent" as MessageStatus } as ChatMessage;
       } finally {
         setIsSending(false);
       }
@@ -162,7 +215,7 @@ export function useChat(props: UseChatProps | null) {
         receiverId: props!.otherUser._id,
         content,
         createdAt: new Date().toISOString(),
-        status: "sending",
+        status: "sending" as MessageStatus,
         read: false,
       };
 

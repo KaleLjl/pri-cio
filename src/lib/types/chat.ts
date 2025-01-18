@@ -35,7 +35,7 @@ export interface ChatRecord {
   participants: {
     _id: string;
     name: string;
-    avatarUrl: string;
+    avatarUrl?: string;
   }[];
   lastMessage?: {
     _id: string;
