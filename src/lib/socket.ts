@@ -53,6 +53,10 @@ class SocketService {
   private setupSocketListeners() {
     if (!this.socket) return;
 
+    // 先移除所有现有的监听器
+    this.socket.removeAllListeners();
+    this.eventHandlers.clear();
+
     this.socket.on("connect", () => {
       console.log("Connected to socket server with ID:", this.socket?.id);
       this.reconnectAttempts = 0;
@@ -63,8 +67,6 @@ class SocketService {
         console.log("Rejoining room:", roomId);
         this.socket?.emit("join-room", roomId);
       });
-      // Re-register event handlers
-      this.reattachEventHandlers();
     });
 
     this.socket.on("connect_error", (error) => {

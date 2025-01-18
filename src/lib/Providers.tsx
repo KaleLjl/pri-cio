@@ -21,85 +21,86 @@ function GlobalSocketInitializer() {
     if (session && currentUser?._id) {
       if (!socketService.isConnected()) {
         socketService.connect(currentUser._id);
-      }
-
-      const setupSocketListeners = () => {
-        // 连接成功时加入房间
-        socketService.onConnect(() => {
-          const chats = queryClient.getQueryData<ChatRecord[]>(["chat-history"]) || [];
-          chats.forEach((chat) => {
-            socketService.joinRoom(chat._id);
+        
+        // 只在首次连接时设置监听器
+        const setupSocketListeners = () => {
+          // 连接成功时加入房间
+          socketService.onConnect(() => {
+            const chats = queryClient.getQueryData<ChatRecord[]>(["chat-history"]) || [];
+            chats.forEach((chat) => {
+              socketService.joinRoom(chat._id);
+            });
           });
-        });
 
-        // 新消息处理
-        socketService.onNewMessage((message: ChatMessage) => {
-          queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
-            if (!oldChats) return oldChats;
-            
-            const updated = [...oldChats];
-            const chatIndex = updated.findIndex((chat) => chat._id === message.conversationId);
+          // 新消息处理
+          socketService.onNewMessage((message: ChatMessage) => {
+            queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
+              if (!oldChats) return oldChats;
+              
+              const updated = [...oldChats];
+              const chatIndex = updated.findIndex((chat) => chat._id === message.conversationId);
 
-            if (chatIndex !== -1) {
-              const isReceiver = message.receiverId === currentUser._id;
-              updated[chatIndex] = {
-                ...updated[chatIndex],
-                lastMessage: {
-                  _id: message._id,
-                  content: message.content,
-                  createdAt: message.createdAt,
-                  senderId: message.senderId,
-                },
-                updatedAt: message.createdAt,
-                // 如果当前用户是接收者，增加未读消息计数
-                unreadCount: isReceiver 
-                  ? (updated[chatIndex].unreadCount || 0) + 1 
-                  : updated[chatIndex].unreadCount || 0
-              };
-            }
-            return updated.sort(
-              (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+              if (chatIndex !== -1) {
+                const isReceiver = message.receiverId === currentUser._id;
+                updated[chatIndex] = {
+                  ...updated[chatIndex],
+                  lastMessage: {
+                    _id: message._id,
+                    content: message.content,
+                    createdAt: message.createdAt,
+                    senderId: message.senderId,
+                  },
+                  updatedAt: message.createdAt,
+                  // 如果当前用户是接收者，增加未读消息计数
+                  unreadCount: isReceiver 
+                    ? (updated[chatIndex].unreadCount || 0) + 1 
+                    : updated[chatIndex].unreadCount || 0
+                };
+              }
+              return updated.sort(
+                (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+              );
+            });
+          });
+
+          // 消息状态更新处理
+          socketService.onMessageDelivered((messageId: string) => {
+            updateMessageStatus(messageId, "delivered");
+          });
+
+          socketService.onMessageRead((messageId: string) => {
+            updateMessageStatus(messageId, "read");
+          });
+
+          // 处理会话已读状态
+          socketService.onConversationRead(({ conversationId }) => {
+            queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
+              if (!oldChats) return oldChats;
+              
+              const updated = [...oldChats];
+              const chatIndex = updated.findIndex((chat) => chat._id === conversationId);
+
+              if (chatIndex !== -1) {
+                updated[chatIndex] = {
+                  ...updated[chatIndex],
+                  unreadCount: 0
+                };
+              }
+              return updated;
+            });
+          });
+
+          // 用户输入状态处理
+          socketService.onUserTyping(({ userId, typing }: { userId: string; typing: boolean }) => {
+            queryClient.setQueryData<any>(
+              ["chat-typing-status", userId],
+              typing
             );
           });
-        });
+        };
 
-        // 消息状态更新处理
-        socketService.onMessageDelivered((messageId: string) => {
-          updateMessageStatus(messageId, "delivered");
-        });
-
-        socketService.onMessageRead((messageId: string) => {
-          updateMessageStatus(messageId, "read");
-        });
-
-        // 处理会话已读状态
-        socketService.onConversationRead(({ conversationId }) => {
-          queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
-            if (!oldChats) return oldChats;
-            
-            const updated = [...oldChats];
-            const chatIndex = updated.findIndex((chat) => chat._id === conversationId);
-
-            if (chatIndex !== -1) {
-              updated[chatIndex] = {
-                ...updated[chatIndex],
-                unreadCount: 0
-              };
-            }
-            return updated;
-          });
-        });
-
-        // 用户输入状态处理
-        socketService.onUserTyping(({ userId, typing }: { userId: string; typing: boolean }) => {
-          queryClient.setQueryData<any>(
-            ["chat-typing-status", userId],
-            typing
-          );
-        });
-      };
-
-      setupSocketListeners();
+        setupSocketListeners();
+      }
     }
 
     return () => {

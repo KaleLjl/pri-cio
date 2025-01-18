@@ -133,17 +133,17 @@ export default function Chat({ userId }: ChatProps) {
       if (shouldScrollToBottom || lastMessage.senderId === currentUserId) {
         scrollToBottom();
       }
-    }
 
-    // 标记消息为已读
-    if (conversationId && currentUserId) {
-      fetch('/api/chat/messages', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ conversationId }),
-      }).catch(console.error);
+      // 只有当消息是接收到的新消息时才标记为已读
+      if (conversationId && currentUserId && lastMessage.senderId !== currentUserId) {
+        fetch('/api/chat/messages', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ conversationId }),
+        }).catch(console.error);
+      }
     }
   }, [chat.messages, currentUserId, shouldScrollToBottom, conversationId]);
 
