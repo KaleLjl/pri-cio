@@ -230,6 +230,16 @@ class SocketService {
     this.addEventHandler("message-read", handler);
   }
 
+  onConversationRead(callback: (data: { conversationId: string }) => void) {
+    if (!this.socket) return;
+    const handler = (data: { conversationId: string }) => {
+      console.log("Conversation read:", data);
+      callback(data);
+    };
+    this.socket.on("conversation-read", handler);
+    this.addEventHandler("conversation-read", handler);
+  }
+
   onUserTyping(callback: (data: { userId: string; typing: boolean }) => void) {
     if (!this.socket) return;
     const handler = (data: { userId: string; typing: boolean }) => {

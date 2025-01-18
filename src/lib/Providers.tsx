@@ -41,6 +41,7 @@ function GlobalSocketInitializer() {
             const chatIndex = updated.findIndex((chat) => chat._id === message.conversationId);
 
             if (chatIndex !== -1) {
+              const isReceiver = message.receiverId === currentUser._id;
               updated[chatIndex] = {
                 ...updated[chatIndex],
                 lastMessage: {
@@ -49,7 +50,11 @@ function GlobalSocketInitializer() {
                   createdAt: message.createdAt,
                   senderId: message.senderId,
                 },
-                updatedAt: message.createdAt
+                updatedAt: message.createdAt,
+                // 如果当前用户是接收者，增加未读消息计数
+                unreadCount: isReceiver 
+                  ? (updated[chatIndex].unreadCount || 0) + 1 
+                  : updated[chatIndex].unreadCount || 0
               };
             }
             return updated.sort(
@@ -65,6 +70,24 @@ function GlobalSocketInitializer() {
 
         socketService.onMessageRead((messageId: string) => {
           updateMessageStatus(messageId, "read");
+        });
+
+        // 处理会话已读状态
+        socketService.onConversationRead(({ conversationId }) => {
+          queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
+            if (!oldChats) return oldChats;
+            
+            const updated = [...oldChats];
+            const chatIndex = updated.findIndex((chat) => chat._id === conversationId);
+
+            if (chatIndex !== -1) {
+              updated[chatIndex] = {
+                ...updated[chatIndex],
+                unreadCount: 0
+              };
+            }
+            return updated;
+          });
         });
 
         // 用户输入状态处理

@@ -70,6 +70,7 @@ io.on("connection", (socket) => {
       conversationRooms.get(conversationId)?.add(socket.id);
     }
     socket.to(conversationId).emit("message-read", messageId);
+    socket.to(conversationId).emit("conversation-read", { conversationId });
   });
 
   socket.on("disconnect", (reason) => {
