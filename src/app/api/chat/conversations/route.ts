@@ -56,6 +56,27 @@ export async function GET() {
           },
         },
         {
+          $lookup: {
+            from: "messages",
+            let: { conversationId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$conversationId", "$$conversationId"] },
+                      { $eq: ["$receiverId", userId] },
+                      { $eq: ["$read", false] }
+                    ]
+                  }
+                }
+              },
+              { $count: "unreadCount" }
+            ],
+            as: "unreadInfo"
+          }
+        },
+        {
           $addFields: {
             lastMessage: {
               $let: {
@@ -69,6 +90,9 @@ export async function GET() {
                 },
               },
             },
+            unreadCount: {
+              $ifNull: [{ $arrayElemAt: ["$unreadInfo.unreadCount", 0] }, 0]
+            }
           },
         },
         { $sort: { "lastMessage.createdAt": -1 } },

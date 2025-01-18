@@ -45,6 +45,7 @@ export interface ChatRecord {
   };
   createdAt: string;
   updatedAt: string;
+  unreadCount: number;
 }
 
 export interface MessagesResponse {

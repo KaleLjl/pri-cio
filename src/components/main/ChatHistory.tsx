@@ -121,9 +121,18 @@ export default function ChatHistoryClient() {
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-white truncate">{otherParticipant.name}</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white truncate">{otherParticipant.name}</h3>
+                    {chat.unreadCount > 0 && (
+                      <span className="ml-2 bg-purple-600 text-white text-xs font-medium px-2.5 py-0.5 rounded-full">
+                        {chat.unreadCount}
+                      </span>
+                    )}
+                  </div>
                   {chat.lastMessage && (
-                    <p className="text-gray-300 text-sm truncate">{chat.lastMessage.content}</p>
+                    <p className={`text-sm truncate ${chat.unreadCount > 0 ? 'text-white font-medium' : 'text-gray-300'}`}>
+                      {chat.lastMessage.content}
+                    </p>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">

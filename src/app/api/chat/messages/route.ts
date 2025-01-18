@@ -122,3 +122,54 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 }
+
+// PATCH: mark messages as read
+export async function PATCH(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { conversationId } = await req.json();
+    if (!conversationId) {
+      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("pri-cio");
+
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // 更新所有未读消息为已读
+    const result = await db.collection("messages").updateMany(
+      {
+        conversationId: new ObjectId(conversationId),
+        receiverId: user._id.toString(),
+        read: false
+      },
+      {
+        $set: { read: true }
+      }
+    );
+
+    // 更新会话的未读消息计数
+    await db.collection("conversations").updateOne(
+      { _id: new ObjectId(conversationId) },
+      { $set: { unreadCount: 0 } }
+    );
+
+    return NextResponse.json({
+      success: true,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    return NextResponse.json({ error: "Failed to mark messages as read" }, { status: 500 });
+  }
+}

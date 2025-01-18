@@ -134,7 +134,18 @@ export default function Chat({ userId }: ChatProps) {
         scrollToBottom();
       }
     }
-  }, [chat.messages, currentUserId, shouldScrollToBottom]);
+
+    // 标记消息为已读
+    if (conversationId && currentUserId) {
+      fetch('/api/chat/messages', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ conversationId }),
+      }).catch(console.error);
+    }
+  }, [chat.messages, currentUserId, shouldScrollToBottom, conversationId]);
 
   // Load more messages when scrolling up
   useEffect(() => {
