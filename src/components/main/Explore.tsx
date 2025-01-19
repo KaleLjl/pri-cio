@@ -9,6 +9,7 @@ import { Switch as HeadlessSwitch } from "@headlessui/react";
 import { Menu } from '@headlessui/react';
 import { motion, AnimatePresence} from 'framer-motion';
 import Modal from 'react-modal';
+import { useSession } from 'next-auth/react';
 
 interface DisplayExploreProps {
   explores: ExploreItem[];
@@ -97,6 +98,8 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   const searchParams = useSearchParams();
   const searchQuery = searchParams?.get('search') || '';
   const router = useRouter();
+  const { data: session } = useSession();
+  const [currentUserId, setCurrentUserId] = useState<string>('');
 
   const [radiusModalOpen, setRadiusModalOpen] = useState(false);
   const [radius, setRadius] = useState<number>(10);
@@ -108,6 +111,24 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   const [tempEnableLocation, setTempEnableLocation] = useState<boolean>(enableLocation);
   const [tempNoLimit, setTempNoLimit] = useState<boolean>(noLimit);
   const apiKey = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
+
+  // 获取当前用户的 MongoDB _id
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      if (session?.user?.email) {
+        try {
+          const response = await fetch('/api/users/me');
+          if (response.ok) {
+            const userData = await response.json();
+            setCurrentUserId(userData._id);
+          }
+        } catch (error) {
+          console.error('Error fetching current user:', error);
+        }
+      }
+    };
+    fetchCurrentUser();
+  }, [session?.user?.email]);
 
   const haversineDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
     const toRad = (value: number) => (value * Math.PI) / 180;
@@ -216,8 +237,13 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
       console.log('No userId provided');
       return;
     }
+    // 使用 MongoDB _id 进行比较
+    if (currentUserId === userId) {
+      console.log('Cannot chat with yourself');
+      return;
+    }
     router.push(`/chat/${userId}`);
-  }, [router]);
+  }, [router, currentUserId]);
 
   // Check loading state first
   // if (isLoading) {

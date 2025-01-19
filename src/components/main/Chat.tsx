@@ -27,12 +27,33 @@ export default function Chat({ userId }: ChatProps) {
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const lastMessageRef = useRef<string | null>(null);
 
-  // Check authentication
+  // 身份验证检查
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/signin');
     }
   }, [status, router]);
+
+  // 立即检查是否是自己的ID
+  useEffect(() => {
+    const checkSelfChat = async () => {
+      if (status === 'authenticated' && session?.user?.email) {
+        try {
+          const response = await fetch('/api/users/me');
+          if (response.ok) {
+            const userData = await response.json();
+            if (userData._id === userId) {
+              router.push('/chat'); // 或者其他适当的页面
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error checking self chat:', error);
+        }
+      }
+    };
+    checkSelfChat();
+  }, [userId, status, session?.user?.email, router]);
 
   // Initialize chat
   useEffect(() => {
@@ -71,7 +92,7 @@ export default function Chat({ userId }: ChatProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             participantId: userId,
-            limit: 20, // Only load last 20 messages initially
+            limit: 20,
             offset: 0
           }),
         });
