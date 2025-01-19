@@ -253,11 +253,27 @@ export async function DELETE(req: Request) {
           { session: mongoSession }
         );
 
-        // Soft delete the conversation for this user
+        // Soft delete the conversation for this user and reset unread count
         await db.collection("conversations").updateOne(
           { _id: new ObjectId(conversationId) },
           {
-            $set: { deletedBy: userId }
+            $set: { 
+              deletedBy: userId,
+              unreadCount: 0 // 重置未读消息计数
+            }
+          },
+          { session: mongoSession }
+        );
+
+        // 将所有未读消息标记为已读
+        await db.collection("messages").updateMany(
+          {
+            conversationId: new ObjectId(conversationId),
+            receiverId: userId,
+            read: false
+          },
+          {
+            $set: { read: true }
           },
           { session: mongoSession }
         );
