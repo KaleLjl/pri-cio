@@ -6,7 +6,7 @@ import { ChatMessage, ChatUser, MessageStatus } from "@/lib/types/chat";
 
 const MESSAGES_PER_PAGE = 20;
 const MESSAGE_CACHE_TIME = 1000 * 60 * 30; 
-const MESSAGE_STALE_TIME = 1000 * 60 * 5;
+const TYPING_TIMEOUT = 3000; //  seconds typing timeout
 
 interface UseChatProps {
   conversationId: string;
@@ -45,17 +45,23 @@ export function useChat(props: UseChatProps | null) {
   const [inputMessage, setInputMessage] = useState("");
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const [isSending, setIsSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
 
   const handleTyping = useCallback(
     (typing: boolean) => {
       if (!props?.conversationId || !props?.currentUserId) return;
-      socketService.sendTyping({
-        conversationId: props.conversationId,
-        userId: props.currentUserId,
-        typing,
-      });
+      
+      // Only emit if the typing status has changed
+      if (isTyping !== typing) {
+        setIsTyping(typing);
+        socketService.sendTyping({
+          conversationId: props.conversationId,
+          userId: props.currentUserId,
+          typing,
+        });
+      }
     },
-    [props?.conversationId, props?.currentUserId]
+    [props?.conversationId, props?.currentUserId, isTyping]
   );
 
   // Socket effect - 只处理加入/离开房间
@@ -66,9 +72,11 @@ export function useChat(props: UseChatProps | null) {
     socketService.joinRoom(props.conversationId);
 
     return () => {
+      // 确保在离开房间时清除typing状态
+      handleTyping(false);
       socketService.leaveRoom(props.conversationId);
     };
-  }, [props?.conversationId]);
+  }, [props?.conversationId, handleTyping]);
 
   // 处理输入状态
   useEffect(() => {
@@ -76,11 +84,16 @@ export function useChat(props: UseChatProps | null) {
       handleTyping(false);
       return;
     }
+
     handleTyping(true);
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    typingTimeoutRef.current = setTimeout(() => handleTyping(false), 2000);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      handleTyping(false);
+    }, TYPING_TIMEOUT);
 
     return () => {
       if (typingTimeoutRef.current) {
@@ -88,6 +101,30 @@ export function useChat(props: UseChatProps | null) {
       }
     };
   }, [inputMessage, handleTyping]);
+
+  // Socket effect for typing status
+  useEffect(() => {
+    if (!props?.conversationId || !props?.otherUser?._id) return;
+
+    const handleUserTyping = ({ userId, typing }: { userId: string; typing: boolean }) => {
+      if (userId === props.otherUser?._id) {
+        queryClient.setQueryData(["chat-typing-status", userId], typing);
+        
+        // 如果收到typing=false，立即更新状态
+        if (!typing) {
+          queryClient.setQueryData(["chat-typing-status", userId], false);
+        }
+      }
+    };
+
+    socketService.onUserTyping(handleUserTyping);
+
+    return () => {
+      socketService.removeEventListener("user-typing", handleUserTyping);
+      // 清除typing状态
+      queryClient.setQueryData(["chat-typing-status", props.otherUser._id], false);
+    };
+  }, [props?.conversationId, props?.otherUser?._id, queryClient]);
 
   // Socket effect for message status updates
   useEffect(() => {
@@ -294,13 +331,13 @@ export function useChat(props: UseChatProps | null) {
   ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   // 获取对方的输入状态
-  const isTyping = queryClient.getQueryData<boolean>(["chat-typing-status", props?.otherUser._id]) || false;
+  const otherUserTyping = queryClient.getQueryData<boolean>(["chat-typing-status", props?.otherUser._id]) || false;
 
   return {
     messages: uniqueMessages,
     isLoading,
     error: error ? error.message : null,
-    isTyping,
+    isTyping: otherUserTyping,
     inputMessage,
     isSending: isSending || sendMessageMutation.isPending,
     hasMore: !!hasNextPage,
@@ -308,6 +345,8 @@ export function useChat(props: UseChatProps | null) {
     setInputMessage,
     sendMessage: async (content: string) => {
       await sendMessageMutation.mutateAsync(content);
+      // 发送成功后清空输入框
+      setInputMessage("");
     },
     loadMoreMessages: async () => {
       await fetchNextPage();
