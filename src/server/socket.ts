@@ -54,6 +54,15 @@ io.on("connection", (socket) => {
 
     io.in(message.conversationId).emit("new-message", broadcastMessage);
     socket.to(message.conversationId).emit("message-delivered", message._id);
+    
+    // 发送新对话事件给接收者
+    const receiverSocketId = activeUsers.get(message.receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("new-conversation", {
+        conversationId: message.conversationId,
+        message: broadcastMessage
+      });
+    }
   });
 
   socket.on("typing", ({ conversationId, userId, typing }) => {

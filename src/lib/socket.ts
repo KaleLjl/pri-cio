@@ -232,6 +232,16 @@ class SocketService {
     this.addEventHandler("message-read", handler);
   }
 
+  onNewConversation(callback: (data: { conversationId: string; message: ChatMessage }) => void) {
+    if (!this.socket) return;
+    const handler = (data: { conversationId: string; message: ChatMessage }) => {
+      console.log("New conversation received:", data);
+      callback(data);
+    };
+    this.socket.on("new-conversation", handler);
+    this.addEventHandler("new-conversation", handler);
+  }
+
   onConversationRead(callback: (data: { conversationId: string }) => void) {
     if (!this.socket) return;
     const handler = (data: { conversationId: string }) => {

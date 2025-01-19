@@ -88,6 +88,34 @@ function GlobalSocketInitializer() {
             );
           });
 
+          // 处理新对话
+          socketService.onNewConversation(async ({ conversationId, message }) => {
+            // 获取当前聊天历史
+            const currentChats = queryClient.getQueryData<ChatRecord[]>(["chat-history"]) || [];
+            
+            // 检查对话是否已存在
+            const conversationExists = currentChats.some(chat => chat._id === conversationId);
+            
+            if (!conversationExists) {
+              try {
+                // 重新获取最新的聊天历史
+                const response = await fetch("/api/chat/conversations");
+                if (!response.ok) {
+                  throw new Error("Failed to fetch chat history");
+                }
+                const newChats = await response.json();
+                
+                // 更新缓存
+                queryClient.setQueryData(["chat-history"], newChats);
+                
+                // 加入新的房间
+                socketService.joinRoom(conversationId);
+              } catch (error) {
+                console.error("Error fetching new chat history:", error);
+              }
+            }
+          });
+
           // 消息状态更新处理
           socketService.onMessageDelivered((messageId: string) => {
             updateMessageStatus(messageId, "delivered");
