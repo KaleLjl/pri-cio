@@ -1,36 +1,56 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { useChatHistory } from '@/lib/hooks/useChatHistory';
-import Link from 'next/link';
-import Image from 'next/image';
-import { format } from 'date-fns';
+// components/ChatHistory.tsx
+"use client";
+import { useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { format } from "date-fns";
+import { useChatHistory } from "@/lib/hooks/useChatHistory";
+import { socketService } from "@/lib/socket";
+import { useCurrentUser } from "@/lib/context/CurrentUserContext";
+import { ChatRecord } from "@/lib/types/chat";
 
 export default function ChatHistoryClient() {
-  const { data: session } = useSession();
-  const { chats, loading, error } = useChatHistory();
-  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const { currentUser, loadingUser } = useCurrentUser();
+  const { chats, loading, error, deleteMessages } = useChatHistory();
 
+  // 处理实时消息更新和房间管理
   useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await fetch('/api/users/me');
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentUserId(data._id);
-        }
-      } catch (error) {
-        console.error('Error fetching current user:', error);
-      }
+    if (!currentUser?._id || !chats?.length) return;
+
+    // 只处理房间的加入和离开
+    chats.forEach(chat => {
+      socketService.joinRoom(chat._id);
+    });
+
+    // 清理函数
+    return () => {
+      chats.forEach(chat => {
+        socketService.leaveRoom(chat._id);
+      });
     };
+  }, [currentUser?._id, chats]);
 
-    if (session) {
-      fetchCurrentUser();
+  // 格式化日期
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, "MMM d, yyyy HH:mm");
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dateString;
     }
-  }, [session]);
+  };
 
-  if (!session) {
+  // Loading states
+  if (loadingUser) {
+    return (
+      <div className="text-white text-center p-8">
+        <p>Loading user info...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
     return (
       <div className="text-center text-white">
         <p>Please sign in to view your chat history.</p>
@@ -75,9 +95,13 @@ export default function ChatHistoryClient() {
     <div className="max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold text-white mb-6">Chat History</h1>
       <div className="space-y-4">
-        {chats.map((chat) => {
-          const otherParticipant = chat.participants.find(p => p._id !== currentUserId);
+        {chats.map((chat: ChatRecord) => {
+          const otherParticipant = chat.participants.find(
+            (p) => p._id !== currentUser._id
+          );
           if (!otherParticipant) return null;
+
+          const lastActivityTime = chat.lastMessage?.createdAt || chat.updatedAt;
 
           return (
             <Link
@@ -86,30 +110,61 @@ export default function ChatHistoryClient() {
               className="block p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
             >
               <div className="flex items-center space-x-4">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                  <Image
-                    src={otherParticipant.avatarUrl || '/default-avatar.png'}
-                    alt={otherParticipant.name}
-                    layout="fill"
-                    objectFit="cover"
-                  />
+                <div className="relative w-12 h-12">
+                  <div className="rounded-full overflow-hidden w-full h-full ring-2 ring-purple-500/30">
+                    {otherParticipant.avatarUrl ? (
+                      <Image
+                        src={otherParticipant.avatarUrl}
+                        alt={otherParticipant.name}
+                        fill
+                        style={{ objectFit: "cover" }}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-600 flex items-center justify-center text-white text-lg font-semibold rounded-full">
+                        {otherParticipant.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-white truncate">
-                    {otherParticipant.name}
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white truncate">{otherParticipant.name}</h3>
+                    <div className="flex items-center gap-2">
+                      {chat.unreadCount > 0 && (
+                        <span className="bg-purple-600 text-white text-xs font-medium px-2.5 py-0.5 rounded-full">
+                          {chat.unreadCount}
+                        </span>
+                      )}
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault(); // 阻止链接跳转
+                          if (window.confirm("Are you sure you want to delete all messages in this conversation? This action cannot be undone.")) {
+                            try {
+                              await deleteMessages(chat._id);
+                            } catch (error) {
+                              console.error("Failed to delete messages:", error);
+                              alert("Failed to delete messages. Please try again.");
+                            }
+                          }
+                        }}
+                        className="p-1.5 hover:bg-red-600 rounded-lg transition-colors text-sm text-gray-400 hover:text-white"
+                        title="Delete conversation history"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                   {chat.lastMessage && (
-                    <p className="text-gray-300 text-sm truncate">
+                    <p className={`text-sm truncate ${chat.unreadCount > 0 ? 'text-white font-medium' : 'text-gray-300'}`}>
                       {chat.lastMessage.content}
                     </p>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-gray-400 text-xs">
-                    {chat.lastMessage
-                      ? format(new Date(chat.lastMessage.createdAt), 'MMM d, yyyy')
-                      : format(new Date(chat.createdAt), 'MMM d, yyyy')}
-                  </p>
+                  <p className="text-gray-400 text-xs">{formatDate(lastActivityTime)}</p>
                 </div>
               </div>
             </Link>
@@ -118,4 +173,4 @@ export default function ChatHistoryClient() {
       </div>
     </div>
   );
-} 
+}

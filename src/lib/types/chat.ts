@@ -10,9 +10,11 @@ export interface ChatMessage {
   _id: string;
   conversationId: string;
   senderId: string;
+  receiverId: string;
   content: string;
   createdAt: string;
-  status: MessageStatus;
+  status?: MessageStatus;
+  read?: boolean;
 }
 
 export interface ChatHookResult {
@@ -26,4 +28,28 @@ export interface ChatHookResult {
   setInputMessage: (value: string) => void;
   sendMessage: (content: string) => Promise<void>;
   loadMoreMessages: () => Promise<void>;
+}
+
+export interface ChatRecord {
+  _id: string;
+  participants: {
+    _id: string;
+    name: string;
+    avatarUrl?: string;
+  }[];
+  lastMessage?: {
+    _id: string;
+    content: string;
+    createdAt: string;
+    senderId: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  unreadCount: number;
+}
+
+export interface MessagesResponse {
+  messages: ChatMessage[];
+  hasMore: boolean;
+  nextPage?: number;
 } 

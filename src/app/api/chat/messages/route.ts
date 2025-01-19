@@ -1,150 +1,292 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
-import { auth } from '@/lib/auth';
+// pages/api/chat/messages/route.ts
+import { NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
+import { auth } from "@/lib/auth";
 
-// 设置合理的缓存时间
-export const revalidate = 30; // 30秒缓存
+export const revalidate = 30; 
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const conversationId = searchParams.get('conversationId');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    
+    const conversationId = searchParams.get("conversationId");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
+
     if (!conversationId || !ObjectId.isValid(conversationId)) {
-      return NextResponse.json({ error: 'Invalid conversation ID' }, { status: 400 });
+      return NextResponse.json({ error: "Invalid conversation ID" }, { status: 400 });
+    }
+
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const client = await clientPromise;
-    const db = client.db('pri-cio');
+    const db = client.db("pri-cio");
 
-    // 创建复合索引以提高查询性能
-    await db.collection('messages').createIndex({ conversationId: 1, createdAt: -1 });
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-    // 计算要跳过的文档数量
+    const userId = user._id.toString();
+
+    await db.collection("messages").createIndex({ conversationId: 1, createdAt: -1 });
+
     const skip = (page - 1) * limit;
-
-    // 使用聚合管道优化查询
-    const messages = await db.collection('messages')
+    const messages = await db
+      .collection("messages")
       .find({ 
-        conversationId: new ObjectId(conversationId)
+        conversationId: new ObjectId(conversationId),
+        $or: [
+          { deletedBy: { $exists: false } },
+          { deletedBy: { $ne: userId } }
+        ]
       })
-      .sort({ createdAt: -1 }) // 倒序排列，最新的消息在前
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .toArray();
 
-    // 获取总消息数（用于分页）
-    const total = await db.collection('messages')
-      .countDocuments({ conversationId: new ObjectId(conversationId) });
+    const total = await db
+      .collection("messages")
+      .countDocuments({ 
+        conversationId: new ObjectId(conversationId),
+        $or: [
+          { deletedBy: { $exists: false } },
+          { deletedBy: { $ne: userId } }
+        ]
+      });
 
-    // 转换 ObjectId 为字符串
-    const formattedMessages = messages.map(msg => ({
+    const formattedMessages = messages.map((msg) => ({
       ...msg,
       _id: msg._id.toString(),
       conversationId: msg.conversationId.toString(),
       senderId: msg.senderId.toString(),
       createdAt: msg.createdAt || new Date().toISOString(),
-      status: msg.status || 'sent'
+      status: msg.status || "sent",
     }));
 
     return NextResponse.json({
-      messages: formattedMessages.reverse(), // 返回正序的消息列表
+      messages: formattedMessages.reverse(), 
       total,
       page,
       limit,
-      hasMore: total > skip + limit
-    }, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=59',
-      },
+      hasMore: total > skip + limit,
     });
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch messages' },
-      { status: 500 }
-    );
+    console.error("Error fetching messages:", error);
+    return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
   }
 }
 
-// Send a new message
+// POST: send a new message
 export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { conversationId, content } = await req.json();
-
-    if (!conversationId || !content) {
-      return NextResponse.json(
-        { error: 'Conversation ID and content are required' },
-        { status: 400 }
-      );
+    const { conversationId, content, receiverId } = await req.json();
+    if (!content || !receiverId) {
+      return NextResponse.json({ error: "Content and receiver ID are required" }, { status: 400 });
     }
 
     const client = await clientPromise;
-    const db = client.db('pri-cio');
+    const db = client.db("pri-cio");
 
-    // Get sender's user ID
-    const sender = await db.collection('users').findOne(
-      { email: session.user.email },
-      { projection: { _id: 1 } }
-    );
-
+    const sender = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
     if (!sender) {
-      return NextResponse.json({ error: 'Sender not found' }, { status: 404 });
+      return NextResponse.json({ error: "Sender not found" }, { status: 404 });
     }
+    const senderId = sender._id.toString();
 
-    // Get conversation and verify sender is a participant
-    const conversation = await db.collection('conversations').findOne({
-      _id: new ObjectId(conversationId),
-      participants: sender._id.toString()
-    });
-
+    let conversation;
+    if (conversationId) {
+      conversation = await db.collection("conversations").findOne({
+        _id: new ObjectId(conversationId),
+        participants: { $all: [senderId, receiverId] },
+      });
+    }
     if (!conversation) {
-      return NextResponse.json(
-        { error: 'Conversation not found or unauthorized' },
-        { status: 404 }
+      conversation = {
+        _id: new ObjectId(),
+        participants: [senderId, receiverId],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      await db.collection("conversations").insertOne(conversation);
+    } else {
+      // 如果对话存在，恢复被删除的对话（如果被删除了的话）
+      await db.collection("conversations").updateOne(
+        { _id: conversation._id },
+        { 
+          $set: { updatedAt: new Date() },
+          $unset: { deletedBy: "" } // 移除 deletedBy 字段，恢复对话
+        }
       );
     }
 
-    // Get receiver ID (the other participant)
-    const receiverId = conversation.participants.find(
-      (id: string) => id !== sender._id.toString()
-    );
-
-    // Create new message
     const newMessage = {
-      conversationId: new ObjectId(conversationId),
-      senderId: sender._id.toString(),
+      conversationId: conversation._id,
+      senderId,
       receiverId,
       content,
       createdAt: new Date(),
-      read: false
+      read: false,
     };
 
-    const result = await db.collection('messages').insertOne(newMessage);
-
-    // Update conversation's updatedAt timestamp
-    await db.collection('conversations').updateOne(
-      { _id: new ObjectId(conversationId) },
-      { $set: { updatedAt: new Date() } }
-    );
+    const result = await db.collection("messages").insertOne(newMessage);
+    await db
+      .collection("conversations")
+      .updateOne({ _id: conversation._id }, { $set: { updatedAt: new Date() } });
 
     return NextResponse.json({
       _id: result.insertedId,
-      ...newMessage
+      ...newMessage,
+      conversationId: conversation._id.toString(),
     });
   } catch (error) {
-    console.error('Error sending message:', error);
-    return NextResponse.json(
-      { error: 'Failed to send message' },
-      { status: 500 }
-    );
+    console.error("Error sending message:", error);
+    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
-} 
+}
+
+// PATCH: mark messages as read
+export async function PATCH(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { conversationId } = await req.json();
+    if (!conversationId) {
+      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("pri-cio");
+
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // 更新所有未读消息为已读
+    const result = await db.collection("messages").updateMany(
+      {
+        conversationId: new ObjectId(conversationId),
+        receiverId: user._id.toString(),
+        read: false
+      },
+      {
+        $set: { read: true }
+      }
+    );
+
+    // 更新会话的未读消息计数
+    await db.collection("conversations").updateOne(
+      { _id: new ObjectId(conversationId) },
+      { $set: { unreadCount: 0 } }
+    );
+
+    return NextResponse.json({
+      success: true,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    return NextResponse.json({ error: "Failed to mark messages as read" }, { status: 500 });
+  }
+}
+
+// DELETE: soft delete messages for a conversation
+export async function DELETE(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { conversationId } = await req.json();
+    if (!conversationId) {
+      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("pri-cio");
+
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const userId = user._id.toString();
+
+    // Start a session for transaction
+    const mongoSession = client.startSession();
+    try {
+      await mongoSession.withTransaction(async () => {
+        // Soft delete all messages in the conversation for this user
+        await db.collection("messages").updateMany(
+          {
+            conversationId: new ObjectId(conversationId),
+            $or: [
+              { deletedBy: { $exists: false } },
+              { deletedBy: { $ne: userId } }
+            ]
+          },
+          {
+            $set: { deletedBy: userId }
+          },
+          { session: mongoSession }
+        );
+
+        // Soft delete the conversation for this user and reset unread count
+        await db.collection("conversations").updateOne(
+          { _id: new ObjectId(conversationId) },
+          {
+            $set: { 
+              deletedBy: userId,
+              unreadCount: 0 // 重置未读消息计数
+            }
+          },
+          { session: mongoSession }
+        );
+
+        // 将所有未读消息标记为已读
+        await db.collection("messages").updateMany(
+          {
+            conversationId: new ObjectId(conversationId),
+            receiverId: userId,
+            read: false
+          },
+          {
+            $set: { read: true }
+          },
+          { session: mongoSession }
+        );
+      });
+    } finally {
+      await mongoSession.endSession();
+    }
+
+    return NextResponse.json({
+      success: true
+    });
+  } catch (error) {
+    console.error("Error deleting messages:", error);
+    return NextResponse.json({ error: "Failed to delete messages" }, { status: 500 });
+  }
+}

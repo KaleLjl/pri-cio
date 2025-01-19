@@ -27,12 +27,33 @@ export default function Chat({ userId }: ChatProps) {
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const lastMessageRef = useRef<string | null>(null);
 
-  // Check authentication
+  // 身份验证检查
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/signin');
     }
   }, [status, router]);
+
+  // 立即检查是否是自己的ID
+  useEffect(() => {
+    const checkSelfChat = async () => {
+      if (status === 'authenticated' && session?.user?.email) {
+        try {
+          const response = await fetch('/api/users/me');
+          if (response.ok) {
+            const userData = await response.json();
+            if (userData._id === userId) {
+              router.push('/chat'); // 或者其他适当的页面
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error checking self chat:', error);
+        }
+      }
+    };
+    checkSelfChat();
+  }, [userId, status, session?.user?.email, router]);
 
   // Initialize chat
   useEffect(() => {
@@ -71,7 +92,7 @@ export default function Chat({ userId }: ChatProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             participantId: userId,
-            limit: 20, // Only load last 20 messages initially
+            limit: 20,
             offset: 0
           }),
         });
@@ -133,8 +154,19 @@ export default function Chat({ userId }: ChatProps) {
       if (shouldScrollToBottom || lastMessage.senderId === currentUserId) {
         scrollToBottom();
       }
+
+      // 只有当消息是接收到的新消息时才标记为已读
+      if (conversationId && currentUserId && lastMessage.senderId !== currentUserId) {
+        fetch('/api/chat/messages', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ conversationId }),
+        }).catch(console.error);
+      }
     }
-  }, [chat.messages, currentUserId, shouldScrollToBottom]);
+  }, [chat.messages, currentUserId, shouldScrollToBottom, conversationId]);
 
   // Load more messages when scrolling up
   useEffect(() => {
@@ -207,10 +239,12 @@ export default function Chat({ userId }: ChatProps) {
               </button>
               <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-purple-500/50">
                 <Image
-                  src={otherUser.avatarUrl || '/default-avatar.png'}
+                  src={otherUser.avatarUrl || '/images/default-avatar.png'}
                   alt={otherUser.name || 'User'}
-                  layout="fill"
-                  objectFit="cover"
+                  width={48}
+                  height={48}
+                  className="object-cover"
+                  priority
                 />
               </div>
               <div className="flex-1">
@@ -219,6 +253,24 @@ export default function Chat({ userId }: ChatProps) {
                   <p className="text-sm text-purple-400">typing...</p>
                 )}
               </div>
+              <button
+                onClick={async () => {
+                  if (window.confirm("Are you sure you want to delete all messages in this conversation? This action cannot be undone.")) {
+                    try {
+                      await chat.deleteMessages();
+                    } catch (error) {
+                      console.error("Failed to delete messages:", error);
+                      alert("Failed to delete messages. Please try again.");
+                    }
+                  }
+                }}
+                className="p-2 hover:bg-red-600 rounded-lg transition-colors text-sm text-white"
+                title="Delete conversation history"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>

@@ -1,5 +1,8 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
+// components/useChatHistory.ts
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+import { useRef, useCallback } from "react";
+import { ChatMessage } from "@/lib/types/chat";
 
 interface ChatRecord {
   _id: string;
@@ -16,6 +19,7 @@ interface ChatRecord {
   };
   createdAt: string;
   updatedAt: string;
+  unreadCount: number;
 }
 
 interface UseChatHistoryReturn {
@@ -23,58 +27,76 @@ interface UseChatHistoryReturn {
   loading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
+  updateChatHistory: (message: ChatMessage) => void;
+  deleteMessages: (conversationId: string) => Promise<void>;
 }
-
-const CHAT_HISTORY_CACHE_TIME = 1000 * 60 * 30; // 30 minutes
-const CHAT_HISTORY_STALE_TIME = 1000 * 60 * 5; // 5 minutes
 
 export function useChatHistory(): UseChatHistoryReturn {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const chatCacheRef = useRef<Map<string, ChatRecord>>(new Map());
 
   const {
     data: chats = [],
     isLoading: loading,
     error,
-    refetch
+    refetch,
   } = useQuery({
-    queryKey: ['chat-history'],
+    queryKey: ["chat-history"],
     queryFn: async () => {
-      const response = await fetch('/api/chat/conversations');
+      const response = await fetch("/api/chat/conversations");
       if (!response.ok) {
-        throw new Error('Failed to fetch chat history');
+        throw new Error("Failed to fetch chat history");
       }
       const data = await response.json();
-      return data as ChatRecord[];
+      chatCacheRef.current = new Map((data as ChatRecord[]).map((chat) => [chat._id, chat]));
+
+      return Array.from(chatCacheRef.current.values()).sort((a, b) => {
+        const timeA = a.lastMessage?.createdAt || a.updatedAt;
+        const timeB = b.lastMessage?.createdAt || b.updatedAt;
+        return new Date(timeB).getTime() - new Date(timeA).getTime();
+      });
     },
-    staleTime: CHAT_HISTORY_STALE_TIME,
-    gcTime: CHAT_HISTORY_CACHE_TIME,
+    staleTime: 0,
+    gcTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
     enabled: !!session,
-    refetchOnWindowFocus: false
   });
 
-  // Update chat history when receiving new message
-  const updateChatHistory = (newMessage: any, conversationId: string) => {
-    queryClient.setQueryData<ChatRecord[]>(['chat-history'], (oldChats) => {
-      if (!oldChats) return oldChats;
+  const updateChatHistory = useCallback(
+    (message: ChatMessage) => {
+      queryClient.setQueryData<ChatRecord[]>(
+        ["chat-history"],
+        (oldChats = []) => {
+          const updated = [...oldChats];
+          const chatIndex = updated.findIndex((chat) => chat._id === message.conversationId);
 
-      return oldChats.map(chat => {
-        if (chat._id === conversationId) {
-          return {
-            ...chat,
-            lastMessage: {
-              _id: newMessage._id,
-              content: newMessage.content,
-              createdAt: newMessage.createdAt,
-              senderId: newMessage.senderId
-            },
-            updatedAt: new Date().toISOString()
-          };
+          if (chatIndex !== -1) {
+            updated[chatIndex] = {
+              ...updated[chatIndex],
+              lastMessage: {
+                _id: message._id,
+                content: message.content,
+                createdAt: message.createdAt,
+                senderId: message.senderId,
+              },
+              updatedAt: message.createdAt,
+              unreadCount: message.senderId !== session?.user?.id 
+                ? (updated[chatIndex].unreadCount || 0) + 1 
+                : (updated[chatIndex].unreadCount || 0),
+            };
+          }
+
+          return updated.sort(
+            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
         }
-        return chat;
-      }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    });
-  };
+      );
+    },
+    [queryClient, session?.user?.id]
+  );
 
   return {
     chats,
@@ -82,6 +104,27 @@ export function useChatHistory(): UseChatHistoryReturn {
     error: error as Error | null,
     refetch: async () => {
       await refetch();
-    }
+    },
+    updateChatHistory,
+    deleteMessages: async (conversationId: string) => {
+      try {
+        const response = await fetch("/api/chat/messages", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId }),
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete messages");
+        }
+
+        // Invalidate and refetch chat history
+        await queryClient.invalidateQueries({ queryKey: ["chat-history"] });
+      } catch (error) {
+        console.error("Error deleting messages:", error);
+        throw error;
+      }
+    },
   };
-} 
+}
