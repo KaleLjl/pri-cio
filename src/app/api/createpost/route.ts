@@ -8,8 +8,6 @@ dotenv.config(); // Load environment variables
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // OpenAI API Key
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const CUSTOM_SEARCH_API_KEY = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY;
-const SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
 
 export const config = {
   api: {
@@ -17,59 +15,94 @@ export const config = {
   },
 };
 
+// export async function POST(request: Request) {
+//   try {
+//     // Step 1: Handle image upload
+//     const contentLength = request.headers.get('content-length');
+//     const nodeRequest = Object.assign(Readable.from(request.body as any), {
+//       headers: {
+//         'content-length': contentLength,
+//         ...Object.fromEntries(request.headers),
+//       },
+//     });
+
+//     const form = formidable({ multiples: false });
+//     const [fields, files] = await new Promise((resolve, reject) => {
+//       form.parse(nodeRequest, (err, fields, files) => {
+//         if (err) reject(err);
+//         else resolve([fields, files]);
+//       });
+//     });
+
+//     // Step 2: Validate file
+//     const imageFile = files?.image?.[0];
+//     if (!imageFile) {
+//       return NextResponse.json({ error: 'No image file uploaded' }, { status: 400 });
+//     }
+
+//     // Step 3: Analyze image using OpenAI Vision API
+//     const base64Image = await encodeImageToBase64(imageFile.filepath);
+//     const detailedDescription = await analyzeImageWithOpenAI(base64Image);
+
+//     return NextResponse.json({
+//       detailedDescription,
+//     });
+
+//   } catch (error) {
+//     console.error('Error processing the image:', error);
+//     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+//   }
+// }
 export async function POST(request: Request) {
   try {
-    // Step 1: Handle image upload
-    const contentLength = request.headers.get('content-length');
-    const nodeRequest = Object.assign(Readable.from(request.body as any), {
-      headers: {
-        'content-length': contentLength,
-        ...Object.fromEntries(request.headers),
-      },
-    });
+    const contentType = request.headers.get('content-type') || '';
 
-    const form = formidable({ multiples: false });
-    const [fields, files] = await new Promise((resolve, reject) => {
-      form.parse(nodeRequest, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve([fields, files]);
+    if (contentType.includes('multipart/form-data')) {
+      // Handle Image Upload and Analysis
+      const contentLength = request.headers.get('content-length');
+      const nodeRequest = Object.assign(Readable.from(request.body as any), {
+        headers: {
+          'content-length': contentLength,
+          ...Object.fromEntries(request.headers),
+        },
       });
-    });
 
-    // Step 2: Validate file
-    const imageFile = files?.image?.[0];
-    if (!imageFile) {
-      return NextResponse.json({ error: 'No image file uploaded' }, { status: 400 });
+      const form = formidable({ multiples: false });
+      const [fields, files] = await new Promise((resolve, reject) => {
+        form.parse(nodeRequest, (err, fields, files) => {
+          if (err) reject(err);
+          else resolve([fields, files]);
+        });
+      });
+
+      const imageFile = files?.image?.[0];
+      if (!imageFile) {
+        return NextResponse.json({ error: 'No image file uploaded' }, { status: 400 });
+      }
+
+      const base64Image = await encodeImageToBase64(imageFile.filepath);
+      const detailedDescription = await analyzeImageWithOpenAI(base64Image);
+
+      return NextResponse.json({ detailedDescription });
+    } else if (contentType.includes('application/json')) {
+      // Handle Conversation Context
+      const body = await request.json();
+      const { conversation } = body;
+
+      if (!Array.isArray(conversation)) {
+        return NextResponse.json(
+          { error: 'Invalid conversation format (expected an array)' },
+          { status: 400 }
+        );
+      }
+
+      const reply = await getNextAssistantMessage(conversation);
+      return NextResponse.json({ reply });
     }
 
-    // Step 3: Analyze image using OpenAI Vision API
-    const base64Image = await encodeImageToBase64(imageFile.filepath);
-    const detailedDescription = await analyzeImageWithOpenAI(base64Image);
-
-    if (detailedDescription === 'Human Face') {
-      // Step 4: Analyze the image further using Google Vision API
-      const [funnyDescription, humorousPrice] = await analyzePricesWithOpenAI_face();
-      return NextResponse.json({
-        funnyDescription,
-        humorousPrice,
-      });
-    }
-    else {
-      // Step 4: Fetch web search results using Google Custom Search API
-      const searchResults = await fetchSearchResults(detailedDescription);
-
-      // Step 5: Send search contexts to OpenAI for analysis
-      const contexts = searchResults.map((result: any) => result.snippet).join('\n\n');
-      const analyzedPrice = await analyzePricesWithOpenAI_notface(detailedDescription, contexts);
-      console.error('Search Results:', contexts);
-
-      return NextResponse.json({
-        detailedDescription,
-        mostRelevantPrice: analyzedPrice,
-      });
-    }
+    return NextResponse.json({ error: 'Unsupported Content-Type' }, { status: 400 });
   } catch (error) {
-    console.error('Error processing the image:', error);
+    console.error('Error processing the request:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -90,10 +123,12 @@ const analyzeImageWithOpenAI = async (base64Image: string): Promise<string> => {
         content: [
           { 
             type: 'text', 
-            text: 'Analyze the picture first in detail, and try to guess the name of the thing is in a few words without description. ' +
-            'For example, if the thing is a car, try to analyze what brand, model, year it is. ' +
-            'For items, try to guess the series, brand, size, and year.' +
-            'If recognize as human faces return "Human Face"'
+            text: 'You are a helpful assistant that determines a fair selling price for an item.' +
+                  '1. The user has uploaded a photo. You analyzed it and think what it is.' +
+                  '2. First give feedback on the image the user uploaded, for example what is it...' +
+                  '3. And ask the user for critical details—size, condition, damage, or anything else relevant—until you feel you have enough information.' +
+                  '4. Once you have enough information, you must generate a recommended selling price.' +
+                  '5. Your tone should be straightforward and helpful.'
           },
           { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
         ],
@@ -123,65 +158,26 @@ const analyzeImageWithOpenAI = async (base64Image: string): Promise<string> => {
   return description;
 };
 
-const fetchSearchResults = async (query: string) => {
-  const dynamicQuery = `${query} price cost`;
-  const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(dynamicQuery)}&key=${CUSTOM_SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}`;
+const getNextAssistantMessage = async (conversation: { role: string; content: string }[]) => {
+  // Prepend a system message for context
+  const systemPrompt = {
+    role: 'system',
+    content: `You are a helpful assistant that determines a fair selling price for an item. 
+              You will ask the user for critical details like size, condition, brand, or any unique features of the item. 
+              Once you have enough details, provide a recommended price.`,
+  };
 
-  console.log(`Fetching search results for: ${dynamicQuery}`);
-
-  const response = await fetch(url);
-  const data = await response.json();
-
-  if (!response.ok || !data.items) {
-    console.error('Google Custom Search API Error:', data);
-    throw new Error('Failed to fetch search results.');
-  }
-
-  const pricePattern = /(?:[£$€¥]\s?\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?|\d{1,3}(?:[ ,]?\d{3})*(?:\.\d{1,2})?\s?[£$€¥])/g;
-
-  const resultsWithPrices = data.items
-    .map((item) => {
-      const text = `${item.title} ${item.snippet}`;
-      const prices = text.match(pricePattern);
-      return prices
-        ? {
-            title: item.title,
-            snippet: item.snippet,
-            prices,
-          }
-        : null;
-    })
-    .filter((item) => item !== null);
-
-  if (resultsWithPrices.length === 0) {
-    console.log('No prices found in search results.');
-    return [];
-  }
-
-  console.log(`Extracted Prices from Search Results:`, resultsWithPrices);
-  return resultsWithPrices;
-};
-
-
-const analyzePricesWithOpenAI_notface = async (query: string, contexts: string): Promise<string> => {
-  const prompt = `
-You are an assistant tasked with extracting the most accurate and reliable price of an object.
-The object description is: "${query}".
-
-Below are contexts extracted from search results that mention prices. 
-Please analyze them carefully and provide the most relevant price based on reliability and context.
-
-Contexts:
-${contexts}
-
-Your response should contain ONLY the most accurate price, including its currency symbol (e.g., £2,570.00 or $400).
-If you cannot find a price, respond with "No relevant prices found".
-`;
-
+  // Sanitize conversation roles
+  const sanitizedConversation = [systemPrompt, ...conversation.map((msg) => ({
+    ...msg,
+    role: msg.role === 'gpt' ? 'assistant' : msg.role, // Fix invalid roles
+  }))];
+  
   const payload = {
-    model: 'gpt-4o-2024-08-06',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 100,
+    model: 'gpt-4',
+    messages: sanitizedConversation,
+    max_tokens: 300,
+    temperature: 0.7,
   };
 
   const response = await fetch(OPENAI_API_URL, {
@@ -196,159 +192,11 @@ If you cannot find a price, respond with "No relevant prices found".
   if (!response.ok) {
     const errorText = await response.text();
     console.error('OpenAI API Error Response:', errorText);
-    throw new Error(`Failed to process prices with OpenAI: ${response.status} ${response.statusText}`);
+    throw new Error(`Failed to get GPT reply: ${response.statusText}`);
   }
 
   const result = await response.json();
-  const analyzedPrice = result.choices[0]?.message?.content || 'No relevant prices found';
-  console.log(`🎯 OpenAI Processed Price: ${analyzedPrice}`);
-  return analyzedPrice.trim();
+  return result.choices[0]?.message?.content || '';
 };
-
-const analyzePricesWithOpenAI_face = async (): Promise<[string, string]> => {
-  const prompt = `
-You are a creative and humorous assistant. A photo of a human face has been detected.
-Generate:
-1. A funny and witty description of the person in the photo.
-2. A humorous price estimate that reflects the person's "value" in a fun and imaginative way (e.g., "$1,000,000 for the million-dollar smile").
-3. Use normal speaking tone and a touch of humor, but don't use difficult words. 
-4. Keep descriptions concise under 100 characters, avoiding anything inappropriate or overly critical.
-
-Output the response in the following format:
-Funny Description: <Your description here>
-Humorous Price: <Numerical price here>
-`;
-
-  const payload = {
-    model: 'gpt-4o-2024-08-06',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 100,
-  };
-
-  const response = await fetch(OPENAI_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('OpenAI API Error Response:', errorText);
-    throw new Error(`Failed to generate funny description and price: ${response.status} ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  const content = result.choices[0]?.message?.content || 'Funny Description: Unknown\nHumorous Price: $0';
-
-  const funnyDescription = content.match(/Funny Description:\s*(.*)/)?.[1] || 'No description found';
-  const humorousPriceMatch = content.match(/Humorous Price:\s*\$?(\d[\d,]*)/);
-  const humorousPrice = humorousPriceMatch ? `$${humorousPriceMatch[1]}` : '$0';
-
-  return [funnyDescription, humorousPrice];
-};
-
-
-
-
-
-
-
-
-
-
-// import { NextResponse } from 'next/server';
-
-// export async function POST(req: Request) {
-//   try {
-//     const body = await req.json();
-//     const { description, images, conversationHistory } = body;
-
-//     if (!description && (!conversationHistory || conversationHistory.length === 0)) {
-//       return NextResponse.json({ error: 'Initial description is required' }, { status: 400 });
-//     }
-
-//     if (!images || images.length === 0) {
-//       return NextResponse.json({ error: 'At least one image is required' }, { status: 400 });
-//     }
-
-//     // Call OpenAI API with description, image data, and conversation history
-//     const gptResponse = await callOpenAIAPI(description, images, conversationHistory);
-
-//     return NextResponse.json({ message: gptResponse });
-//   } catch (error) {
-//     console.error('Error processing request:', error);
-//     return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
-//   }
-// }
-
-// async function callOpenAIAPI(
-//   description: string | null,
-//   images: string[],
-//   conversationHistory: { role: string; content: string }[] = []
-// ): Promise<string> {
-//   const apiKey = process.env.OPENAI_API_KEY;
-
-//   if (!apiKey) {
-//     throw new Error('Missing OpenAI API key in environment variables');
-//   }
-
-//   const messages = [
-//     {
-//       role: 'system',
-//       content:
-//         'You are an assistant specialized in item appraisal. Analyze both the description and the images provided by the user. If there are visible details in the images, mention them and ask the user for confirmation or corrections. Gather all necessary details about the item, such as condition, size, age, brand, and any damage. Once you have enough information, provide an estimated price for the item.',
-//     },
-//     ...conversationHistory, // Add the ongoing conversation history
-//   ];
-
-//   if (description) {
-//     messages.push({
-//       role: 'user',
-//       content: `Description: ${description}. Images are attached below in base64 format.`,
-//     });
-//   }
-
-//   messages.push({
-//     role: 'user',
-//     content: `Images: The following base64 images are provided for analysis. [Number of images: ${images.length}]`,
-//   });
-
-//   const response = await fetch('https://api.openai.com/v1/chat/completions', {
-//     method: 'POST',
-//     headers: {
-//       'Content-Type': 'application/json',
-//       Authorization: `Bearer ${apiKey}`,
-//     },
-//     body: JSON.stringify({
-//       model: 'gpt-4o',
-//       messages,
-//     }),
-//   });
-
-//   if (!response.ok) {
-//     const errorDetails = await response.text();
-//     console.error('OpenAI API error:', errorDetails);
-//     throw new Error('Failed to fetch response from OpenAI API');
-//   }
-
-//   const data = await response.json();
-//   const choice = data.choices?.[0]?.message;
-
-//   if (!choice || !choice.content) {
-//     throw new Error('Invalid API response structure');
-//   }
-
-//   return choice.content.trim();
-// }
-
-
-
-
-
-
-
 
 
