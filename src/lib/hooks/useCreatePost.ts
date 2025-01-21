@@ -1,53 +1,52 @@
 import { useState } from 'react';
 
-interface ChatMessage {
-  sender: 'user' | 'gpt';
-  text: string;
-}
+export const useImageCaptureGoogle = () => {
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-interface CreatePostPayload {
-  description: string;
-  images?: string[]; // Include images in the payload
-}
+  const uploadImage = (file: File) => {
+    setSelectedImage(file);
+  };
 
-export function useCreatePost() {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const analyzeImage = async () => {
+    if (!selectedImage) return;
 
-  const sendMessageToGPT = async (description: string, images?: string[]) => {
-    setLoading(true);
-    setError(null);
-
-    const userMessage: ChatMessage = { sender: 'user', text: description };
-    setChatMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
+    const formData = new FormData();
+    formData.append('image', selectedImage);
 
     try {
-      const payload: CreatePostPayload = { description, images };
-
-      const response = await fetch('/api/createpost', {
+      const response = await fetch('/api/google', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
-      if (!response.ok) {
-        const errorDetails = await response.text();
-        throw new Error(`Failed to communicate with GPT: ${errorDetails}`);
-      }
+      if (!response.ok) throw new Error('Failed to analyze image');
 
       const data = await response.json();
-
-      const gptMessage: ChatMessage = { sender: 'gpt', text: data.message };
-      setChatMessages((prev) => [...prev, gptMessage]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setResult(data);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'An error occurred');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  return { chatMessages, sendMessageToGPT, loading, error };
-}
+  const clearImage = () => {
+    setSelectedImage(null);
+    setResult(null);
+    setErrorMessage(null);
+  };
+
+  return {
+    selectedImage,
+    isLoading,
+    result,
+    errorMessage,
+    uploadImage,
+    analyzeImage,
+    clearImage,
+  };
+};
