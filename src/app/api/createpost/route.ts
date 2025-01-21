@@ -1,108 +1,86 @@
 import OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { zodResponseFormat } from "openai/helpers/zod";
 import { InitialAnalysis, PriceDescription } from "@/lib/types/gpt";
-import { getInitialAnalysisPrompt, getBasePricePrompt } from "@/lib/prompts";
+import {
+  getInitialAnalysisPrompt,
+  getNonTradablePrompt
+} from "@/lib/prompts";
 
 const openai = new OpenAI();
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    console.log("🚀 Starting image analysis process...");
-
+    console.log('🚀 Starting image analysis process...');
+    
     // Authenticate user
     const session = await auth();
     if (!session) {
-      console.log("❌ Authentication failed");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      console.log('❌ Authentication failed');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    console.log("✅ Authentication successful");
+    console.log('✅ Authentication successful');
 
-    // Parse request body
-    const { description, images } = await req.json();
-    if (!description) {
-      return NextResponse.json({ error: "Description is required" }, { status: 400 });
-    }
+    // Parse request payload
+    const { images } = await request.json();
     if (!images || images.length === 0) {
-      return NextResponse.json({ error: "At least one image is required" }, { status: 400 });
+      return NextResponse.json({ error: 'At least one image is required.' }, { status: 400 });
     }
+    console.log('📸 Received images:', images);
 
-    // Validate image URLs
-    const invalidImages = images.filter((url: string) => !isValidUrl(url));
-    if (invalidImages.length > 0) {
-      return NextResponse.json(
-        { error: `One or more images are not valid URLs: ${invalidImages.join(", ")}` },
-        { status: 400 }
-      );
-    }
-    console.log("📸 Validated images:", images);
+    // Analyze each image
+    const feedbacks = await Promise.all(
+      images.map(async (image: string) => {
+        try {
+          console.log(`🔍 Analyzing image: ${image}`);
+          const initialAnalysis = await openai.beta.chat.completions.parse({
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: getInitialAnalysisPrompt(),
+              },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: "What do you see in this image?" },
+                  { type: "image_url", image_url: { url: image } },
+                ],
+              },
+            ],
+            response_format: zodResponseFormat(InitialAnalysis, "object"),
+          });
 
-    // Step 1: Initial image analysis
-    console.log("🔍 Starting initial image analysis...");
-    const initialAnalysis = await openai.beta.chat.completions.parse({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: getInitialAnalysisPrompt(),
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `What do you see in these images? Description: ${description}` },
-            ...images.map((image: string) => ({ type: "image_url", image_url: { url: image } })),
-          ],
-        },
-      ],
-      response_format: zodResponseFormat(InitialAnalysis, "object"),
-    });
+          const content = initialAnalysis.choices[0].message.content;
+          if (!content) throw new Error('No content received from OpenAI.');
 
-    const content = initialAnalysis.choices[0].message.content;
-    if (!content) throw new Error("No content received from OpenAI");
+          const { objectDescription, tradable } = JSON.parse(content);
+          console.log('📝 Analysis complete:', { tradable, objectDescription });
 
-    const { objectDescription, tradable } = JSON.parse(content);
-    console.log("📝 Initial analysis complete:", { tradable, objectDescription });
-    // Step 2: Handle tradable/non-tradable items
-    const baseAnalysisPrompt = getBasePricePrompt(objectDescription, "USD"); // Assuming USD as the currency for simplicity
-    const completion = await openai.beta.chat.completions.parse({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: baseAnalysisPrompt,
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Estimate a second-hand market price for this item." },
-            ...images.map((image: string) => ({ type: "image_url", image_url: { url: image } })),
-          ],
-        },
-      ],
-      response_format: zodResponseFormat(PriceDescription, "object"),
-    });
+          if (!tradable) {
+            console.log('🎨 Non-tradable item detected.');
+            return { image, message: "This item isn't tradable, but it looks interesting!", objectDescription };
+          }
 
-    const completionContent = completion.choices[0].message.content;
-    if (!completionContent) throw new Error("No content received from OpenAI");
+          console.log('🛒 Tradable item detected.');
+          return { image, message: "This item appears tradable!", objectDescription };
+        } catch (err) {
+          console.error('❌ Error analyzing image:', image, err);
+          return { image, error: "Failed to analyze this image." };
+        }
+      })
+    );
 
-    console.log("✅ Analysis complete");
-    return NextResponse.json(JSON.parse(completionContent));
+    console.log('✅ All images analyzed. Sending feedback...');
+    return NextResponse.json({ feedbacks });
   } catch (error) {
-    console.error("❌ Error processing image:", error);
-    return NextResponse.json({ error: "Failed to process image" }, { status: 500 });
+    console.error('❌ Unexpected error:', error);
+    return NextResponse.json({ error: 'Failed to process request.' }, { status: 500 });
   }
 }
 
-// Helper function to validate URLs
-function isValidUrl(url: string): boolean {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
+
 
 
 
