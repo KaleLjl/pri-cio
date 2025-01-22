@@ -7,8 +7,8 @@
       "signout": "退出"
     },
     "landing": {
-      "title": "智能估价",
-      "subtitle": "想知道你的脸、美食或物品值多少钱？上传照片，立即获得有趣的价格估算！",
+      "title": "PRICIO AI",
+      "subtitle": "给每个物品其应有的价格",
       "getStarted": "开始使用",
       "description": {
         "title": "图片转化价值",
@@ -19,7 +19,7 @@
             "description": "上传您或朋友的照片，让AI根据个性、外表和潜力给出有趣的价格评估。"
           },
           "object": {
-            "title": "物品估价",
+            "title": "闲置估价",
             "description": "想知道您的电子产品、小物件或艺术品的价值？上传图片，AI将立即计算出估计价值。"
           },
           "food": {
