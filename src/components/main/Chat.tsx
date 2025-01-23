@@ -8,15 +8,15 @@ import { ChatUser } from '@/lib/types/chat';
 import { useSession } from 'next-auth/react';
 import { useInView } from 'react-intersection-observer';
 import { format } from 'date-fns';
-import type { Dictionary } from '@/lib/i18n/types';
+import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
 interface ChatProps {
   userId: string;
-  dict: Dictionary;
 }
 
-export default function Chat({ userId, dict }: ChatProps) {
+export default function Chat({ userId }: ChatProps) {
+  const { dict } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
   const [currentUserId, setCurrentUserId] = useState<string>('');

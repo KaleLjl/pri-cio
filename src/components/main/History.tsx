@@ -13,15 +13,15 @@ import LocationOptionModal from '../ui/LocationOptionModal';
 import { Avatar } from '@mui/material';
 import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
 import { CURRENCIES, Currency } from '@/components/main/App'; // Import types and data
-import type { Dictionary } from '@/lib/i18n/types';
+import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
 interface HistoryProps {
   histories: HistoryItem[];
-  dict: Dictionary;
 }
 
-export default function History({ histories: initialHistories, dict }: HistoryProps) {
+export default function History({ histories: initialHistories }: HistoryProps) {
+  const { dict } = useLanguage();
   const {
     histories,
     setHistories,

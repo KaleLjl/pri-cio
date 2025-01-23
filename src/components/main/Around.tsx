@@ -6,7 +6,9 @@ import { useExplore } from '@/lib/hooks/useExplore';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { CURRENCIES } from '@/components/main/App';
-import ImageWithFallback from '@/components/main/ImageWithFallback';
+import { useLanguage } from '@/lib/context/LanguageContext';
+import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import { useCurrentUser } from '@/lib/context/CurrentUserContext';
 
 // Use your key from .env or wherever:
 const OPENCAGE_API_KEY = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
@@ -164,25 +166,25 @@ function getChatBubbleIcon(areaName: string, postCount: number) {
 /** --------------------------
  * 4) Reverse Geocode helper
  * -------------------------- */
-async function reverseGeocode(lat: number, lng: number, zoom: number): Promise<string> {
+async function reverseGeocode(lat: number, lng: number, zoom: number, unknownAreaText: string): Promise<string> {
   // If you have no key, you'll get a 403. Make sure OPENCAGE_API_KEY is set.
   const url = `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=${OPENCAGE_API_KEY}&limit=1&language=en`;
   const resp = await fetch(url);
   if (!resp.ok) {
     console.error('OpenCage request failed:', resp.status, resp.statusText);
-    return 'Unknown area';
+    return unknownAreaText;
   }
 
   const data = await resp.json();
   const result = data?.results?.[0];
   if (!result) {
-    return 'Unknown area';
+    return unknownAreaText;
   }
 
   // Grab the components
   const comps = result.components;
   if (!comps) {
-    return 'Unknown area';
+    return unknownAreaText;
   }
 
   // Decide which field to return based on zoom
@@ -193,13 +195,15 @@ async function reverseGeocode(lat: number, lng: number, zoom: number): Promise<s
     return comps.city;
   }
   // fallback to state / country if city isn't available
-  return comps.state || comps.country || 'Unknown area';
+  return comps.state || comps.country || unknownAreaText;
 }
 
 /** --------------------------
  * 5) Main Component
  * -------------------------- */
 const Around = () => {
+  const { dict } = useLanguage();
+  const { currentUser } = useCurrentUser();
   const { explores, fetchExplorePosts } = useExplore([]);
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
@@ -337,11 +341,11 @@ const Around = () => {
         // single post
         const post = c.posts[0];
         // 1) Get an areaName from reverse geocode
-        const areaName = await reverseGeocode(c.lat, c.lng, zoom);
+        const areaName = await reverseGeocode(c.lat, c.lng, zoom, dict.around.unknownArea);
         const marker = new window.google.maps.Marker({
           position: { lat: c.lat, lng: c.lng },
           icon: getChatBubbleIcon(areaName, 1), // Use chat bubble icon for single post
-          title: post.description || 'Post',
+          title: post.description || dict.around.noDescription,
         });
 
         marker.addListener('click', () => {
@@ -360,11 +364,11 @@ const Around = () => {
         markersRef.current.push(marker);
       } else {
         // multiple => get an area name
-        const areaName = await reverseGeocode(c.lat, c.lng, zoom);
+        const areaName = await reverseGeocode(c.lat, c.lng, zoom, dict.around.unknownArea);
         const marker = new window.google.maps.Marker({
           position: { lat: c.lat, lng: c.lng },
           icon: getChatBubbleIcon(areaName, c.posts.length),
-          title: `${areaName} - ${c.posts.length} posts`,
+          title: `${areaName} - ${c.posts.length} ${dict.around.posts}`,
         });
 
         marker.addListener('click', () => {
@@ -475,11 +479,11 @@ const Around = () => {
         },
         (err) => {
           console.error('Error fetching location:', err.message);
-          alert('Please enable location for directions to work.');
+          alert(dict.around.enableLocation);
         }
       );
     } else {
-      alert('Geolocation not supported by this browser.');
+      alert(dict.around.geolocationNotSupported);
     }
   };
 
@@ -511,8 +515,12 @@ const Around = () => {
       console.log('No userId provided');
       return;
     }
+    // Don't allow clicking own avatar to chat
+    if (currentUser && userId === currentUser._id) {
+      return;
+    }
     router.push(`/chat/${userId}`);
-  }, [router]);
+  }, [router, currentUser]);
 
   const handleSendMessageClick = useCallback((userId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent the post modal from opening
@@ -521,8 +529,12 @@ const Around = () => {
       console.log('No userId provided');
       return;
     }
+    // Don't allow sending message to self
+    if (currentUser && userId === currentUser._id) {
+      return;
+    }
     router.push(`/chat/${userId}`);
-  }, [router]);
+  }, [router, currentUser]);
 
   return (
     <div className="min-h-screen flex flex-col bg-black">
@@ -535,7 +547,7 @@ const Around = () => {
           zIndex: 10,
         }}
       >
-        <h1>Navigation Bar</h1>
+        <h1>{dict.around.navigationBar}</h1>
       </nav>
   
       <div
@@ -661,26 +673,28 @@ const Around = () => {
                               <path d="M8.5 15C8.30189 14.9974 8.11263 14.9176 7.97253 14.7775C7.83244 14.6374 7.75259 14.4481 7.75 14.25V11.46C7.75259 11.2619 7.83244 11.0727 7.97253 10.9326C8.11263 10.7925 8.30189 10.7126 8.5 10.71H15.5C15.6989 10.71 15.8897 10.789 16.0303 10.9297C16.171 11.0703 16.25 11.2611 16.25 11.46C16.25 11.6589 16.171 11.8497 16.0303 11.9904C15.8897 12.131 15.6989 12.21 15.5 12.21H9.25V14.21C9.25402 14.3115 9.23766 14.4127 9.20189 14.5078C9.16613 14.6028 9.11168 14.6897 9.04177 14.7633C8.97185 14.837 8.88789 14.8959 8.79484 14.9365C8.70179 14.9772 8.60154 14.9988 8.5 15Z" fill="currentColor"/>
                             </svg>
                           </button>
-                          {/* Send a Message Button */}
-                          <button
-                            onClick={(e) => handleSendMessageClick(selectedPost.userProfile?._id, e)}
-                            className="mt-2 inline-flex items-center justify-center p-0 hover:bg-transparent ml-6"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-10 w-10 text-purple-600 hover:text-purple-800"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
+                          {/* Send a Message Button - Only show if not own post */}
+                          {(!currentUser || selectedPost.userProfile?._id !== currentUser._id) && (
+                            <button
+                              onClick={(e) => handleSendMessageClick(selectedPost.userProfile?._id, e)}
+                              className="mt-2 inline-flex items-center justify-center p-0 hover:bg-transparent ml-6"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M11.5003 12H5.41872M5.24634 12.7972L4.24158 15.7986C3.69128 17.4424 3.41613 18.2643 3.61359 18.7704C3.78506 19.21 4.15335 19.5432 4.6078 19.6701C5.13111 19.8161 5.92151 19.4604 7.50231 18.7491L17.6367 14.1886C19.1797 13.4942 19.9512 13.1471 20.1896 12.6648C20.3968 12.2458 20.3968 11.7541 20.1896 11.3351C19.9512 10.8529 19.1797 10.5057 17.6367 9.81135L7.48483 5.24303C5.90879 4.53382 5.12078 4.17921 4.59799 4.32468C4.14397 4.45101 3.77572 4.78336 3.60365 5.22209C3.40551 5.72728 3.67772 6.54741 4.22215 8.18767L5.24829 11.2793C5.34179 11.561 5.38855 11.7019 5.407 11.8459C5.42338 11.9738 5.42321 12.1032 5.40651 12.231C5.38768 12.375 5.34057 12.5157 5.24634 12.7972Z"
-                              />
-                            </svg>
-                          </button>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-10 w-10 text-purple-600 hover:text-purple-800"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M11.5003 12H5.41872M5.24634 12.7972L4.24158 15.7986C3.69128 17.4424 3.41613 18.2643 3.61359 18.7704C3.78506 19.21 4.15335 19.5432 4.6078 19.6701C5.13111 19.8161 5.92151 19.4604 7.50231 18.7491L17.6367 14.1886C19.1797 13.4942 19.9512 13.1471 20.1896 12.6648C20.3968 12.2458 20.3968 11.7541 20.1896 11.3351C19.9512 10.8529 19.1797 10.5057 17.6367 9.81135L7.48483 5.24303C5.90879 4.53382 5.12078 4.17921 4.59799 4.32468C4.14397 4.45101 3.77572 4.78336 3.60365 5.22209C3.40551 5.72728 3.67772 6.54741 4.22215 8.18767L5.24829 11.2793C5.34179 11.561 5.38855 11.7019 5.407 11.8459C5.42338 11.9738 5.42321 12.1032 5.40651 12.231C5.38768 12.375 5.34057 12.5157 5.24634 12.7972Z"
+                                />
+                              </svg>
+                            </button>
+                          )}
                       </div>
                       )}
                     </div>
@@ -705,7 +719,7 @@ const Around = () => {
                   <div className="space-y-4">
                     {/* Header with Close Button */}
                     <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-bold text-white">Posts in This Cluster</h2>
+                      <h2 className="text-lg font-bold text-white">{dict.around.postsInCluster}</h2>
                       <button
                         onClick={handleCloseClusterModal}
                         className="text-gray-500 hover:text-gray-800 focus:outline-none"

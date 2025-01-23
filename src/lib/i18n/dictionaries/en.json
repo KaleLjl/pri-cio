@@ -42,6 +42,16 @@
       "zh": "Chinese"
     }
   },
+  "around": {
+    "unknownArea": "Unknown area",
+    "noDescription": "No description available",
+    "posts": "posts",
+    "enableLocation": "Please enable location for directions to work",
+    "geolocationNotSupported": "Geolocation not supported by this browser",
+    "navigationBar": "Around Me",
+    "postsInCluster": "Posts in This Cluster",
+    "anonymous": "Anonymous"
+  },
   "app": {
     "title": "What price do you want to know?",
     "titleWithPrice": "Click to edit",

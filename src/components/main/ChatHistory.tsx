@@ -8,14 +8,11 @@ import { useChatHistory } from "@/lib/hooks/useChatHistory";
 import { socketService } from "@/lib/socket";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
 import { ChatRecord } from "@/lib/types/chat";
-import type { Dictionary } from '@/lib/i18n/types';
+import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
-interface ChatHistoryProps {
-  dict: Dictionary;
-}
-
-export default function ChatHistoryClient({ dict }: ChatHistoryProps) {
+export default function ChatHistoryClient() {
+  const { dict } = useLanguage();
   const { currentUser, loadingUser } = useCurrentUser();
   const { chats, loading, error, deleteMessages } = useChatHistory();
 

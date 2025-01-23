@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import ImageCapture from '@/components/main/app';
+import ImageCapture from '@/components/main/App';
 import { getDictionary } from '@/lib/i18n/get-dictionary';
 import { Locale } from '@/lib/i18n/i18n-config';
 

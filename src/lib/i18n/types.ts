@@ -42,6 +42,16 @@ export interface Dictionary {
       zh: string;
     };
   };
+  around: {
+    unknownArea: string;
+    noDescription: string;
+    posts: string;
+    enableLocation: string;
+    geolocationNotSupported: string;
+    navigationBar: string;
+    postsInCluster: string;
+    anonymous: string;
+  };
   app: {
     title: string;
     titleWithPrice: string;

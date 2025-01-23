@@ -11,12 +11,11 @@ import { motion, AnimatePresence} from 'framer-motion';
 import Modal from 'react-modal';
 import { CURRENCIES } from '@/components/main/App';
 import { useSession } from 'next-auth/react';
-import type { Dictionary } from '@/lib/i18n/types';
+import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
 interface DisplayExploreProps {
   explores: ExploreItem[];
-  dict: Dictionary;
 }
 
 const RadiusDropdown = ({ radius, setRadius }: { radius: number; setRadius: (value: number) => void }) => {
@@ -74,7 +73,8 @@ const RadiusDropdown = ({ radius, setRadius }: { radius: number; setRadius: (val
   );
 };
 
-export default function Explore({ explores: initialExplores, dict }: DisplayExploreProps) {
+export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
+  const { dict } = useLanguage();
   const { explores, isLoading, error } = useExplore(initialExplores);
   const [selectedCard, setSelectedCard] = useState<ExploreItem | null>(null);  
   const searchParams = useSearchParams();

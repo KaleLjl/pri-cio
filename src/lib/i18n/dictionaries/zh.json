@@ -42,6 +42,16 @@
       "zh": "中文"
     }
   },
+  "around": {
+    "unknownArea": "未知区域",
+    "noDescription": "暂无描述",
+    "posts": "个帖子",
+    "enableLocation": "请启用位置服务以使用导航功能",
+    "geolocationNotSupported": "此浏览器不支持地理位置功能",
+    "navigationBar": "周边",
+    "postsInCluster": "此区域的帖子",
+    "anonymous": "匿名"
+  },
   "app": {
     "title": "想知道什么价格？",
     "titleWithPrice": "点击编辑",

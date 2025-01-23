@@ -11,14 +11,11 @@ import {
 } from "@mui/material";
 import { useProfilePage } from "@/lib/hooks/useProfilePage";
 import { useSession } from 'next-auth/react'; // Import useSession to get user data
-import type { Dictionary } from '@/lib/i18n/types';
+import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
-interface EditProfileProps {
-  dict: Dictionary;
-}
-
-const ProfilePage = ({ dict }: EditProfileProps) => {
+const ProfilePage = () => {
+  const { dict } = useLanguage();
   // 获取用户会话数据
   const { data: session } = useSession();
   const userId = session?.user?.id || "";
