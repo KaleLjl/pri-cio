@@ -8,8 +8,13 @@ import { useChatHistory } from "@/lib/hooks/useChatHistory";
 import { socketService } from "@/lib/socket";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
 import { ChatRecord } from "@/lib/types/chat";
+import type { Dictionary } from '@/lib/i18n/types';
 
-export default function ChatHistoryClient() {
+interface ChatHistoryProps {
+  dict: Dictionary;
+}
+
+export default function ChatHistoryClient({ dict }: ChatHistoryProps) {
   const { currentUser, loadingUser } = useCurrentUser();
   const { chats, loading, error, deleteMessages } = useChatHistory();
 
@@ -45,7 +50,7 @@ export default function ChatHistoryClient() {
   if (loadingUser) {
     return (
       <div className="text-white text-center p-8">
-        <p>Loading user info...</p>
+        <p>{dict.chatHistory.loading}</p>
       </div>
     );
   }
@@ -53,9 +58,9 @@ export default function ChatHistoryClient() {
   if (!currentUser) {
     return (
       <div className="text-center text-white">
-        <p>Please sign in to view your chat history.</p>
+        <p>{dict.chatHistory.signIn.message}</p>
         <Link href="/signin" className="text-blue-400 hover:text-blue-300">
-          Sign in
+          {dict.chatHistory.signIn.action}
         </Link>
       </div>
     );
@@ -72,7 +77,7 @@ export default function ChatHistoryClient() {
   if (error) {
     return (
       <div className="text-red-500 p-4 text-center">
-        Error loading chat history: {error.message}
+        {dict.chatHistory.error}: {error.message}
       </div>
     );
   }
@@ -80,12 +85,12 @@ export default function ChatHistoryClient() {
   if (!chats?.length) {
     return (
       <div className="text-white text-center p-8">
-        <p className="mb-4">No chat history found.</p>
+        <p className="mb-4">{dict.chatHistory.findPeople.message}</p>
         <Link
           href="/explore"
           className="inline-block bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-500 transition-colors"
         >
-          Find people to chat with
+          {dict.chatHistory.findPeople.action}
         </Link>
       </div>
     );
@@ -93,7 +98,7 @@ export default function ChatHistoryClient() {
 
   return (
     <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold text-white mb-6">Chat History</h1>
+      <h1 className="text-2xl font-bold text-white mb-6">{dict.chatHistory.title}</h1>
       <div className="space-y-4">
         {chats.map((chat: ChatRecord) => {
           const otherParticipant = chat.participants.find(
@@ -139,17 +144,18 @@ export default function ChatHistoryClient() {
                       <button
                         onClick={async (e) => {
                           e.preventDefault(); // 阻止链接跳转
-                          if (window.confirm("Are you sure you want to delete all messages in this conversation? This action cannot be undone.")) {
+                          if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
                             try {
                               await deleteMessages(chat._id);
+                              alert(dict.chatHistory.toast.deleteSuccess);
                             } catch (error) {
                               console.error("Failed to delete messages:", error);
-                              alert("Failed to delete messages. Please try again.");
+                              alert(dict.chatHistory.toast.deleteError);
                             }
                           }
                         }}
                         className="p-1.5 hover:bg-red-600 rounded-lg transition-colors text-sm text-gray-400 hover:text-white"
-                        title="Delete conversation history"
+                        title={dict.chatHistory.deleteConfirm.title}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

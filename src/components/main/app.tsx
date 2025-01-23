@@ -4,6 +4,7 @@ import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
 import { useShareCard } from '@/lib/hooks/useShareCard';
 import Modal from '@/components/ui/Modal';
+import type { Dictionary } from '@/lib/i18n/types';
 
 export type Currency = {
   value: string;
@@ -32,7 +33,11 @@ export const CURRENCIES: Currency[] = [
   label: `  ${curr.label}  `,
 }));
 
-export default function ImageCapture() {
+interface ImageCaptureProps {
+  dict: Dictionary;
+}
+
+export default function ImageCapture({ dict }: ImageCaptureProps) {
   const [state, actions] = useImageCapture();
   const { saveToHistory, isSaving } = useHistory();
   const { generateShareCard } = useShareCard();
@@ -111,17 +116,17 @@ export default function ImageCapture() {
           <div className="px-4">
             {!state.description && !state.price && (
               <h2 className="text-3xl font-light text-white text-center tracking-wide">
-                What price do you want to know?
+                {dict.app.title}
               </h2>
             )}
             {(state.description || state.price) && !state.isEditing && (
               <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
-                Click to edit
+                {dict.app.titleWithPrice}
               </h2>
             )}
             {(state.description || state.price) && state.isEditing && (
               <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
-                Press Enter to confirm
+                {dict.app.titleEditing}
               </h2>
             )}
           </div>
@@ -287,7 +292,7 @@ export default function ImageCapture() {
                       target.style.height = 'auto';
                       target.style.height = target.scrollHeight + 'px';
                     }}
-                    placeholder="Enter description here..."
+                    placeholder={dict.app.descriptionPlaceholder}
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
@@ -316,7 +321,7 @@ export default function ImageCapture() {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
             </svg>
-            Photos
+            {dict.app.uploadButton}
           </button>
         </div>
       )}
@@ -327,13 +332,13 @@ export default function ImageCapture() {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
-            Price it
+            {dict.app.priceButton}
           </button>
           <button onClick={actions.clearImageAndData} disabled={state.isLoading} className="flex items-center justify-start w-32 px-4 py-2 bg-white text-black rounded-lg hover:bg-red-600 hover:text-white disabled:opacity-50 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
             </svg>
-            Delete
+            {dict.app.deleteButton}
           </button>
         </div>
       )}
@@ -348,7 +353,7 @@ export default function ImageCapture() {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
-            Export
+            {dict.app.exportButton}
           </button>
           <button 
             onClick={actions.clearImageAndData} 
@@ -358,19 +363,19 @@ export default function ImageCapture() {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
             </svg>
-            Delete
+            {dict.app.deleteButton}
           </button>
         </div>
       )}
 
       <Modal 
-        title="Error"
+        title={dict.app.errorTitle}
         message={state.errorMessage}
         isOpen={state.showErrorModal}
         onClose={actions.closeErrorModal}
         onConfirm={actions.closeErrorModal}
-        confirmText="Close"
-        cancelText="Cancel"
+        confirmText={dict.app.closeButton}
+        cancelText={dict.app.cancelButton}
       />
     </>
   );

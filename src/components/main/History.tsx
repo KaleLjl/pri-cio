@@ -13,8 +13,14 @@ import LocationOptionModal from '../ui/LocationOptionModal';
 import { Avatar } from '@mui/material';
 import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
 import { CURRENCIES, Currency } from '@/components/main/App'; // Import types and data
+import type { Dictionary } from '@/lib/i18n/types';
 
-export default function History({ histories: initialHistories }: { histories: HistoryItem[] }) {
+interface HistoryProps {
+  histories: HistoryItem[];
+  dict: Dictionary;
+}
+
+export default function History({ histories: initialHistories, dict }: HistoryProps) {
   const {
     histories,
     setHistories,
@@ -253,11 +259,11 @@ export default function History({ histories: initialHistories }: { histories: Hi
   };
 
   if (error) {
-    return <div className="text-center py-10 text-red-500">{error}</div>;
+    return <div className="text-center py-10 text-red-500">{dict.history.error}</div>;
   }
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">{dict.history.loading}</div>;
   }
 
   console.log('Avatar URL:', formData.avatarUrl);
@@ -281,11 +287,11 @@ export default function History({ histories: initialHistories }: { histories: Hi
         <p className="text-sm text-gray-400 mt-2">{userId || 'N/A'}</p>
         <button
           onClick={() => {
-            window.location.href = '/editprofile'; // Redirect to Edit Profile page
+            window.location.href = '/editprofile';
           }}
           className="mt-4 px-4 py-2 bg-white text-black rounded-full font-semibold hover:bg-gray-300 transition duration-200"
         >
-          Edit Profile
+          {dict.history.editProfile}
         </button>
       </div>
 
@@ -295,13 +301,13 @@ export default function History({ histories: initialHistories }: { histories: Hi
             onClick={() => handleTabChange('saved')}
             className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'saved' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}
           >
-            Saved Items
+            {dict.history.savedItems}
           </button>
           <button
             onClick={() => handleTabChange('posted')}
             className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'posted' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-black'}`}
           >
-            Posted Items
+            {dict.history.postedItems}
           </button>
       </div>
 
@@ -314,14 +320,14 @@ export default function History({ histories: initialHistories }: { histories: Hi
           }`}
         >
           <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
-            <span>Saved Items</span>
+            <span>{dict.history.savedItems}</span>
             <span className="ml-3 text-sm font-normal text-gray-500">
-              ({savedItemsCount} items)
+              ({savedItemsCount} {dict.history.itemCount})
             </span>
           </h2>
           {/* Saved Items */}
           {histories.length === 0 ? (
-            <div className="text-center py-10 text-gray-500">No history records found</div>
+            <div className="text-center py-10 text-gray-500">{dict.history.noHistory}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
               {histories.filter(history => !history.exploreId).map((history) => (
@@ -333,7 +339,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
                   <div className="relative w-full h-full">
                     <Image
                       src={history.imageUrl}
-                      alt={history.description || 'Product image'}
+                      alt={history.description || dict.history.noDescription}
                       fill
                       className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -356,14 +362,12 @@ export default function History({ histories: initialHistories }: { histories: Hi
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // handlePost(history);
                                 handlelocation(history);
                               }}
                               className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
-                              // disabled={!!actionInProgress[history._id]}
                             >
                               <i className="fas fa-share mr-2"></i>
-                              {actionInProgress[history._id] === 'posting' ? 'Posting...' : 'Post'}
+                              {actionInProgress[history._id] === 'posting' ? dict.history.actions.posting : dict.history.actions.post}
                             </button>
                             <button
                               onClick={(e) => {
@@ -374,7 +378,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
                               disabled={!!actionInProgress[history._id]}
                             >
                               <i className="fas fa-edit mr-2"></i>
-                              Edit
+                              {dict.history.actions.edit}
                             </button>
                             <button
                               onClick={(e) => {
@@ -386,7 +390,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
                               disabled={!!actionInProgress[history._id]}
                             >
                               <i className="fas fa-trash mr-2"></i>
-                              {actionInProgress[history._id] === 'deleting' ? 'Deleting...' : 'Delete'}
+                              {actionInProgress[history._id] === 'deleting' ? dict.history.actions.deleting : dict.history.actions.delete}
                             </button>
                           </div>
                         )}
@@ -401,10 +405,10 @@ export default function History({ histories: initialHistories }: { histories: Hi
                       <p className="text-lg font-semibold text-white">
                         {
                           CURRENCIES.find((c: Currency) => c.value === history.currency)?.symbol || 
-                          history.currency // Fallback to the currency code if no symbol is found
+                          history.currency
                         } {history.price || 'N/A'}
                       </p>
-                      <p className="text-sm mt-1">{history.description || 'No description available'}</p>
+                      <p className="text-sm mt-1">{history.description || dict.history.noDescription}</p>
                       <p className="text-xs text-gray-300 mt-1">
                         {history.createdAt
                           ? new Date(history.createdAt).toLocaleString()
@@ -425,14 +429,14 @@ export default function History({ histories: initialHistories }: { histories: Hi
           }`}
         >
           <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
-            <span>Posted Items</span>
+            <span>{dict.history.postedItems}</span>
             <span className="ml-3 text-sm font-normal text-gray-500">
-              ({postedHistories.length} items)
+              ({postedHistories.length} {dict.history.itemCount})
             </span>
           </h2>
           {/* Posted Items */}
           {postedHistories.length === 0 ? (
-            <div className="text-center py-10 text-white">No posted items yet</div>
+            <div className="text-center py-10 text-white">{dict.history.noHistory}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
               {postedHistories.map((history) => (
@@ -444,7 +448,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
                   <div className="relative w-full h-full">
                     <Image
                       src={history.imageUrl}
-                      alt={history.description || 'Product image'}
+                      alt={history.description || dict.history.noDescription}
                       fill
                       className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -476,7 +480,7 @@ export default function History({ histories: initialHistories }: { histories: Hi
                               disabled={!!actionInProgress[history._id]}
                             >
                               <i className="fas fa-ban mr-2"></i>
-                              {actionInProgress[history._id] === 'unpublishing' ? 'Unpublishing...' : 'Unpublish'}
+                              {actionInProgress[history._id] === 'unpublishing' ? dict.history.actions.unpublishing : dict.history.actions.unpublish}
                             </button>
                           </div>
                         )}
@@ -491,10 +495,10 @@ export default function History({ histories: initialHistories }: { histories: Hi
                       <p className="text-lg font-semibold text-white">
                         {
                           CURRENCIES.find((c: Currency) => c.value === history.currency)?.symbol || 
-                          history.currency // Fallback to the currency code if no symbol is found
+                          history.currency
                         } {history.price || 'N/A'}
                       </p>
-                      <p className="text-sm mt-1">{history.description || 'No description available'}</p>
+                      <p className="text-sm mt-1">{history.description || dict.history.noDescription}</p>
                       <p className="text-xs text-gray-300 mt-1">
                         {history.createdAt
                           ? new Date(history.createdAt).toLocaleString()
@@ -509,20 +513,18 @@ export default function History({ histories: initialHistories }: { histories: Hi
         </div>
       </div>
 
-
-
       <div>
         <Modal 
-          title="Enable Location Services"
-          message="Would you like to include your location with posts? This helps other users find items near them."
+          title={dict.history.locationModal.title}
+          message={dict.history.locationModal.message}
           isOpen={showLocationModal}
           onClose={() => {
             setShowLocationModal(false);
             handlePostWithoutLocation();
           }}
           onConfirm={handlePostWithLocation}
-          confirmText="Allow Location"
-          cancelText="Don't Allow"
+          confirmText={dict.history.locationModal.allow}
+          cancelText={dict.history.locationModal.deny}
         />
         <LocationOptionModal
           isOpen={showLocationOptionModal}

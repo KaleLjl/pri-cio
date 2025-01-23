@@ -11,9 +11,11 @@ import { motion, AnimatePresence} from 'framer-motion';
 import Modal from 'react-modal';
 import { CURRENCIES } from '@/components/main/App';
 import { useSession } from 'next-auth/react';
+import type { Dictionary } from '@/lib/i18n/types';
 
 interface DisplayExploreProps {
   explores: ExploreItem[];
+  dict: Dictionary;
 }
 
 const RadiusDropdown = ({ radius, setRadius }: { radius: number; setRadius: (value: number) => void }) => {
@@ -71,7 +73,7 @@ const RadiusDropdown = ({ radius, setRadius }: { radius: number; setRadius: (val
   );
 };
 
-const ImageWithFallback = ({ src, alt, ...props }: any) => {
+const ImageWithFallback = ({ src, alt, isAvatar = false, ...props }: any) => {
   const [imgSrc, setImgSrc] = useState(src);
   const [error, setError] = useState(false);
 
@@ -80,20 +82,29 @@ const ImageWithFallback = ({ src, alt, ...props }: any) => {
     setError(false);
   }, [src]);
 
+  const initial = alt?.charAt(0)?.toUpperCase() || '?';
+
+  if (error) {
+    return (
+      <div className={`w-full h-full bg-gray-600 flex items-center justify-center text-white text-lg font-semibold ${isAvatar ? 'rounded-full' : ''}`}>
+        {initial}
+      </div>
+    );
+  }
+
   return (
     <Image
       {...props}
-      src={error ? '/image/placeholder.jpg' : imgSrc}
+      src={imgSrc}
       alt={alt}
       onError={() => {
         setError(true);
-        setImgSrc('/image/placeholder.jpg');
       }}
     />
   );
 };
 
-export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
+export default function Explore({ explores: initialExplores, dict }: DisplayExploreProps) {
   const { explores, isLoading, error } = useExplore(initialExplores);
   const [selectedCard, setSelectedCard] = useState<ExploreItem | null>(null);  
   const searchParams = useSearchParams();
@@ -247,27 +258,24 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   }, [router, currentUserId]);
 
   // Check loading state first
-  // if (isLoading) {
-  //   return (
-  //     <div className="min-h-screen bg-black text-white flex justify-center items-center">
-  //       <div className="text-center py-20">
-  //         <h1 className="text-2xl font-bold">Loading...</h1>
-  //       </div>
-  //     </div>
-  //   );
-  // }
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
-          <lottie-player
-            src="/loading/loading.json"
-            background="transparent"
-            speed="1"
-            style={{ width: '300px', height: '300px' }}
-            loop
-            autoplay
-          ></lottie-player>
+          <div
+            dangerouslySetInnerHTML={{
+              __html: `
+                <lottie-player
+                  src="/loading/loading.json"
+                  background="transparent"
+                  speed="1"
+                  style="width: 300px; height: 300px;"
+                  loop
+                  autoplay
+                ></lottie-player>
+              `
+            }}
+          />
         </div>
       </div>
     );
@@ -277,7 +285,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
-          <h1 className="text-2xl font-bold text-red-500">{error}</h1>
+          <h1 className="text-2xl font-bold text-red-500">{dict.explore.error}</h1>
         </div>
       </div>
     );
@@ -288,34 +296,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
-          <h1 className="text-2xl font-bold">Sorry, no posts found</h1>
-        </div>
-      </div>
-    );
-  }
-
-  // Show loading if we have no explores data yet
-  // if (!explores || explores.length === 0) {
-  //   return (
-  //     <div className="min-h-screen bg-black text-white flex justify-center items-center">
-  //       <div className="text-center py-20">
-  //         <h1 className="text-2xl font-bold">Loading...</h1>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black text-white flex justify-center items-center">
-        <div className="text-center py-20">
-          <lottie-player
-            src="/loading/loading.json"
-            background="transparent"
-            speed="1"
-            style={{ width: '300px', height: '300px' }}
-            loop
-            autoplay
-          ></lottie-player>
+          <h1 className="text-2xl font-bold">{dict.explore.noPostsFound}</h1>
         </div>
       </div>
     );
@@ -332,7 +313,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
           onClick={() => setRadiusModalOpen(true)}
           className="px-4 py-2 text-white bg-transparent cursor-pointer rounded-full group-hover:bg-gray-800 transition-all duration-200"
         >
-          Set Radius
+          {dict.explore.setRadius}
         </span>
       </div>
 
@@ -349,7 +330,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               <div className="relative w-full h-[400px]">
                 <ImageWithFallback
                   src={explore.imageUrl}
-                  alt={`Post created on ${new Date(explore.createdAt).toLocaleString()}`}
+                  alt={`${dict.explore.createdAt} ${new Date(explore.createdAt).toLocaleString()}`}
                   layout="fill"
                   objectFit="cover"
                   placeholder="blur"
@@ -363,7 +344,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                 {CURRENCIES.find(c => c.value === explore.currency)?.symbol} {explore.price}
               </p>
               <p className="text-xs text-gray-400">
-                {explore.description || 'No description available'}
+                {explore.description || dict.explore.noDescription}
               </p>
               <p className="text-xs text-gray-500 mb-2">
                 {new Date(explore.createdAt).toLocaleString()}
@@ -374,23 +355,21 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Avatar clicked, userProfile:', explore.userProfile);
                     if (explore.userProfile?._id) {
                       handleAvatarClick(explore.userProfile._id, e);
-                    } else {
-                      console.log('No user ID found in profile');
                     }
                   }}
                 >
-                  <Image
-                    src={explore.userProfile?.avatarUrl || '/default-avatar.png'}
-                    alt={explore.userProfile?.name || 'User'}
+                  <ImageWithFallback
+                    src={explore.userProfile?.avatarUrl || ''}
+                    alt={explore.userProfile?.name || dict.explore.anonymous}
                     layout="fill"
                     objectFit="cover"
+                    isAvatar={true}
                   />
                 </div>
                 <span className="text-xs text-gray-300">
-                  {explore.userProfile?.name || 'Anonymous'}
+                  {explore.userProfile?.name || dict.explore.anonymous}
                 </span>
               </div>
             </div>
@@ -406,12 +385,12 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
         overlayClassName="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center"
         ariaHideApp={false}
       >
-        <h2 className="text-black text-xl font-bold mb-4">Set Radius</h2>
+        <h2 className="text-black text-xl font-bold mb-4">{dict.explore.radiusModalTitle}</h2>
 
         {/* Enable Location */}
         <div className="flex items-center justify-between mb-4">
           <label htmlFor="locationSwitch" className="mr-3 text-gray-600">
-            Enable Location
+            {dict.explore.enableLocation}
           </label>
           <HeadlessSwitch
             checked={tempEnableLocation}
@@ -433,19 +412,14 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
 
         {tempEnableLocation && locationName && (
           <div className="mb-4 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-700">
-            Location: {locationName}
-          </div>
-        )}
-        {tempEnableLocation && (
-          <div className="mb-4">
-            <RadiusDropdown radius={tempRadius} setRadius={setTempRadius} />
+            {dict.explore.locationLabel}: {locationName}
           </div>
         )}
 
         {/* No Limit */}
         <div className="flex items-center justify-between mb-4">
           <label htmlFor="noLimitSwitch" className="text-gray-600 mr-3">
-            No Limit
+            {dict.explore.noLimit}
           </label>
           <HeadlessSwitch
             checked={tempNoLimit}
@@ -472,7 +446,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
             onClick={handleApplyRadius}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500"
           >
-            Apply
+            {dict.explore.apply}
           </button>
         </div>
       </Modal>
@@ -492,13 +466,12 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-2xl shadow-xl w-[90%] max-w-4xl p-8 text-black"
             >
-              
               <div className="grid grid-cols-2 gap-6">
                 {/* Left Column: Image */}
                 <div className="overflow-hidden rounded-lg">
                   <ImageWithFallback
                     src={selectedCard.imageUrl}
-                    alt={`Post created on ${new Date(selectedCard.createdAt).toLocaleString()}`}
+                    alt={`${dict.explore.createdAt} ${new Date(selectedCard.createdAt).toLocaleString()}`}
                     width={500}
                     height={500}
                     className="object-cover w-full h-full"
@@ -513,50 +486,48 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('Modal avatar clicked, userProfile:', selectedCard.userProfile);
                         if (selectedCard.userProfile?._id) {
                           handleAvatarClick(selectedCard.userProfile._id, e);
-                        } else {
-                          console.log('No user ID found in profile');
                         }
                       }}
                     >
-                      <Image
-                        src={selectedCard.userProfile?.avatarUrl || '/default-avatar.png'}
-                        alt={selectedCard.userProfile?.name || 'User'}
+                      <ImageWithFallback
+                        src={selectedCard.userProfile?.avatarUrl || ''}
+                        alt={selectedCard.userProfile?.name || dict.explore.anonymous}
                         layout="fill"
                         objectFit="cover"
+                        isAvatar={true}
                       />
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
-                        {selectedCard.userProfile?.name || 'Anonymous'}
+                        {selectedCard.userProfile?.name || dict.explore.anonymous}
                       </p>
                     </div>
                   </div>
 
                   <h2 className="text-2xl font-bold">
-                    {selectedCard.description || 'No description available'}
+                    {selectedCard.description || dict.explore.noDescription}
                   </h2>
                   <p className="text-gray-600 text-sm">
-                    Created at: {new Date(selectedCard.createdAt).toLocaleString()}
+                    {dict.explore.createdAt}: {new Date(selectedCard.createdAt).toLocaleString()}
                   </p>
                   <p className="text-lg font-semibold text-black">
                     {CURRENCIES.find(c => c.value === selectedCard?.currency)?.symbol} {selectedCard?.price}
                   </p>
                   {selectedCard?.location && (
                     <p className="text-gray-600">
-                      Location: {selectedCard.location.city}, {selectedCard.location.country}
+                      {dict.explore.locationLabel}: {selectedCard.location.city}, {selectedCard.location.country}
                     </p>
                   )}
 
                   <div className="border-t border-gray-200 pt-4 space-y-2">
-                    <p className="text-gray-500 text-sm">0 comments</p>
+                    <p className="text-gray-500 text-sm">{dict.explore.comments}</p>
                     <div className="flex items-start space-x-4">
                       <div className="h-10 w-10 rounded-full bg-gray-300" />
                       <input
                         type="text"
-                        placeholder="Write a comment..."
+                        placeholder={dict.explore.writeComment}
                         className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                     </div>

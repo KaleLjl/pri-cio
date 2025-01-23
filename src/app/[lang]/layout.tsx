@@ -4,6 +4,12 @@ import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import "./globals.css";
+import { i18n, type Locale } from '@/lib/i18n/i18n-config';
+import { getDictionary } from '@/lib/i18n/get-dictionary';
+
+export async function generateStaticParams() {
+  return i18n.locales.map((locale) => ({ lang: locale }));
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://pri-cio.co.uk'),
@@ -58,13 +64,17 @@ export const viewport = {
   initialScale: 1
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
+  params,
 }: Readonly<{
   children: React.ReactNode;
+  params: { lang: Locale };
 }>) {
+  const dict = await getDictionary(params.lang);
+
   return (
-    <html lang="en">
+    <html lang={params.lang}>
       <head>
         <link
           rel="stylesheet"
@@ -74,7 +84,7 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>
-          <LayoutWrapper>
+          <LayoutWrapper dict={dict}>
             {children}
           </LayoutWrapper>
           <Analytics />

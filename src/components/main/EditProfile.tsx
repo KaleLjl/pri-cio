@@ -11,8 +11,13 @@ import {
 } from "@mui/material";
 import { useProfilePage } from "@/lib/hooks/useProfilePage";
 import { useSession } from 'next-auth/react'; // Import useSession to get user data
+import type { Dictionary } from '@/lib/i18n/types';
 
-const ProfilePage = () => {
+interface EditProfileProps {
+  dict: Dictionary;
+}
+
+const ProfilePage = ({ dict }: EditProfileProps) => {
   // 获取用户会话数据
   const { data: session } = useSession();
   const userId = session?.user?.id || "";
@@ -76,7 +81,7 @@ const ProfilePage = () => {
 
   // 加载状态显示
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">{dict.editProfile.loading}</div>;
   }
 
   return (
@@ -97,7 +102,7 @@ const ProfilePage = () => {
             color: "white",
           }}
         >
-          Edit Profile
+          {dict.editProfile.title}
         </Typography>
 
         {/* 页面说明文字 */}
@@ -112,7 +117,7 @@ const ProfilePage = () => {
             mt: 2,
           }}
         >
-          Keep your personal details private. Information you add here is visible to anyone who can view your profile.
+          {dict.editProfile.subtitle}
         </Typography>
   
         {/* 头像上传区域 */}
@@ -138,7 +143,7 @@ const ProfilePage = () => {
               "&:hover": { backgroundColor: "gray" },
             }}
           >
-            Change
+            {dict.editProfile.avatar.change}
             <input
               type="file"
               accept="image/*"
@@ -151,7 +156,7 @@ const ProfilePage = () => {
         {/* 表单输入区域 */}
         <Box component="form" sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <TextField
-            label="Name"
+            label={dict.editProfile.form.name.label}
             name="name"
             value={formData.name}
             onChange={(e) => handleInputChange(e.target.name, e.target.value)}
@@ -180,7 +185,7 @@ const ProfilePage = () => {
             }}
           />
           <TextField
-            label="About"
+            label={dict.editProfile.form.about.label}
             name="about"
             value={formData.about}
             onChange={(e) => handleInputChange(e.target.name, e.target.value)}
@@ -211,7 +216,7 @@ const ProfilePage = () => {
             }}
           />
           <TextField
-            label="Website"
+            label={dict.editProfile.form.website.label}
             name="website"
             value={formData.website}
             onChange={(e) => handleInputChange(e.target.name, e.target.value)}
@@ -254,7 +259,7 @@ const ProfilePage = () => {
             }}
             onClick={resetForm}
           >
-            Reset
+            {dict.editProfile.actions.reset}
           </Button>
           
           {/* 保存按钮 */}
@@ -267,7 +272,7 @@ const ProfilePage = () => {
             }}
             onClick={saveProfile}
           >
-            Save
+            {dict.editProfile.actions.save}
           </Button>
         </Box>
       </Container>

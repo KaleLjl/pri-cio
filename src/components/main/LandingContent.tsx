@@ -3,7 +3,36 @@ import { useEffect, useRef} from 'react';
 import { FaUsers, FaUtensils, FaChair} from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
-export default function LandingContent() {
+interface Dictionary {
+  landing: {
+    hero: {
+      title: string;
+      subtitle: string;
+      cta: string;
+    };
+    features: {
+      title: string;
+      accurate: {
+        title: string;
+        description: string;
+      };
+      instant: {
+        title: string;
+        description: string;
+      };
+      versatile: {
+        title: string;
+        description: string;
+      };
+    };
+  };
+}
+
+interface LandingContentProps {
+  dict: Dictionary;
+}
+
+export default function LandingContent({ dict }: LandingContentProps) {
   const router = useRouter();
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
 
@@ -141,16 +170,16 @@ export default function LandingContent() {
           </video>
 
           <div className={`relative z-10 min-h-screen flex flex-col justify-center items-center text-center text-white bg-black bg-opacity-50`}>
-            <h1 className='text-6xl font-bold mb-4'>Price it</h1>
+            <h1 className='text-6xl font-bold mb-4'>{dict.landing.hero.title}</h1>
             <p className='text-xl font-light mb-8 max-w-lg'>
-              Curious what your face, food, or gadgets are worth? Snap a pic and I&apos;ll give you a fun and fast price estimate!
+              {dict.landing.hero.subtitle}
             </p>
             <div className='flex gap-4'>
               <button
                 className="px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition"
                 onClick={() => handleNavigation('/app')}
               >
-                Get Started
+                {dict.landing.hero.cta}
               </button>
             </div>
           </div>
@@ -158,36 +187,32 @@ export default function LandingContent() {
 
         <div ref={descriptionSectionRef} className="min-h-screen bg-black text-white flex flex-col justify-center items-center px-8">
           <div className="max-w-4xl text-center mb-12 animate-on-scroll">
-            <h2 className="text-4xl font-bold mb-6">Turn Images Into Value</h2>
+            <h2 className="text-4xl font-bold mb-6">{dict.landing.features.title}</h2>
             <p className="text-gray-300 text-lg">
-              Discover the value of anything! Upload photos of faces, objects, or food and let our AI deliver prices that
-              are both entertaining and precise.
+              {dict.landing.features.versatile.description}
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-center w-full max-w-6xl">
             <div className="flex flex-col items-center animate-on-scroll">
               <FaUsers className="text-purple-500 w-10 h-10 mb-4" />
-              <h3 className="text-lg font-semibold">Fun Face Pricing</h3>
+              <h3 className="text-lg font-semibold">{dict.landing.features.accurate.title}</h3>
               <p className="text-gray-300">
-                Upload your face (or a friend&apos;s) and let our AI rate it with entertaining prices based on personality,
-                looks, and star potential.
+                {dict.landing.features.accurate.description}
               </p>
             </div>
             <div className="flex flex-col items-center animate-on-scroll">
               <FaChair className="text-purple-500 w-10 h-10 mb-4" />
-              <h3 className="text-lg font-semibold">Object Estimates</h3>
+              <h3 className="text-lg font-semibold">{dict.landing.features.instant.title}</h3>
               <p className="text-gray-300">
-                Want to know the price of your electronics, gadgets, or art? Upload an image and let our AI calculate the
-                estimated value instantly.
+                {dict.landing.features.instant.description}
               </p>
             </div>
             <div className="flex flex-col items-center animate-on-scroll">
               <FaUtensils className="text-purple-500 w-10 h-10 mb-4" />
-              <h3 className="text-lg font-semibold">Food Pricing</h3>
+              <h3 className="text-lg font-semibold">{dict.landing.features.versatile.title}</h3>
               <p className="text-gray-300">
-                Curious about how much your meal costs? Snap a picture of your food and get an accurate AI-generated
-                price estimate.
+                {dict.landing.features.versatile.description}
               </p>
             </div>
           </div>

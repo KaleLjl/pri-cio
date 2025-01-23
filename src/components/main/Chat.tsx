@@ -8,12 +8,14 @@ import { ChatUser } from '@/lib/types/chat';
 import { useSession } from 'next-auth/react';
 import { useInView } from 'react-intersection-observer';
 import { format } from 'date-fns';
+import type { Dictionary } from '@/lib/i18n/types';
 
 interface ChatProps {
   userId: string;
+  dict: Dictionary;
 }
 
-export default function Chat({ userId }: ChatProps) {
+export default function Chat({ userId, dict }: ChatProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [currentUserId, setCurrentUserId] = useState<string>('');
@@ -43,7 +45,7 @@ export default function Chat({ userId }: ChatProps) {
           if (response.ok) {
             const userData = await response.json();
             if (userData._id === userId) {
-              router.push('/chat'); // 或者其他适当的页面
+              router.push('/chat');
               return;
             }
           }
@@ -68,10 +70,10 @@ export default function Chat({ userId }: ChatProps) {
         ]);
 
         if (!currentUserResponse.ok) {
-          throw new Error('Failed to fetch current user');
+          throw new Error(dict.chat.error.fetch);
         }
         if (!userResponse.ok) {
-          throw new Error('Failed to fetch user profile');
+          throw new Error(dict.chat.error.fetch);
         }
 
         const [currentUserData, userData] = await Promise.all([
@@ -98,14 +100,14 @@ export default function Chat({ userId }: ChatProps) {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to initialize chat');
+          throw new Error(dict.chat.error.fetch);
         }
 
         const data = await response.json();
         setConversationId(data._id);
       } catch (error) {
         console.error('Error initializing chat:', error);
-        setError(error instanceof Error ? error.message : 'Failed to initialize chat');
+        setError(error instanceof Error ? error.message : dict.chat.error.fetch);
       } finally {
         setIsInitializing(false);
       }
@@ -114,7 +116,7 @@ export default function Chat({ userId }: ChatProps) {
     if (userId) {
       initializeChat();
     }
-  }, [userId, status]);
+  }, [userId, status, dict.chat.error.fetch]);
 
   // Initialize chat hook only when we have all required data
   const chat = useChat(
@@ -185,7 +187,7 @@ export default function Chat({ userId }: ChatProps) {
             onClick={() => router.back()}
             className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors"
           >
-            Go Back
+            {dict.chat.actions.back}
           </button>
         </div>
       </div>
@@ -197,7 +199,7 @@ export default function Chat({ userId }: ChatProps) {
       <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center">
         <div className="flex items-center space-x-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-          <div className="text-xl">Loading chat...</div>
+          <div className="text-xl">{dict.chat.loading.chat}</div>
         </div>
       </div>
     );
@@ -220,7 +222,7 @@ export default function Chat({ userId }: ChatProps) {
               <button
                 onClick={() => router.back()}
                 className="p-2 hover:bg-gray-700 rounded-full transition-colors"
-                aria-label="Go back"
+                aria-label={dict.chat.actions.back}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -261,17 +263,17 @@ export default function Chat({ userId }: ChatProps) {
               </div>
               <button
                 onClick={async () => {
-                  if (window.confirm("Are you sure you want to delete all messages in this conversation? This action cannot be undone.")) {
+                  if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
                     try {
                       await chat.deleteMessages();
                     } catch (error) {
                       console.error("Failed to delete messages:", error);
-                      alert("Failed to delete messages. Please try again.");
+                      alert(dict.chatHistory.toast.deleteError);
                     }
                   }
                 }}
                 className="p-2 hover:bg-red-600 rounded-lg transition-colors text-sm text-white"
-                title="Delete conversation history"
+                title={dict.chatHistory.deleteConfirm.title}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -325,11 +327,11 @@ export default function Chat({ userId }: ChatProps) {
                           </span>
                           {message.senderId === currentUserId && (
                             <span className="text-xs text-gray-300">
-                              {message.status === 'sending' && 'Sending...'}
-                              {message.status === 'sent' && 'Sent'}
-                              {message.status === 'delivered' && 'Delivered'}
-                              {message.status === 'read' && 'Read'}
-                              {message.status === 'error' && 'Failed to send'}
+                              {message.status === 'sending' && dict.chat.status.sending}
+                              {message.status === 'sent' && dict.chat.status.sent}
+                              {message.status === 'delivered' && dict.chat.status.delivered}
+                              {message.status === 'read' && dict.chat.status.read}
+                              {message.status === 'error' && dict.chat.status.error}
                             </span>
                           )}
                         </div>
@@ -347,7 +349,7 @@ export default function Chat({ userId }: ChatProps) {
                     type="text"
                     value={chat.inputMessage}
                     onChange={(e) => chat.setInputMessage(e.target.value)}
-                    placeholder="Type a message..."
+                    placeholder={dict.chat.input.placeholder}
                     className="flex-1 bg-gray-700/50 backdrop-blur-sm text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 transition-all"
                   />
                   <button
@@ -358,7 +360,7 @@ export default function Chat({ userId }: ChatProps) {
                     {chat.isSending ? (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     ) : (
-                      'Send'
+                      dict.chat.actions.send
                     )}
                   </button>
                 </form>

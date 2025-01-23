@@ -6,22 +6,46 @@ import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import LogoImage from '/public/image/logo.png';
-import { FaSearch } from 'react-icons/fa';
-import { Avatar } from '@mui/material';
+import { FaSearch, FaGlobe } from 'react-icons/fa';
+import { Avatar, Menu, MenuItem } from '@mui/material';
+import { i18n } from '@/lib/i18n/i18n-config';
+import type { Dictionary } from '@/lib/i18n/types';
 
 interface NavItem {
   label: string | JSX.Element;
   href: string;
 }
 
-const Navigation: React.FC = () => {
+interface NavigationProps {
+  dict: Dictionary;
+}
+
+const Navigation: React.FC<NavigationProps> = ({ dict }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const { data: session } = useSession();
   const pathname = usePathname();
-
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
   const router = useRouter();
+
+  // 获取当前语言
+  const currentLang = pathname?.split('/')[1] || 'en';
+
+  // 处理语言菜单
+  const handleLanguageClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleLanguageClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLanguageSelect = (lang: string) => {
+    const newPathname = pathname.replace(`/${currentLang}`, `/${lang}`);
+    router.push(newPathname);
+    handleLanguageClose();
+  };
 
   useEffect(() => {
     const fetchUserAvatar = async () => {
@@ -53,11 +77,11 @@ const Navigation: React.FC = () => {
 
   const navItems: NavItem[] = session
     ? [
-        { label: 'Explore', href: '/explore' },
-        { label: 'App', href: '/app' },
-        { label: 'Messages', href: '/chathistory' },
-        { label: 'Create Post', href: '/createpost' },
-        { label: 'Sign out', href: '/' },
+        { label: dict.navigation.explore, href: `/${currentLang}/explore` },
+        { label: dict.navigation.app, href: `/${currentLang}/app` },
+        { label: dict.navigation.messages || 'Messages', href: `/${currentLang}/chathistory` },
+        { label: dict.navigation.createpost || 'Create Post', href: `/${currentLang}/createpost` },
+        { label: dict.navigation.signout, href: '/' },
         { 
           label: (
             <Avatar
@@ -72,16 +96,16 @@ const Navigation: React.FC = () => {
               {!currentAvatarUrl && emailInitial}
             </Avatar>
           ), 
-          href: '/history' 
+          href: `/${currentLang}/history` 
         },
       ]
     : [
-        { label: 'Explore', href: '/explore' },
-        { label: 'Sign in', href: '/signin' }
+        { label: dict.navigation.explore, href: `/${currentLang}/explore` },
+        { label: dict.navigation.signin, href: `/${currentLang}/signin` }
       ];
 
   const handleNavClick = async (item: NavItem) => {
-    if (item.label === 'Sign out') {
+    if (item.label === dict.navigation.signout) {
       await signOut();
       window.location.href = '/';
       return;
@@ -94,8 +118,8 @@ const Navigation: React.FC = () => {
     setSearchQuery(query);
 
     // Update the URL dynamically if on the Explore page
-    if (pathname === '/explore') {
-      router.push(`/explore?search=${encodeURIComponent(query)}`);
+    if (pathname === `/${currentLang}/explore`) {
+      router.push(`/${currentLang}/explore?search=${encodeURIComponent(query)}`);
     }
   };
 
@@ -105,7 +129,7 @@ const Navigation: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo Section */}
           <div className="flex items-center flex-shrink-0">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href={`/${currentLang}`} className="flex items-center space-x-2">
               <Image src={LogoImage} alt="Logo" width={50} height={50} />
               <span className="text-2xl font-bold text-white">
                 PRICIO AI
@@ -114,21 +138,21 @@ const Navigation: React.FC = () => {
           </div>
 
           {/* Search Bar - Only on Explore Page */}
-          {pathname === '/explore' && (
+          {pathname.includes('/explore') && (
             <div className="flex-grow flex justify-center">
               <div className="relative w-full max-w-xs">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder={dict.navigation.search || "Search..."}
                   value={searchQuery}
                   onChange={handleSearch}
                   className="pl-10 px-4 py-2 rounded-md border border-gray-300 bg-transparent focus:outline-none focus:border-gray-500 w-full text-white placeholder-gray-400"
                 />
               </div>
-              <Link href="/around" className="ml-4">
+              <Link href={`/${currentLang}/around`} className="ml-4">
                 <button className="px-4 py-2 rounded-md bg-transparent border text-white hover:bg-gray-500">
-                  Around
+                  {dict.navigation.around}
                 </button>
               </Link>
             </div>
@@ -137,6 +161,45 @@ const Navigation: React.FC = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-center space-x-4">
+              {/* Language Selector */}
+              <div
+                onClick={handleLanguageClick}
+                className="flex items-center space-x-1 text-white cursor-pointer hover:text-gray-300 transition-colors duration-200"
+              >
+                <FaGlobe className="w-5 h-5" />
+                <span className="uppercase">{currentLang}</span>
+              </div>
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleLanguageClose}
+                PaperProps={{
+                  style: {
+                    backgroundColor: '#1a1a1a',
+                    color: 'white',
+                  },
+                }}
+              >
+                {i18n.locales.map((locale) => (
+                  <MenuItem
+                    key={locale}
+                    onClick={() => handleLanguageSelect(locale)}
+                    selected={currentLang === locale}
+                    sx={{
+                      '&:hover': {
+                        backgroundColor: '#333',
+                      },
+                      '&.Mui-selected': {
+                        backgroundColor: '#404040',
+                      },
+                    }}
+                  >
+                    {locale === 'en' ? dict.navigation.language.en : dict.navigation.language.zh}
+                  </MenuItem>
+                ))}
+              </Menu>
+
+              {/* Regular Nav Items */}
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -183,6 +246,15 @@ const Navigation: React.FC = () => {
       {isOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            {/* Language Selector for Mobile */}
+            <div
+              onClick={handleLanguageClick}
+              className="flex items-center space-x-2 px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200"
+            >
+              <FaGlobe className="w-5 h-5" />
+              <span>{dict.navigation.language.select} ({currentLang.toUpperCase()})</span>
+            </div>
+            {/* Regular Nav Items */}
             {navItems.map((item) => (
               <Link
                 key={item.href}
