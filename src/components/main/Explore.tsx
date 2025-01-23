@@ -301,11 +301,9 @@ export default function Explore({ explores: initialExplores, dict }: DisplayExpl
                 <ImageWithFallback
                   src={explore.imageUrl}
                   alt={`${dict.explore.createdAt} ${new Date(explore.createdAt).toLocaleString()}`}
-                  layout="fill"
-                  objectFit="cover"
-                  placeholder="blur"
-                  blurDataURL="/image/placeholder.jpg"
-                  className="rounded-[2rem]"
+                  fill={true}
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="rounded-[2rem] object-cover"
                 />
               </div>
             </div>

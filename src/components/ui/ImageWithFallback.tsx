@@ -9,7 +9,7 @@ interface ImageWithFallbackProps extends Omit<ImageProps, 'src' | 'alt'> {
   isAvatar?: boolean;
 }
 
-const ImageWithFallback = ({ src, alt, isAvatar = false, width, height, ...props }: ImageWithFallbackProps) => {
+const ImageWithFallback = ({ src, alt, isAvatar = false, fill, width, height, sizes = "100vw", ...props }: ImageWithFallbackProps) => {
   const [imgSrc, setImgSrc] = useState(src);
   const [error, setError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,14 +53,32 @@ const ImageWithFallback = ({ src, alt, isAvatar = false, width, height, ...props
     );
   }
 
+  const imageProps = {
+    ...props,
+    src: imgSrc,
+    alt,
+    sizes,
+    onError: () => {
+      setError(true);
+    }
+  };
+
+  // If fill is true, use fill mode
+  if (fill) {
+    return (
+      <Image
+        {...imageProps}
+        fill={true}
+      />
+    );
+  }
+
+  // Otherwise use width/height mode
   return (
     <Image
-      {...props}
-      src={imgSrc}
-      alt={alt}
-      onError={() => {
-        setError(true);
-      }}
+      {...imageProps}
+      width={width || 500}
+      height={height || 500}
     />
   );
 };

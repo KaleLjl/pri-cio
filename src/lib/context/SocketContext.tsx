@@ -7,7 +7,7 @@ import { useCurrentUser } from "@/lib/context/CurrentUserContext";
 import { socketService } from "@/lib/socket";
 import { ChatMessage, ChatRecord } from "@/lib/types/chat";
 
-export function SocketContext() {
+export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const { currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -186,5 +186,5 @@ export function SocketContext() {
     }
   };
 
-  return null;
+  return children;
 } 

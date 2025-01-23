@@ -11,17 +11,15 @@ import { Avatar, Menu, MenuItem } from '@mui/material';
 import { i18n } from '@/lib/i18n/i18n-config';
 import type { Dictionary } from '@/lib/i18n/types';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import { useLanguage } from '@/lib/context/LanguageContext';
 
 interface NavItem {
   label: string | JSX.Element;
   href: string;
 }
 
-interface NavigationProps {
-  dict: Dictionary;
-}
-
-const Navigation: React.FC<NavigationProps> = ({ dict }) => {
+const Navigation: React.FC = () => {
+  const { dict } = useLanguage();
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const { data: session } = useSession();
   const pathname = usePathname();

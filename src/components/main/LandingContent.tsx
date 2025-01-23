@@ -2,37 +2,10 @@
 import { useEffect, useRef} from 'react';
 import { FaUsers, FaUtensils, FaChair} from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/lib/context/LanguageContext';
 
-interface Dictionary {
-  landing: {
-    hero: {
-      title: string;
-      subtitle: string;
-      cta: string;
-    };
-    features: {
-      title: string;
-      accurate: {
-        title: string;
-        description: string;
-      };
-      instant: {
-        title: string;
-        description: string;
-      };
-      versatile: {
-        title: string;
-        description: string;
-      };
-    };
-  };
-}
-
-interface LandingContentProps {
-  dict: Dictionary;
-}
-
-export default function LandingContent({ dict }: LandingContentProps) {
+export default function LandingContent() {
+  const { dict } = useLanguage();
   const router = useRouter();
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
 

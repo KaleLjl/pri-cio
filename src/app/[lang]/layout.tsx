@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { RootContext } from "@/lib/context/RootContext";
+import { RootProvider } from "@/lib/context/RootContext";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -66,15 +66,15 @@ export const viewport = {
 
 export default async function RootLayout({
   children,
-  params,
-}: Readonly<{
+  params: { lang }
+}: {
   children: React.ReactNode;
   params: { lang: Locale };
-}>) {
-  const dict = await getDictionary(params.lang);
+}) {
+  const dict = await getDictionary(lang);
 
   return (
-    <html lang={params.lang}>
+    <html lang={lang}>
       <head>
         <link
           rel="stylesheet"
@@ -83,13 +83,13 @@ export default async function RootLayout({
         <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.8/dist/lottie-player.js"></script>
       </head>
       <body>
-        <RootContext>
-          <LayoutWrapper dict={dict}>
+        <RootProvider lang={lang} dict={dict}>
+          <LayoutWrapper>
             {children}
           </LayoutWrapper>
           <Analytics />
           <SpeedInsights />
-        </RootContext>
+        </RootProvider>
       </body>
     </html>
   );

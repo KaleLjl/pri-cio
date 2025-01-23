@@ -2,17 +2,29 @@
 
 import { SessionProvider } from "next-auth/react";
 import { CurrentUserProvider } from "@/lib/context/CurrentUserContext";
-import { QueryContext } from "@/lib/context/QueryContext";
-import { SocketContext } from "@/lib/context/SocketContext";
+import { QueryProvider } from "@/lib/context/QueryContext";
+import { SocketProvider } from "@/lib/context/SocketContext";
+import { LanguageProvider } from "@/lib/context/LanguageContext";
+import type { Dictionary } from '@/lib/i18n/types';
+import type { Locale } from '@/lib/i18n/i18n-config';
 
-export function RootContext({ children }: { children: React.ReactNode }) {
+interface RootContextProps {
+  children: React.ReactNode;
+  lang: Locale;
+  dict: Dictionary;
+}
+
+export function RootProvider({ children, lang, dict }: RootContextProps) {
   return (
     <SessionProvider>
       <CurrentUserProvider>
-        <QueryContext>
-          <SocketContext />
-          {children}
-        </QueryContext>
+        <QueryProvider>
+          <LanguageProvider initialLang={lang} initialDict={dict}>
+            <SocketProvider>
+              {children}
+            </SocketProvider>
+          </LanguageProvider>
+        </QueryProvider>
       </CurrentUserProvider>
     </SessionProvider>
   );

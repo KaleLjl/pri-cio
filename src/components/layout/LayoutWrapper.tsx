@@ -3,21 +3,19 @@
 import { usePathname } from 'next/navigation';
 import Navigation from '@/components/layout/Navigation';
 import Footer from '@/components/layout/Footer';
-import type { Dictionary } from '@/lib/i18n/types';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
-  dict: Dictionary;
 }
 
-export default function LayoutWrapper({ children, dict }: LayoutWrapperProps) {
+export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const isAuthPage = pathname?.includes('/signin');
   const isAroundPage = pathname?.includes('/around'); 
 
   return (
     <>
-      {!isAuthPage && <Navigation dict={dict} />}
+      {!isAuthPage && <Navigation />}
       <main className="min-h-screen">
         {children}
       </main>
