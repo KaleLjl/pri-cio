@@ -4,7 +4,7 @@ import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
 import { useShareCard } from '@/lib/hooks/useShareCard';
 import Modal from '@/components/ui/Modal';
-import type { Dictionary } from '@/lib/i18n/types';
+import { useLanguage } from '@/lib/context/LanguageContext';
 
 export type Currency = {
   value: string;
@@ -33,11 +33,8 @@ export const CURRENCIES: Currency[] = [
   label: `  ${curr.label}  `,
 }));
 
-interface ImageCaptureProps {
-  dict: Dictionary;
-}
-
-export default function ImageCapture({ dict }: ImageCaptureProps) {
+export default function ImageCapture() {
+  const { dict } = useLanguage();
   const [state, actions] = useImageCapture();
   const { saveToHistory, isSaving } = useHistory();
   const { generateShareCard } = useShareCard();

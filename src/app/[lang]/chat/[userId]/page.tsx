@@ -1,10 +1,9 @@
 import Chat from '@/components/main/Chat';
-import { Locale } from '@/lib/i18n/i18n-config';
 
 export default async function ChatPage({
-  params: { userId, lang }
+  params: { userId }
 }: {
-  params: { userId: string; lang: Locale }
+  params: { userId: string }
 }) {
   return (
     <main className="flex-1 overflow-hidden">
