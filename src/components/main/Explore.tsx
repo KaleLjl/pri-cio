@@ -12,6 +12,7 @@ import Modal from 'react-modal';
 import { CURRENCIES } from '@/components/main/App';
 import { useSession } from 'next-auth/react';
 import type { Dictionary } from '@/lib/i18n/types';
+import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
 interface DisplayExploreProps {
   explores: ExploreItem[];
@@ -70,37 +71,6 @@ const RadiusDropdown = ({ radius, setRadius }: { radius: number; setRadius: (val
         ))}
       </Menu.Items>
     </Menu>
-  );
-};
-
-const ImageWithFallback = ({ src, alt, isAvatar = false, ...props }: any) => {
-  const [imgSrc, setImgSrc] = useState(src);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    setImgSrc(src);
-    setError(false);
-  }, [src]);
-
-  const initial = alt?.charAt(0)?.toUpperCase() || '?';
-
-  if (error) {
-    return (
-      <div className={`w-full h-full bg-gray-600 flex items-center justify-center text-white text-lg font-semibold ${isAvatar ? 'rounded-full' : ''}`}>
-        {initial}
-      </div>
-    );
-  }
-
-  return (
-    <Image
-      {...props}
-      src={imgSrc}
-      alt={alt}
-      onError={() => {
-        setError(true);
-      }}
-    />
   );
 };
 

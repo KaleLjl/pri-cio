@@ -10,6 +10,7 @@ import { FaSearch, FaGlobe } from 'react-icons/fa';
 import { Avatar, Menu, MenuItem } from '@mui/material';
 import { i18n } from '@/lib/i18n/i18n-config';
 import type { Dictionary } from '@/lib/i18n/types';
+import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
 interface NavItem {
   label: string | JSX.Element;
@@ -84,17 +85,15 @@ const Navigation: React.FC<NavigationProps> = ({ dict }) => {
         { label: dict.navigation.signout, href: '/' },
         { 
           label: (
-            <Avatar
-              src={currentAvatarUrl || undefined}
-              sx={{
-                bgcolor: currentAvatarUrl ? 'transparent' : 'gray',
-                width: 40,
-                height: 40,
-                fontSize: '1rem',
-              }}
-            >
-              {!currentAvatarUrl && emailInitial}
-            </Avatar>
+            <div className="relative w-10 h-10 rounded-full overflow-hidden">
+              <ImageWithFallback
+                src={currentAvatarUrl || ''}
+                alt={session?.user?.name || emailInitial}
+                layout="fill"
+                objectFit="cover"
+                isAvatar={true}
+              />
+            </div>
           ), 
           href: `/${currentLang}/history` 
         },

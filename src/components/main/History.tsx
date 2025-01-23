@@ -14,6 +14,7 @@ import { Avatar } from '@mui/material';
 import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
 import { CURRENCIES, Currency } from '@/components/main/App'; // Import types and data
 import type { Dictionary } from '@/lib/i18n/types';
+import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
 interface HistoryProps {
   histories: HistoryItem[];
@@ -273,16 +274,15 @@ export default function History({ histories: initialHistories, dict }: HistoryPr
       <h1 className="text-2xl font-bold mb-10"></h1>
       {/* Header Section */}
       <div className="relative flex flex-col items-center">
-        <Avatar
-          src={avatarUrl || undefined}
-          sx={{
-            bgcolor: avatarUrl ? "transparent" : "gray",
-            width: 150,
-            height: 150,
-          }}
-        >
-          {emailInitial}
-        </Avatar>
+        <div className="relative w-[150px] h-[150px] rounded-full overflow-hidden">
+          <ImageWithFallback
+            src={avatarUrl || ''}
+            alt={session?.user?.name || emailInitial}
+            layout="fill"
+            objectFit="cover"
+            isAvatar={true}
+          />
+        </div>
         <h1 className="text-2xl text-white font-bold mt-4">{session?.user?.name || 'User'}</h1>
         <p className="text-sm text-gray-400 mt-2">{userId || 'N/A'}</p>
         <button

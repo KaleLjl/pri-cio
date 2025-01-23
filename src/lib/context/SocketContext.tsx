@@ -1,18 +1,13 @@
-// app/Providers.tsx (若使用App Router) 或 pages/_app.tsx (若使用Pages Router)
 "use client";
 
-import { useState, useEffect} from "react";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import { SessionProvider, useSession } from "next-auth/react";
-import { CurrentUserProvider, useCurrentUser } from "@/lib/context/CurrentUserContext";
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/lib/context/CurrentUserContext";
 import { socketService } from "@/lib/socket";
 import { ChatMessage, ChatRecord } from "@/lib/types/chat";
 
-/**
- * 这个组件只执行一次，用于全局初始化 Socket 及其事件监听。
- * 依赖：当前用户信息（如果登录）
- */
-function GlobalSocketInitializer() {
+export function SocketContext() {
   const { data: session } = useSession();
   const { currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -90,25 +85,17 @@ function GlobalSocketInitializer() {
 
           // 处理新对话
           socketService.onNewConversation(async ({ conversationId, message }) => {
-            // 获取当前聊天历史
             const currentChats = queryClient.getQueryData<ChatRecord[]>(["chat-history"]) || [];
-            
-            // 检查对话是否已存在
             const conversationExists = currentChats.some(chat => chat._id === conversationId);
             
             if (!conversationExists) {
               try {
-                // 重新获取最新的聊天历史
                 const response = await fetch("/api/chat/conversations");
                 if (!response.ok) {
                   throw new Error("Failed to fetch chat history");
                 }
                 const newChats = await response.json();
-                
-                // 更新缓存
                 queryClient.setQueryData(["chat-history"], newChats);
-                
-                // 加入新的房间
                 socketService.joinRoom(conversationId);
               } catch (error) {
                 console.error("Error fetching new chat history:", error);
@@ -165,7 +152,6 @@ function GlobalSocketInitializer() {
 
   // 辅助函数：更新消息状态
   const updateMessageStatus = (messageId: string, status: "delivered" | "read") => {
-    // 更新消息缓存中的状态
     queryClient.setQueriesData(
       { queryKey: ["chat-messages"] },
       (old: any) => {
@@ -182,7 +168,6 @@ function GlobalSocketInitializer() {
       }
     );
 
-    // 如果是已读状态，更新聊天历史中的未读计数
     if (status === "read") {
       queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
         if (!oldChats) return oldChats;
@@ -202,29 +187,4 @@ function GlobalSocketInitializer() {
   };
 
   return null;
-}
-
-export default function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 1000 * 60 * 5, // 5 分钟
-            gcTime: 1000 * 60 * 10, // 10 分钟
-          },
-        },
-      })
-  );
-
-  return (
-    <SessionProvider>
-      <CurrentUserProvider>
-        <QueryClientProvider client={queryClient}>
-          <GlobalSocketInitializer />
-          {children}
-        </QueryClientProvider>
-      </CurrentUserProvider>
-    </SessionProvider>
-  );
-}
+} 

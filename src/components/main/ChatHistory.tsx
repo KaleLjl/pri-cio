@@ -9,6 +9,7 @@ import { socketService } from "@/lib/socket";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
 import { ChatRecord } from "@/lib/types/chat";
 import type { Dictionary } from '@/lib/i18n/types';
+import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
 interface ChatHistoryProps {
   dict: Dictionary;
@@ -117,19 +118,13 @@ export default function ChatHistoryClient({ dict }: ChatHistoryProps) {
               <div className="flex items-center space-x-4">
                 <div className="relative w-12 h-12">
                   <div className="rounded-full overflow-hidden w-full h-full ring-2 ring-purple-500/30">
-                    {otherParticipant.avatarUrl ? (
-                      <Image
-                        src={otherParticipant.avatarUrl}
-                        alt={otherParticipant.name}
-                        fill
-                        style={{ objectFit: "cover" }}
-                        className="rounded-full"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-600 flex items-center justify-center text-white text-lg font-semibold rounded-full">
-                        {otherParticipant.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <ImageWithFallback
+                      src={otherParticipant.avatarUrl || ''}
+                      alt={otherParticipant.name}
+                      fill
+                      style={{ objectFit: "cover" }}
+                      isAvatar={true}
+                    />
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">

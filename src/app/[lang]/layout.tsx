@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Providers from "@/lib/Providers";
+import { RootContext } from "@/lib/context/RootContext";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -83,13 +83,13 @@ export default async function RootLayout({
         <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.8/dist/lottie-player.js"></script>
       </head>
       <body>
-        <Providers>
+        <RootContext>
           <LayoutWrapper dict={dict}>
             {children}
           </LayoutWrapper>
           <Analytics />
           <SpeedInsights />
-        </Providers>
+        </RootContext>
       </body>
     </html>
   );

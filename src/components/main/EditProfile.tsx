@@ -12,6 +12,7 @@ import {
 import { useProfilePage } from "@/lib/hooks/useProfilePage";
 import { useSession } from 'next-auth/react'; // Import useSession to get user data
 import type { Dictionary } from '@/lib/i18n/types';
+import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
 interface EditProfileProps {
   dict: Dictionary;
@@ -122,16 +123,15 @@ const ProfilePage = ({ dict }: EditProfileProps) => {
   
         {/* 头像上传区域 */}
         <Box display="flex" alignItems="center" justifyContent="center" my={4}>
-          <Avatar
-            src={displayedAvatar || undefined}
-            sx={{
-              bgcolor: displayedAvatar ? "transparent" : "gray",
-              width: 80,
-              height: 80,
-            }}
-          >
-            {!displayedAvatar && emailInitial}
-          </Avatar>
+          <div className="relative w-20 h-20 rounded-full overflow-hidden">
+            <ImageWithFallback
+              src={displayedAvatar || ''}
+              alt={formData.name || emailInitial}
+              layout="fill"
+              objectFit="cover"
+              isAvatar={true}
+            />
+          </div>
           <Button
             variant="contained"
             component="label"

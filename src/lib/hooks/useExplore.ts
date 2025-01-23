@@ -31,8 +31,8 @@ const fetchExplorePosts = async (): Promise<ExploreItem[]> => {
       currency: item.currency,
       userProfile: {
         ...item.userProfile,
-        avatarUrl: item.userProfile?.avatarUrl || '/image/default-avatar.png',
-        name: item.userProfile?.name || 'Anonymous',
+        avatarUrl: item.userProfile?.avatarUrl || '',
+        name: item.userProfile?.name || ''
       },
     }));
 

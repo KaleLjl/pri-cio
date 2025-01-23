@@ -6,6 +6,7 @@ import { useExplore } from '@/lib/hooks/useExplore';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { CURRENCIES } from '@/components/main/App';
+import ImageWithFallback from '@/components/main/ImageWithFallback';
 
 // Use your key from .env or wherever:
 const OPENCAGE_API_KEY = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
@@ -212,7 +213,7 @@ const Around = () => {
   const [showClusterModal, setShowClusterModal] = useState(false);
   const [clusterModalPosts, setClusterModalPosts] = useState<any[]>([]);
 
-  // Keep track of user’s current location (if granted):
+  // Keep track of user's current location (if granted):
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Called once on mount to see if geolocation is already granted.
@@ -370,7 +371,7 @@ const Around = () => {
           // 1) Close any single post
           setSelectedPost(null);
 
-          // 2) Show this cluster’s posts
+          // 2) Show this cluster's posts
           setClusterModalPosts(c.posts);
           setShowClusterModal(true);
         });
@@ -583,11 +584,12 @@ const Around = () => {
                             }
                           }}
                         >
-                          <Image
-                            src={selectedPost.userProfile?.avatarUrl || '/default-avatar.png'}
-                            alt={selectedPost.userProfile?.name || 'User'}
+                          <ImageWithFallback
+                            src={selectedPost.userProfile?.avatarUrl || ''}
+                            alt={selectedPost.userProfile?.name || 'Anonymous'}
                             layout="fill"
                             objectFit="cover"
+                            isAvatar={true}
                           />
                         </div>
                         <span className="font-semibold text-white">
@@ -730,12 +732,13 @@ const Around = () => {
                           }}
                         >
                           <div className="flex items-center space-x-3">
-                            <div className="relative w-10 h-10 rounded-full overflow-hidden">
-                              <Image
-                                src={post.userProfile?.avatarUrl || '/default-avatar.png'}
-                                alt={post.userProfile?.name || 'User'}
+                            <div className="relative w-10 h-10 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-600">
+                              <ImageWithFallback
+                                src={post.userProfile?.avatarUrl || ''}
+                                alt={post.userProfile?.name || 'Anonymous'}
                                 layout="fill"
                                 objectFit="cover"
+                                isAvatar={true}
                               />
                             </div>
                             <span className="font-semibold text-white">

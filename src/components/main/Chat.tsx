@@ -9,6 +9,7 @@ import { useSession } from 'next-auth/react';
 import { useInView } from 'react-intersection-observer';
 import { format } from 'date-fns';
 import type { Dictionary } from '@/lib/i18n/types';
+import ImageWithFallback from '@/components/ui/ImageWithFallback';
 
 interface ChatProps {
   userId: string;
@@ -240,20 +241,15 @@ export default function Chat({ userId, dict }: ChatProps) {
                 </svg>
               </button>
               <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-purple-500/50">
-                {otherUser.avatarUrl ? (
-                  <Image
-                    src={otherUser.avatarUrl}
-                    alt={otherUser.name || 'User'}
-                    width={48}
-                    height={48}
-                    className="object-cover rounded-full"
-                    priority
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-600 flex items-center justify-center text-white text-lg font-semibold rounded-full">
-                    {otherUser.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <ImageWithFallback
+                  src={otherUser.avatarUrl || ''}
+                  alt={otherUser.name || 'User'}
+                  width={48}
+                  height={48}
+                  className="object-cover rounded-full"
+                  isAvatar={true}
+                  priority
+                />
               </div>
               <div className="flex-1">
                 <h1 className="text-xl font-bold">{otherUser.name || 'User'}</h1>
