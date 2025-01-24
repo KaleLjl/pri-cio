@@ -3,7 +3,7 @@ import { useImageCapture } from '@/lib/hooks/useImageCapture';
 import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
 import { useShareCard } from '@/lib/hooks/useShareCard';
-import Modal from '@/components/ui/Modal';
+import Modal from '@/components/shared/Modal';
 import { useLanguage } from '@/lib/context/LanguageContext';
 
 export type Currency = {

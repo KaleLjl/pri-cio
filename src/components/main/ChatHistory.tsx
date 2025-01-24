@@ -9,7 +9,8 @@ import { socketService } from "@/lib/socket";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
 import { ChatRecord } from "@/lib/types/chat";
 import { useLanguage } from '@/lib/context/LanguageContext';
-import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import ImageWithFallback from '@/components/shared/ImageWithFallback';
+import Loading from '@/components/shared/Loading';
 
 export default function ChatHistoryClient() {
   const { dict } = useLanguage();
@@ -46,11 +47,7 @@ export default function ChatHistoryClient() {
 
   // Loading states
   if (loadingUser) {
-    return (
-      <div className="text-white text-center p-8">
-        <p>{dict.chatHistory.loading}</p>
-      </div>
-    );
+    return <Loading text={dict.chatHistory.loading} />;
   }
 
   if (!currentUser) {
@@ -65,11 +62,7 @@ export default function ChatHistoryClient() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-      </div>
-    );
+    return <Loading text={dict.chatHistory.loading} />;
   }
 
   if (error) {

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import Image from 'next/image';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { ExploreItem } from '@/lib/types/explore';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -12,7 +11,8 @@ import Modal from 'react-modal';
 import { CURRENCIES } from '@/components/main/App';
 import { useSession } from 'next-auth/react';
 import { useLanguage } from '@/lib/context/LanguageContext';
-import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import ImageWithFallback from '@/components/shared/ImageWithFallback';
+import Loading from '@/components/shared/Loading';
 
 interface DisplayExploreProps {
   explores: ExploreItem[];
@@ -229,26 +229,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
 
   // Check loading state first
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black text-white flex justify-center items-center">
-        <div className="text-center py-20">
-          <div
-            dangerouslySetInnerHTML={{
-              __html: `
-                <lottie-player
-                  src="/loading/loading.json"
-                  background="transparent"
-                  speed="1"
-                  style="width: 300px; height: 300px;"
-                  loop
-                  autoplay
-                ></lottie-player>
-              `
-            }}
-          />
-        </div>
-      </div>
-    );
+    return <Loading />;
   }
 
   if (error) {

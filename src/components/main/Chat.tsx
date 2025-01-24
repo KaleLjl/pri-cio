@@ -9,7 +9,8 @@ import { useSession } from 'next-auth/react';
 import { useInView } from 'react-intersection-observer';
 import { format } from 'date-fns';
 import { useLanguage } from '@/lib/context/LanguageContext';
-import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import ImageWithFallback from '@/components/shared/ImageWithFallback';
+import Loading from '@/components/shared/Loading';
 
 interface ChatProps {
   userId: string;
@@ -196,14 +197,7 @@ export default function Chat({ userId }: ChatProps) {
   }
 
   if (isInitializing || !otherUser) {
-    return (
-      <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center">
-        <div className="flex items-center space-x-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-          <div className="text-xl">{dict.chat.loading.chat}</div>
-        </div>
-      </div>
-    );
+    return <Loading text={dict.chat.loading.chat} />;
   }
 
   const handleSendMessage = (e: React.FormEvent) => {

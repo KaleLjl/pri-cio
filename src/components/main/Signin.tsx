@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import GoogleIcon from '/public/image/google-icon.svg';
 import LogoImage from '/public/image/logo.png';
+import Loading from '@/components/shared/Loading';
 
 // Separate component for handling search params
 function SignInContent() {
@@ -22,6 +23,10 @@ function SignInContent() {
     });
     setLoading(false);
   };
+
+  if (loading) {
+    return <Loading text="Signing in..." />;
+  }
 
   return (
     <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-8 md:px-16">

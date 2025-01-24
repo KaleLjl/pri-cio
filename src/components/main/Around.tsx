@@ -7,8 +7,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { CURRENCIES } from '@/components/main/App';
 import { useLanguage } from '@/lib/context/LanguageContext';
-import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import { useCurrentUser } from '@/lib/context/CurrentUserContext';
+import Loading from '@/components/shared/Loading';
 
 // Use your key from .env or wherever:
 const OPENCAGE_API_KEY = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
@@ -204,7 +205,7 @@ async function reverseGeocode(lat: number, lng: number, zoom: number, unknownAre
 const Around = () => {
   const { dict } = useLanguage();
   const { currentUser } = useCurrentUser();
-  const { explores, fetchExplorePosts } = useExplore([]);
+  const { explores, isLoading, fetchExplorePosts } = useExplore([]);
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
   // Keep a ref to the markers so we can remove them when re-clustering
@@ -536,6 +537,10 @@ const Around = () => {
     router.push(`/chat/${userId}`);
   }, [router, currentUser]);
 
+  if (isLoading) {
+    return <Loading text={dict.explore.loading} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-black">
       <nav
@@ -784,9 +789,6 @@ const Around = () => {
       </AnimatePresence>
     </div>
   );
-  
-  
-  
 };
 
 export default Around;

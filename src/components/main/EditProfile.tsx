@@ -12,7 +12,7 @@ import {
 import { useProfilePage } from "@/lib/hooks/useProfilePage";
 import { useSession } from 'next-auth/react'; // Import useSession to get user data
 import { useLanguage } from '@/lib/context/LanguageContext';
-import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import ImageWithFallback from '@/components/shared/ImageWithFallback';
 
 const ProfilePage = () => {
   const { dict } = useLanguage();

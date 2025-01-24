@@ -6,15 +6,16 @@ import { useSession } from 'next-auth/react'; // To fetch user session data
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Switch } from '@headlessui/react';
-import Modal from '@/components/ui/Modal';
-import Toast from '@/components/ui/Toast';
-import EditModal from '@/components/ui/EditModal';
-import LocationOptionModal from '../ui/LocationOptionModal';
+import Modal from '@/components/shared/Modal';
+import Toast from '@/components/shared/Toast';
+import EditModal from '@/components/shared/EditModal';
+import LocationOptionModal from '../shared/LocationOptionModal';
 import { Avatar } from '@mui/material';
 import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
 import { CURRENCIES, Currency } from '@/components/main/App'; // Import types and data
 import { useLanguage } from '@/lib/context/LanguageContext';
-import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import ImageWithFallback from '@/components/shared/ImageWithFallback';
+import Loading from '@/components/shared/Loading';
 
 interface HistoryProps {
   histories: HistoryItem[];
@@ -264,7 +265,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   }
 
   if (isLoading) {
-    return <div className="text-center py-10">{dict.history.loading}</div>;
+    return <Loading text={dict.history.loading} />;
   }
 
   console.log('Avatar URL:', formData.avatarUrl);
