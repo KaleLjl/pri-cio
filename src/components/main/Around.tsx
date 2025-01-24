@@ -18,7 +18,7 @@ const GOOGLE_MAP_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY;
 declare global {
   interface Window {
     google: any;
-    initMap: () => void;
+    initMap?: () => void;
   }
 }
 
@@ -250,22 +250,21 @@ const Around = () => {
 
   // Load Google Maps
   useEffect(() => {
-    const initializeMap = () => {
-      if (window.google && !map) {
-        const mapInstance = new window.google.maps.Map(
-          document.getElementById('map') as HTMLElement,
-          {
-            center: { lat: 51.5074, lng: -0.1278 }, // Default center (e.g., London)
-            zoom: 8,
-            minZoom: 4,
-            maxZoom: 15,
-          }
-        );
+    // Define initMap function in global scope
+    window.initMap = () => {
+      const mapDiv = document.getElementById('map');
+      if (!map && mapDiv) {
+        const mapInstance = new window.google.maps.Map(mapDiv, {
+          center: { lat: 51.5074, lng: -0.1278 }, // Default center (e.g., London)
+          zoom: 8,
+          minZoom: 4,
+          maxZoom: 15,
+        });
         setMap(mapInstance);
-  
+
         // Add geolocation control
         addGeolocationControl(mapInstance);
-  
+
         // Add zoom constraints
         window.google.maps.event.addListener(mapInstance, 'zoom_changed', () => {
           const newZoom = mapInstance.getZoom() || 8;
@@ -274,33 +273,36 @@ const Around = () => {
         });
       }
     };
-  
-    if (!window.google) {
-      // Load the Google Maps script if not already loaded
-      const existingScript = document.getElementById('google-maps') as HTMLScriptElement;
-      if (!existingScript) {
-        const script = document.createElement('script');
-        script.id = 'google-maps';
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAP_API_KEY}&callback=initMap`;
-        script.async = true;
-        script.defer = true;
-        document.body.appendChild(script);
-  
-        // Set up the global callback for script load
-        script.onload = initializeMap;
-      } else {
-        initializeMap();
+
+    // Wait for the map div to be available
+    const waitForMapElement = setInterval(() => {
+      if (document.getElementById('map')) {
+        clearInterval(waitForMapElement);
+        
+        if (!window.google) {
+          // Load the Google Maps script if not already loaded
+          const script = document.createElement('script');
+          script.id = 'google-maps';
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAP_API_KEY}&callback=initMap`;
+          script.async = true;
+          script.defer = true;
+          document.body.appendChild(script);
+        } else {
+          // If Google Maps is already loaded, just initialize the map
+          window.initMap();
+        }
       }
-    } else {
-      initializeMap();
-    }
-  
+    }, 100);
+
     // Cleanup on component unmount
     return () => {
+      clearInterval(waitForMapElement);
       if (map) {
         window.google.maps.event.clearInstanceListeners(map);
         setMap(null);
       }
+      // Remove global initMap function
+      delete window.initMap;
     };
   }, [map]);
   
@@ -315,7 +317,9 @@ const Around = () => {
     });
 
     return () => {
-      window.google.maps.event.removeListener(listener);
+      if (window.google && window.google.maps) {
+        window.google.maps.event.removeListener(listener);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, explores]);
