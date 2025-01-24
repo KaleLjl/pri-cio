@@ -1,100 +1,287 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useCreatePost } from '@/lib/hooks/useCreatePost';
 
-type ChatMessage = {
-  sender: 'user' | 'gpt';
-  text: string;
-};
+const CreatePostPage = () => {
+  const {
+    selectedImage,
+    isLoading,
+    result,
+    errorMessage,
+    conversation,
+    uploadImage,
+    analyzeImage,
+    sendMessage,
+    clearImage,
+  } = useCreatePost();
 
-export default function CreatePost() {
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [isImageUploaded, setIsImageUploaded] = useState(false);
-  const [description, setDescription] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [messageInput, setMessageInput] = useState('');
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    const newImages = files.map((file) => URL.createObjectURL(file));
-    setUploadedImages([...uploadedImages, ...newImages]);
-    setIsImageUploaded(true);
+  const handleSendMessage = async () => {
+    if (!messageInput.trim()) return;
+    await sendMessage(messageInput);
+    setMessageInput('');
   };
 
-  const handleSendMessage = () => {
-    if (!description.trim()) return;
-
-    const newMessage: ChatMessage = { sender: 'user', text: description };
-    setChatMessages((prev) => [...prev, newMessage]);
-    setDescription('');
-
-    // Simulate GPT response (replace this with actual API call)
-    setTimeout(() => {
-      const gptResponse: ChatMessage = {
-        sender: 'gpt',
-        text: `Thanks for sharing the description. Can you provide more details, such as the condition of the item and whether there is any damage?`,
-      };
-      setChatMessages((prev) => [...prev, gptResponse]);
-    }, 1000);
+  const handleClear = () => {
+    clearImage();
+    setMessageInput('');
   };
-
-  if (!isImageUploaded) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="border border-dashed border-purple-500 p-8 rounded-lg text-center">
-          <h2 className="text-lg font-semibold mb-4">Upload Images</h2>
-          <input
-            type="file"
-            multiple
-            onChange={handleImageUpload}
-            className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-700"
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
-      <h1 className="text-2xl font-bold mb-6">Describe Your Item</h1>
+      <h1 className="text-2xl font-bold mb-6">Test Google API</h1>
 
-      {/* Image Preview Section */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-2">Uploaded Images</h2>
-        <div className="grid grid-cols-3 gap-4">
-          {uploadedImages.map((src, index) => (
-            <div key={index} className="relative w-32 h-32 border rounded-md overflow-hidden">
-              <img src={src} alt={`Uploaded ${index}`} className="object-cover w-full h-full" />
-            </div>
-          ))}
-        </div>
+      {/* 1) File Input */}
+      <div className="mb-4">
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              uploadImage(e.target.files[0]);
+            }
+          }}
+          className="block w-full text-sm text-gray-400
+                     file:mr-4 file:py-2 file:px-4
+                     file:rounded-md file:border-0
+                     file:text-sm file:font-semibold
+                     file:bg-purple-500 file:text-white
+                     hover:file:bg-purple-700"
+        />
       </div>
 
-      {/* Chat Section */}
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-4">Chat with GPT</h2>
-        <div className="p-4 bg-gray-800 rounded-md mb-4 max-h-64 overflow-y-auto">
-          {chatMessages.map((msg, index) => (
-            <div key={index} className={`mb-2 ${msg.sender === 'gpt' ? 'text-purple-500' : 'text-white'}`}>
-              <strong>{msg.sender === 'gpt' ? 'GPT' : 'You'}:</strong> {msg.text}
-            </div>
-          ))}
+      {/* 2) Analyze & Clear Buttons */}
+      <div className="flex gap-4 mb-6">
+        <button
+          onClick={analyzeImage}
+          disabled={isLoading || !selectedImage}
+          className={`py-2 px-4 rounded-md font-semibold ${
+            isLoading || !selectedImage
+              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              : 'bg-purple-500 text-white hover:bg-purple-700'
+          }`}
+        >
+          {isLoading ? 'Analyzing...' : 'Analyze Image'}
+        </button>
+        <button
+          onClick={handleClear}
+          disabled={isLoading}
+          className={`py-2 px-4 rounded-md font-semibold ${
+            isLoading
+              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              : 'bg-red-500 text-white hover:bg-red-700'
+          }`}
+        >
+          Clear
+        </button>
+      </div>
+
+      {/* 3) Display raw result */}
+      {result && (
+        <div className="mb-4 p-4 bg-gray-800 rounded-md">
+          <h3 className="text-lg font-bold mb-2">Analysis Result</h3>
+          <pre className="text-sm font-mono text-gray-200">
+            {JSON.stringify(result, null, 2)}
+          </pre>
         </div>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Enter a brief description of the item you are selling..."
-          className="w-full p-2 rounded-md bg-gray-800 border border-gray-600 text-white focus:ring-purple-500 mb-2"
-        ></textarea>
+      )}
+
+      {/* 4) Error Message */}
+      {errorMessage && (
+        <div className="p-4 mb-4 bg-red-700 rounded-md">
+          <p className="text-sm text-white">{errorMessage}</p>
+        </div>
+      )}
+
+      {/* 5) Conversation Display */}
+      <div className="bg-gray-800 p-4 rounded-md mb-4">
+        <h2 className="font-bold text-lg mb-2">Conversation</h2>
+        {conversation.length === 0 ? (
+          <p className="text-gray-400 italic">Start by uploading an image and analyzing it.</p>
+        ) : (
+          <ul>
+            {conversation.map((msg, idx) => (
+              <li key={idx} className="mb-2">
+                <strong>{msg.role === 'user' ? 'You:' : 'GPT:'}</strong> {msg.content}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* 6) Send Message Input */}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          className="flex-grow p-2 text-black rounded-md"
+          placeholder="Ask or respond..."
+          value={messageInput}
+          onChange={(e) => setMessageInput(e.target.value)}
+        />
         <button
           onClick={handleSendMessage}
-          className="w-full py-3 bg-purple-500 text-white font-semibold rounded-md hover:bg-purple-700"
+          disabled={isLoading || !messageInput.trim()}
+          className={`px-4 py-2 rounded-md font-semibold ${
+            isLoading
+              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              : 'bg-purple-500 text-white hover:bg-purple-700'
+          }`}
         >
-          Send
+          {isLoading ? 'Sending...' : 'Send'}
         </button>
       </div>
     </div>
   );
-}
+};
+
+export default CreatePostPage;
+
+
+
+
+
+
+
+// 'use client';
+
+// import React, { useState } from 'react';
+// import { useCreatePost } from '@/lib/hooks/useCreatePost';
+
+// const CreatePostPage = () => {
+//   const {
+//     selectedImage,
+//     isLoading,
+//     result,
+//     errorMessage,
+//     conversation,
+//     uploadImage,
+//     analyzeImage,
+//     sendMessage,
+//     clearImage,
+//   } = useCreatePost();
+
+//   // local input state for user messages
+//   const [messageInput, setMessageInput] = useState('');
+
+//   const handleSendMessage = async () => {
+//     if (!messageInput.trim()) return;
+//     await sendMessage(messageInput);
+//     setMessageInput('');
+//   };
+
+//   return (
+//     <div className="min-h-screen bg-black text-white p-8">
+//       <h1 className="text-2xl font-bold mb-6">Test Google API</h1>
+
+//       {/* 1) File Input */}
+//       <div className="mb-4">
+//         <input
+//           type="file"
+//           accept="image/*"
+//           onChange={(e) => {
+//             if (e.target.files && e.target.files.length > 0) {
+//               uploadImage(e.target.files[0]);
+//             }
+//           }}
+//           className="block w-full text-sm text-gray-400
+//                      file:mr-4 file:py-2 file:px-4
+//                      file:rounded-md file:border-0
+//                      file:text-sm file:font-semibold
+//                      file:bg-purple-500 file:text-white
+//                      hover:file:bg-purple-700"
+//         />
+//       </div>
+
+//       {/* 2) Analyze & Clear Buttons */}
+//       <div className="flex gap-4 mb-6">
+//         <button
+//           onClick={analyzeImage}
+//           disabled={isLoading || !selectedImage}
+//           className={`py-2 px-4 rounded-md font-semibold ${
+//             isLoading || !selectedImage
+//               ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+//               : 'bg-purple-500 text-white hover:bg-purple-700'
+//           }`}
+//         >
+//           {isLoading ? 'Analyzing...' : 'Analyze Image'}
+//         </button>
+//         <button
+//           onClick={clearImage}
+//           disabled={isLoading}
+//           className={`py-2 px-4 rounded-md font-semibold ${
+//             isLoading
+//               ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+//               : 'bg-red-500 text-white hover:bg-red-700'
+//           }`}
+//         >
+//           Clear
+//         </button>
+//       </div>
+
+//       {/* 3) Display raw result (if you want) */}
+//       {result && (
+//         <div className="mb-4 p-4 bg-gray-800 rounded-md">
+//           <pre className="text-sm text-white">
+//             {JSON.stringify(result, null, 2)}
+//           </pre>
+//         </div>
+//       )}
+
+//       {/* 4) Error Message */}
+//       {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+
+//       {/* 5) Conversation Display */}
+//       <div className="bg-gray-800 p-4 rounded-md mb-4">
+//         <h2 className="font-bold text-lg mb-2">Conversation</h2>
+//         {conversation.length === 0 ? (
+//           <p className="text-gray-400 italic">No messages yet.</p>
+//         ) : (
+//           <ul>
+//             {conversation.map((msg, idx) => (
+//               <li key={idx} className="mb-2">
+//                 <strong>{msg.role === 'user' ? 'You:' : 'GPT:'}</strong>{' '}
+//                 {msg.content}
+//               </li>
+//             ))}
+//           </ul>
+//         )}
+//       </div>
+
+//       {/* 6) Send Message Input */}
+//       <div className="flex items-center gap-2">
+//         <input
+//           type="text"
+//           className="flex-grow p-2 text-black rounded-md"
+//           placeholder="Ask or respond..."
+//           value={messageInput}
+//           onChange={(e) => setMessageInput(e.target.value)}
+//         />
+//         <button
+//           onClick={handleSendMessage}
+//           className="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-700"
+//         >
+//           Send
+//         </button>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default CreatePostPage;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
