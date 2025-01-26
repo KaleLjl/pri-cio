@@ -404,6 +404,8 @@ export default function Chat({ userId }: ChatProps) {
                       if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
                         try {
                           await chat.deleteMessages();
+                          // Show success message
+                          alert(dict.chatHistory.toast.deleteSuccess);
                         } catch (error) {
                           console.error("Failed to delete messages:", error);
                           alert(dict.chatHistory.toast.deleteError);

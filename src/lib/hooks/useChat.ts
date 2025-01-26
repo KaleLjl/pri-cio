@@ -262,6 +262,42 @@ export function useChat(props: UseChatProps | null) {
     },
   });
 
+  // Mutation for deleting messages
+  const deleteMessagesMutation = useMutation({
+    mutationFn: async () => {
+      if (!props?.conversationId) throw new Error("No conversation ID");
+      
+      const response = await fetch('/api/chat/messages', {
+        method: "DELETE",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId: props.conversationId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete messages");
+      }
+    },
+    onSuccess: () => {
+      // Clear the messages cache
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+        ["chat-messages", props?.conversationId],
+        {
+          pages: [{ messages: [], hasMore: false }],
+          pageParams: [undefined],
+        }
+      );
+    },
+    onError: (error) => {
+      console.error("Error deleting messages:", error);
+      throw error;
+    }
+  });
+
   // Listen to socket updates
   useEffect(() => {
     if (!props?.conversationId) return;
@@ -406,25 +442,6 @@ export function useChat(props: UseChatProps | null) {
     }
   };
 
-  const deleteMessages = async () => {
-    if (!props) return;
-
-    try {
-      const response = await fetch(`/api/chat/messages?conversationId=${props.conversationId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete messages');
-      }
-
-      setMessages([]);
-    } catch (error) {
-      console.error('Error deleting messages:', error);
-      throw error;
-    }
-  };
-
   return {
     messages: uniqueMessages,
     isLoading,
@@ -448,20 +465,7 @@ export function useChat(props: UseChatProps | null) {
       await fetchNextPage();
     },
     deleteMessages: async () => {
-      if (!props?.conversationId) throw new Error("No conversation ID");
-      
-      const response = await fetch(`/api/chat/messages?conversationId=${props.conversationId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete messages");
-      }
-
-      // Invalidate and refetch messages
-      await queryClient.invalidateQueries({ 
-        queryKey: ["chat-messages", props.conversationId] 
-      });
+      await deleteMessagesMutation.mutateAsync();
     },
   };
 }
