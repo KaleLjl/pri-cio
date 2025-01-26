@@ -14,6 +14,7 @@ import { ExploreItem } from '@/lib/types/explore';
 import { CURRENCIES } from '@/components/main/App';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { socketService } from '@/lib/socket';
+import ObjectDiscussion from '@/components/shared/ObjectDiscussion';
 
 interface ChatProps {
   userId: string;
@@ -48,6 +49,7 @@ export default function Chat({ userId }: ChatProps) {
   const [showPosts, setShowPosts] = useState(true);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [selectedPost, setSelectedPost] = useState<ExploreItem | null>(null);
 
   // Use React Query to fetch and manage explore posts
   const { data: userPosts = [], isLoading: isLoadingPosts } = useQuery({
@@ -272,6 +274,27 @@ export default function Chat({ userId }: ChatProps) {
     }
   }, [showPosts, scrollPosition]);
 
+  const handlePostClick = (post: ExploreItem) => {
+    setSelectedPost(post);
+  };
+
+  const handleDiscussionSubmit = (data: {
+    price: string;
+    location: string;
+    meetingTime: string;
+  }) => {
+    if (!chat.inputMessage) {
+      chat.setInputMessage(
+        `Let's discuss this item:\n` +
+        `Item: ${selectedPost?.description}\n` +
+        `Price: ${CURRENCIES.find(c => c.value === selectedPost?.currency)?.symbol}${data.price}\n` +
+        `Location: ${data.location}\n` +
+        `Meeting Time: ${new Date(data.meetingTime).toLocaleString()}`
+      );
+    }
+    setSelectedPost(null);
+  };
+
   if (error) {
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center">
@@ -400,7 +423,7 @@ export default function Chat({ userId }: ChatProps) {
                         <div
                           key={post._id}
                           className="flex-none w-32 bg-gray-700/50 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
-                          onClick={() => window.open(`/explore?post=${post._id}`, '_blank')}
+                          onClick={() => handlePostClick(post)}
                         >
                           <div className="relative w-32 h-32">
                             <ImageWithFallback
@@ -487,6 +510,15 @@ export default function Chat({ userId }: ChatProps) {
                 </div>
                 <div ref={messagesEndRef} />
               </div>
+
+              {/* Object Discussion */}
+              {selectedPost && (
+                <ObjectDiscussion
+                  post={selectedPost}
+                  onClose={() => setSelectedPost(null)}
+                  onSubmit={handleDiscussionSubmit}
+                />
+              )}
 
               {/* Message Input - Part of the same container */}
               <div className="p-4 border-t border-gray-700/50">

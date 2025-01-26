@@ -187,5 +187,14 @@
       "deleteSuccess": "删除消息成功",
       "deleteError": "删除消息失败，请重试"
     }
+  },
+  "objectDiscussion": {
+    "price": "价格",
+    "enterPrice": "输入价格",
+    "location": "地点",
+    "enterLocation": "输入地点",
+    "meetingTime": "见面时间",
+    "cancel": "取消",
+    "send": "发送"
   }
 } 

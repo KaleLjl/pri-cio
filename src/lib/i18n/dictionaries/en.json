@@ -187,5 +187,14 @@
       "deleteSuccess": "Successfully deleted messages",
       "deleteError": "Failed to delete messages. Please try again."
     }
+  },
+  "objectDiscussion": {
+    "price": "Price",
+    "enterPrice": "Enter price",
+    "location": "Location",
+    "enterLocation": "Enter location",
+    "meetingTime": "Meeting Time",
+    "cancel": "Cancel",
+    "send": "Send"
   }
 } 
