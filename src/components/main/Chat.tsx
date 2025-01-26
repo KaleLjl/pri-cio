@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
-import Image from 'next/image';
 import { useChat } from '@/lib/hooks/useChat';
 import { ChatUser } from '@/lib/types/chat';
 import { useSession } from 'next-auth/react';
@@ -11,6 +10,8 @@ import { format } from 'date-fns';
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
+import { ExploreItem } from '@/lib/types/explore';
+import { CURRENCIES } from '@/components/main/App';
 
 interface ChatProps {
   userId: string;
@@ -30,6 +31,8 @@ export default function Chat({ userId }: ChatProps) {
   const { ref: loadMoreRef, inView } = useInView();
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const lastMessageRef = useRef<string | null>(null);
+  const [userPosts, setUserPosts] = useState<ExploreItem[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
 
   // 身份验证检查
   useEffect(() => {
@@ -58,6 +61,33 @@ export default function Chat({ userId }: ChatProps) {
     };
     checkSelfChat();
   }, [userId, status, session?.user?.email, router]);
+
+  // Fetch user's posts
+  useEffect(() => {
+    const fetchUserPosts = async () => {
+      if (!otherUser) return;
+      
+      try {
+        setIsLoadingPosts(true);
+        const response = await fetch('/api/explore');
+        if (!response.ok) {
+          throw new Error('Failed to fetch user posts');
+        }
+        const allPosts = await response.json();
+        // Filter posts by user ID
+        const userPosts = allPosts.filter((post: ExploreItem) => 
+          post.userProfile?._id === userId
+        );
+        setUserPosts(userPosts);
+      } catch (error) {
+        console.error('Error fetching user posts:', error);
+      } finally {
+        setIsLoadingPosts(false);
+      }
+    };
+
+    fetchUserPosts();
+  }, [userId, otherUser]);
 
   // Initialize chat
   useEffect(() => {
@@ -213,62 +243,99 @@ export default function Chat({ userId }: ChatProps) {
         {/* Chat Header - Fixed at top below navigation */}
         <div className="absolute top-16 left-0 right-0 z-20">
           <div className="container max-w-4xl mx-auto">
-            <div className="flex items-center space-x-4 mx-4 p-4 bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg">
-              <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-gray-700 rounded-full transition-colors"
-                aria-label={dict.chat.actions.back}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+            <div className="flex flex-col mx-4">
+              {/* User Info */}
+              <div className="flex items-center space-x-4 p-4 bg-gray-800/95 backdrop-blur-sm rounded-t-lg shadow-lg">
+                <button
+                  onClick={() => router.back()}
+                  className="p-2 hover:bg-gray-700 rounded-full transition-colors"
+                  aria-label={dict.chat.actions.back}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                    />
+                  </svg>
+                </button>
+                <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-purple-500/50">
+                  <ImageWithFallback
+                    src={otherUser.avatarUrl || ''}
+                    alt={otherUser.name || 'User'}
+                    width={48}
+                    height={48}
+                    className="object-cover rounded-full"
+                    isAvatar={true}
+                    priority
                   />
-                </svg>
-              </button>
-              <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-purple-500/50">
-                <ImageWithFallback
-                  src={otherUser.avatarUrl || ''}
-                  alt={otherUser.name || 'User'}
-                  width={48}
-                  height={48}
-                  className="object-cover rounded-full"
-                  isAvatar={true}
-                  priority
-                />
-              </div>
-              <div className="flex-1">
-                <h1 className="text-xl font-bold">{otherUser.name || 'User'}</h1>
-                {chat.isTyping && (
-                  <p className="text-sm text-purple-400">typing...</p>
-                )}
-              </div>
-              <button
-                onClick={async () => {
-                  if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
-                    try {
-                      await chat.deleteMessages();
-                    } catch (error) {
-                      console.error("Failed to delete messages:", error);
-                      alert(dict.chatHistory.toast.deleteError);
+                </div>
+                <div className="flex-1">
+                  <h1 className="text-xl font-bold">{otherUser.name || 'User'}</h1>
+                  {chat.isTyping && (
+                    <p className="text-sm text-purple-400">typing...</p>
+                  )}
+                </div>
+                <button
+                  onClick={async () => {
+                    if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
+                      try {
+                        await chat.deleteMessages();
+                      } catch (error) {
+                        console.error("Failed to delete messages:", error);
+                        alert(dict.chatHistory.toast.deleteError);
+                      }
                     }
-                  }
-                }}
-                className="p-2 hover:bg-red-600 rounded-lg transition-colors text-sm text-white"
-                title={dict.chatHistory.deleteConfirm.title}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+                  }}
+                  className="p-2 hover:bg-red-600 rounded-lg transition-colors text-sm text-white"
+                  title={dict.chatHistory.deleteConfirm.title}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* User's Posts */}
+              {!isLoadingPosts && userPosts.length > 0 && (
+                <div className="bg-gray-800/95 backdrop-blur-sm p-4 rounded-b-lg shadow-lg border-t border-gray-700/50">
+                  <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
+                    <div className="flex space-x-4 pb-2">
+                      {userPosts.map((post) => (
+                        <div
+                          key={post._id}
+                          className="flex-none w-32 bg-gray-700/50 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
+                          onClick={() => window.open(`/explore?post=${post._id}`, '_blank')}
+                        >
+                          <div className="relative w-32 h-32">
+                            <ImageWithFallback
+                              src={post.imageUrl}
+                              alt={post.description}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                          <div className="p-2">
+                            <p className="text-sm font-medium truncate">
+                              {CURRENCIES.find(c => c.value === post.currency)?.symbol} {post.price}
+                            </p>
+                            <p className="text-xs text-gray-400 truncate">
+                              {post.description}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
