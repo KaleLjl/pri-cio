@@ -1,6 +1,5 @@
 import React from 'react';
 import { ExploreItem } from '@/lib/types/explore';
-import { ObjectDiscussionData } from '@/lib/types/chat';
 import ImageWithFallback from './ImageWithFallback';
 import { CURRENCIES } from '@/components/main/App';
 import { useLanguage } from '@/lib/context/LanguageContext';
@@ -8,7 +7,11 @@ import { useLanguage } from '@/lib/context/LanguageContext';
 interface ObjectDiscussionProps {
   post: ExploreItem;
   onClose: () => void;
-  onSubmit: (data: ObjectDiscussionData) => void;
+  onSubmit: (data: {
+    price: string;
+    location: string;
+    meetingTime: string;
+  }) => void;
 }
 
 export default function ObjectDiscussion({ post, onClose, onSubmit }: ObjectDiscussionProps) {
@@ -22,13 +25,7 @@ export default function ObjectDiscussion({ post, onClose, onSubmit }: ObjectDisc
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      type: 'object_discussion',
-      postId: post._id,
-      imageUrl: post.imageUrl,
-      description: post.description,
-      originalPrice: post.price,
-      suggestedPrice: price,
-      currency: post.currency,
+      price,
       location,
       meetingTime,
     });

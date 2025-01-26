@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from "@tanstack/react-query";
 import { socketService } from "@/lib/socket";
-import { ChatMessage, ChatUser, MessageStatus, MessageContent } from "@/lib/types/chat";
+import { ChatMessage, ChatUser, MessageStatus, MessageContent, ObjectDiscussionData } from "@/lib/types/chat";
 import { v4 as uuidv4 } from 'uuid';
 
 const MESSAGES_PER_PAGE = 20;
@@ -182,102 +182,74 @@ export function useChat(props: UseChatProps | null) {
     };
   }, [props?.conversationId, queryClient]);
 
-  // useInfiniteQuery
+  // Query for fetching messages
   const {
     data,
-    isLoading,
-    error,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteQuery<MessagesResponse, Error, InfiniteData<MessagesResponse>, [string, string | undefined], number>({
+    isLoading,
+    error,
+  } = useInfiniteQuery<MessagesResponse>({
     queryKey: ["chat-messages", props?.conversationId],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam = undefined }) => {
       if (!props?.conversationId) throw new Error("No conversation ID");
-      const page = typeof pageParam === 'number' ? pageParam : 1;
-      const response = await fetch(
-        `/api/chat/messages?conversationId=${props.conversationId}&page=${page}&limit=${MESSAGES_PER_PAGE}`,
-        {
-          credentials: "include",
-          headers: {
-            "Cache-Control": "no-cache",
-            Pragma: "no-cache",
-          },
-        }
-      );
+      
+      const url = new URL("/api/chat/messages", window.location.origin);
+      url.searchParams.append("conversationId", props.conversationId);
+      if (pageParam) {
+        url.searchParams.append("before", pageParam as string);
+      }
+
+      const response = await fetch(url.toString());
       if (!response.ok) {
         throw new Error("Failed to fetch messages");
       }
-      const resData = await response.json();
-      return {
-        messages: resData.messages as ChatMessage[],
-        hasMore: resData.hasMore as boolean,
-        nextPage: resData.hasMore ? page + 1 : undefined,
-      };
+
+      const data = await response.json();
+      return data as MessagesResponse;
     },
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) => lastPage.nextPage,
-    staleTime: 0,
-    gcTime: MESSAGE_CACHE_TIME,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
+    getNextPageParam: (lastPage: MessagesResponse) => {
+      if (!lastPage.hasMore) return undefined;
+      const firstMessage = lastPage.messages[0];
+      return firstMessage?._id;
+    },
     enabled: !!props?.conversationId,
+    staleTime: MESSAGE_CACHE_TIME,
+    initialPageParam: undefined,
   });
 
-  const sendMessageMutation = useMutation<ChatMessage, Error, string, MutationContext>({
-    mutationFn: async (content: string) => {
+  // Mutation for sending messages
+  const sendMessageMutation = useMutation<ChatMessage, Error, MessageContent>({
+    mutationFn: async (content: MessageContent) => {
       if (!props?.conversationId) throw new Error("No conversation ID");
-      setIsSending(true);
-      try {
-        const response = await fetch("/api/chat/messages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            conversationId: props.conversationId,
-            receiverId: props.otherUser._id,
-            content,
-          }),
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to send message");
-        }
-        const newMessage = await response.json();
-        return { ...newMessage, status: "sent" as MessageStatus } as ChatMessage;
-      } finally {
-        setIsSending(false);
-      }
-    },
-    onMutate: async (content) => {
-      const optimisticMessage: ChatMessage = {
-        _id: `temp-${Date.now()}`,
-        conversationId: props!.conversationId,
-        senderId: props!.currentUserId,
-        receiverId: props!.otherUser._id,
-        content,
-        createdAt: new Date().toISOString(),
-        status: "sending" as MessageStatus,
-        read: false,
-      };
+      
+      const response = await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: props.conversationId,
+          content,
+          receiverId: props.otherUser._id,
+        }),
+      });
 
-      // 更新消息列表
+      if (!response.ok) {
+        throw new Error("Failed to send message");
+      }
+
+      const data = await response.json();
+      return data as ChatMessage;
+    },
+    onSuccess: (newMessage) => {
+      // Update the messages cache with the new message
       queryClient.setQueryData<InfiniteData<MessagesResponse>>(
         ["chat-messages", props?.conversationId],
         (old) => {
-          if (!old) {
-            return {
-              pages: [{ messages: [optimisticMessage], hasMore: false }],
-              pageParams: [1],
-            };
-          }
-
+          if (!old) return old;
           const newPages = [...old.pages];
           const lastPage = newPages[newPages.length - 1];
-          if (lastPage) {
-            lastPage.messages = [...lastPage.messages, optimisticMessage];
-          }
-
+          lastPage.messages = [...lastPage.messages, newMessage];
           return {
             ...old,
             pages: newPages,
@@ -285,56 +257,54 @@ export function useChat(props: UseChatProps | null) {
         }
       );
 
-      return { optimisticMessage };
-    },
-    onSuccess: (newMessage, _, context) => {
-      // 更新消息列表，替换临时消息
-      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
-        ["chat-messages", props?.conversationId],
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              messages: page.messages
-                .filter((msg) => msg._id !== context?.optimisticMessage._id)
-                .concat(newMessage),
-            })),
-          };
-        }
-      );
+      // Send the message through socket
       socketService.sendMessage(newMessage);
     },
-    onError: (error, _, context) => {
-      console.error("Failed to send message:", error);
-      if (context?.optimisticMessage) {
+  });
+
+  // Listen to socket updates
+  useEffect(() => {
+    if (!props?.conversationId) return;
+
+    const handleNewMessage = (message: ChatMessage) => {
+      if (message.conversationId === props.conversationId) {
+        // Update the messages cache with the new message
         queryClient.setQueryData<InfiniteData<MessagesResponse>>(
-          ["chat-messages", props?.conversationId],
+          ["chat-messages", props.conversationId],
           (old) => {
             if (!old) return old;
+            const newPages = [...old.pages];
+            const lastPage = newPages[newPages.length - 1];
+            // Check if message already exists
+            if (!lastPage.messages.some(msg => msg._id === message._id)) {
+              lastPage.messages = [...lastPage.messages, { ...message, status: 'delivered' }];
+            }
             return {
               ...old,
-              pages: old.pages.map((page) => ({
-                ...page,
-                messages: page.messages.filter(
-                  (msg) => msg._id !== context.optimisticMessage._id
-                ),
-              })),
+              pages: newPages,
             };
           }
         );
       }
-    },
-  });
+    };
 
+    socketService.onNewMessage(handleNewMessage);
+
+    return () => {
+      socketService.removeEventListener('message', handleNewMessage);
+    };
+  }, [props?.conversationId, queryClient]);
+
+  // Flatten messages from all pages
   const allMessages = data?.pages.flatMap((page) => page.messages) ?? [];
   const uniqueMessages = Array.from(
     new Map(allMessages.map((msg) => [msg._id, msg])).values()
   ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  // 获取对方的输入状态
-  const otherUserTyping = queryClient.getQueryData<boolean>(["chat-typing-status", props?.otherUser._id]) || false;
+  // Get other user's typing status
+  const otherUserTyping = queryClient.getQueryData<boolean>(
+    ["chat-typing-status", props?.otherUser._id]
+  ) || false;
 
   useEffect(() => {
     if (!props) return;
@@ -377,7 +347,7 @@ export function useChat(props: UseChatProps | null) {
     }
   };
 
-  const sendMessage = async (content: MessageContent) => {
+  const sendMessage = async (content: string | ObjectDiscussionData) => {
     if (!props) return;
 
     const tempId = uuidv4();
@@ -455,33 +425,43 @@ export function useChat(props: UseChatProps | null) {
     }
   };
 
-  useEffect(() => {
-    if (!props) return;
-
-    const handleNewMessage = (message: ChatMessage) => {
-      if (message.conversationId === props.conversationId) {
-        setMessages(prev => [...prev, { ...message, status: 'delivered' }]);
-      }
-    };
-
-    const cleanup = socketService.onNewMessage(handleNewMessage);
-    return () => {
-      if (cleanup) cleanup();
-    };
-  }, [props?.conversationId]);
-
   return {
-    messages,
+    messages: uniqueMessages,
     isLoading,
     error: error ? error.message : null,
     isTyping: otherUserTyping,
     inputMessage,
     isSending: isSending || sendMessageMutation.isPending,
-    hasMore,
+    hasMore: !!hasNextPage,
     loadingMore: isFetchingNextPage,
     setInputMessage,
-    sendMessage,
-    loadMoreMessages,
-    deleteMessages,
+    sendMessage: async (content: MessageContent) => {
+      setIsSending(true);
+      try {
+        await sendMessageMutation.mutateAsync(content);
+        setInputMessage("");
+      } finally {
+        setIsSending(false);
+      }
+    },
+    loadMoreMessages: async () => {
+      await fetchNextPage();
+    },
+    deleteMessages: async () => {
+      if (!props?.conversationId) throw new Error("No conversation ID");
+      
+      const response = await fetch(`/api/chat/messages?conversationId=${props.conversationId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete messages");
+      }
+
+      // Invalidate and refetch messages
+      await queryClient.invalidateQueries({ 
+        queryKey: ["chat-messages", props.conversationId] 
+      });
+    },
   };
 }

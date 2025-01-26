@@ -278,8 +278,26 @@ export default function Chat({ userId }: ChatProps) {
     setSelectedPost(post);
   };
 
-  const handleDiscussionSubmit = (data: ObjectDiscussionData) => {
-    chat.sendMessage(data);
+  const handleDiscussionSubmit = (data: {
+    price: string;
+    location: string;
+    meetingTime: string;
+  }) => {
+    if (!selectedPost) return;
+    
+    const discussionData: ObjectDiscussionData = {
+      type: 'object_discussion',
+      postId: selectedPost._id,
+      imageUrl: selectedPost.imageUrl,
+      description: selectedPost.description,
+      originalPrice: selectedPost.price,
+      suggestedPrice: data.price,
+      currency: selectedPost.currency,
+      location: data.location,
+      meetingTime: data.meetingTime,
+    };
+    
+    chat.sendMessage(discussionData);
     setSelectedPost(null);
   };
 
@@ -482,38 +500,38 @@ export default function Chat({ userId }: ChatProps) {
                             <div className="flex items-start space-x-3">
                               <div className="relative w-20 h-20 flex-shrink-0">
                                 <ImageWithFallback
-                                  src={message.content.imageUrl}
-                                  alt={message.content.description}
+                                  src={(message.content as ObjectDiscussionData).imageUrl}
+                                  alt={(message.content as ObjectDiscussionData).description}
                                   fill
                                   className="object-cover rounded-lg"
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm text-gray-300 line-clamp-2 mb-2">
-                                  {message.content.description}
+                                  {(message.content as ObjectDiscussionData).description}
                                 </p>
                                 <div className="space-y-1.5 text-sm">
                                   <p className="flex items-center text-gray-300">
                                     <span className="text-gray-400 w-20">{dict.objectDiscussion?.price}:</span>
                                     <span className="ml-1 truncate">
-                                      {CURRENCIES.find(c => c.value === message.content.currency)?.symbol}
-                                      {message.content.suggestedPrice}
+                                      {CURRENCIES.find(c => c.value === (message.content as ObjectDiscussionData).currency)?.symbol}
+                                      {(message.content as ObjectDiscussionData).suggestedPrice}
                                     </span>
-                                    {message.content.suggestedPrice !== message.content.originalPrice && (
+                                    {(message.content as ObjectDiscussionData).suggestedPrice !== (message.content as ObjectDiscussionData).originalPrice && (
                                       <span className="ml-2 text-xs text-gray-400 truncate">
-                                        (Original: {CURRENCIES.find(c => c.value === message.content.currency)?.symbol}
-                                        {message.content.originalPrice})
+                                        (Original: {CURRENCIES.find(c => c.value === (message.content as ObjectDiscussionData).currency)?.symbol}
+                                        {(message.content as ObjectDiscussionData).originalPrice})
                                       </span>
                                     )}
                                   </p>
                                   <p className="flex items-center text-gray-300">
                                     <span className="text-gray-400 w-20">{dict.objectDiscussion?.location}:</span>
-                                    <span className="ml-1 truncate">{message.content.location}</span>
+                                    <span className="ml-1 truncate">{(message.content as ObjectDiscussionData).location}</span>
                                   </p>
                                   <p className="flex items-center text-gray-300">
                                     <span className="text-gray-400 w-20">{dict.objectDiscussion?.meetingTime}:</span>
                                     <span className="ml-1 truncate">
-                                      {new Date(message.content.meetingTime).toLocaleString()}
+                                      {new Date((message.content as ObjectDiscussionData).meetingTime).toLocaleString()}
                                     </span>
                                   </p>
                                 </div>
