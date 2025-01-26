@@ -424,13 +424,13 @@ export default function Chat({ userId }: ChatProps) {
 
               {/* User's Posts */}
               {!isLoadingPosts && userPosts.length > 0 && showPosts && (
-                <div className="bg-gray-800/95 backdrop-blur-sm p-4 rounded-b-lg shadow-lg border-t border-gray-700/50">
+                <div className="bg-gray-800/70 backdrop-blur-sm p-4 rounded-b-lg shadow-lg border-t border-gray-700/50">
                   <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
                     <div className="flex space-x-4 pb-2">
                       {userPosts.map((post) => (
                         <div
                           key={post._id}
-                          className="flex-none w-32 bg-gray-700/50 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
+                          className="flex-none w-32 bg-gray-700/30 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
                           onClick={() => handlePostClick(post)}
                         >
                           <div className="relative w-32 h-32">
