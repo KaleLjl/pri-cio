@@ -45,6 +45,9 @@ export default function Chat({ userId }: ChatProps) {
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const lastMessageRef = useRef<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const [showPosts, setShowPosts] = useState(true);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   // Use React Query to fetch and manage explore posts
   const { data: userPosts = [], isLoading: isLoadingPosts } = useQuery({
@@ -254,6 +257,21 @@ export default function Chat({ userId }: ChatProps) {
     }
   };
 
+  // Save scroll position before toggling posts
+  const handleTogglePosts = () => {
+    if (messagesContainerRef.current) {
+      setScrollPosition(messagesContainerRef.current.scrollTop);
+    }
+    setShowPosts(prev => !prev);
+  };
+
+  // Restore scroll position after toggling posts
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = scrollPosition;
+    }
+  }, [showPosts, scrollPosition]);
+
   if (error) {
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center">
@@ -329,28 +347,52 @@ export default function Chat({ userId }: ChatProps) {
                     <p className="text-sm text-purple-400">{dict.chat.typing}</p>
                   )}
                 </div>
-                <button
-                  onClick={async () => {
-                    if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
-                      try {
-                        await chat.deleteMessages();
-                      } catch (error) {
-                        console.error("Failed to delete messages:", error);
-                        alert(dict.chatHistory.toast.deleteError);
+                <div className="flex items-center space-x-2">
+                  {!isLoadingPosts && userPosts.length > 0 && (
+                    <button
+                      onClick={handleTogglePosts}
+                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-sm text-white"
+                      title={showPosts ? "Hide posts" : "Show posts"}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className={`h-5 w-5 transition-transform duration-200 ${showPosts ? 'rotate-180' : ''}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                  <button
+                    onClick={async () => {
+                      if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
+                        try {
+                          await chat.deleteMessages();
+                        } catch (error) {
+                          console.error("Failed to delete messages:", error);
+                          alert(dict.chatHistory.toast.deleteError);
+                        }
                       }
-                    }
-                  }}
-                  className="p-2 hover:bg-red-600 rounded-lg transition-colors text-sm text-white"
-                  title={dict.chatHistory.deleteConfirm.title}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                    }}
+                    className="p-2 hover:bg-red-600 rounded-lg transition-colors text-sm text-white"
+                    title={dict.chatHistory.deleteConfirm.title}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {/* User's Posts */}
-              {!isLoadingPosts && userPosts.length > 0 && (
+              {!isLoadingPosts && userPosts.length > 0 && showPosts && (
                 <div className="bg-gray-800/95 backdrop-blur-sm p-4 rounded-b-lg shadow-lg border-t border-gray-700/50">
                   <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
                     <div className="flex space-x-4 pb-2">
@@ -392,6 +434,7 @@ export default function Chat({ userId }: ChatProps) {
             <div className="h-full mx-4 bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-lg flex flex-col">
               {/* Messages Area */}
               <div 
+                ref={messagesContainerRef}
                 className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800"
                 onScroll={handleScroll}
               >
