@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { HistoryItem } from '@/lib/types/history';
 import { Profile, UseProfilePage } from '../types/users';
+import { socketService } from '@/lib/socket';
 
 export function useHistory(initialData: HistoryItem[] = []) {
   const { data: session } = useSession();
@@ -165,7 +166,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
           imageUrl: history.imageUrl,
           userEmail: session.user.email,
           currency: history.currency,
-          location: history.location, // Pass location directly
+          location: history.location,
           historyId: history._id,
         }),
       });
@@ -184,6 +185,13 @@ export function useHistory(initialData: HistoryItem[] = []) {
             : h
         )
       );
+
+      // Get current user's ID and emit socket event
+      const userResponse = await fetch('/api/users/me');
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        socketService.emitExplorePostsUpdate(userData._id);
+      }
       
       return { success: true };
     } catch (error) {
@@ -204,26 +212,36 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
 
     try {
+      setIsSaving(true);
       const response = await fetch(`/api/explore?historyId=${historyId}&exploreId=${exploreId}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
-        throw new Error('Failed to unpublish');
+        throw new Error('Failed to unpublish history');
       }
-      
-      setHistories(prev => 
-        prev.map(h => 
-          h._id === historyId 
-            ? { ...h, exploreId: undefined } 
+
+      setHistories(prev =>
+        prev.map(h =>
+          h._id === historyId
+            ? { ...h, exploreId: undefined }
             : h
         )
       );
-      
-      return { success: true };
+
+      // Get current user's ID and emit socket event
+      const userResponse = await fetch('/api/users/me');
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        socketService.emitExplorePostsUpdate(userData._id);
+      }
+
     } catch (error) {
       console.error('Unpublish failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to unpublish history');
       throw error;
+    } finally {
+      setIsSaving(false);
     }
   };
 

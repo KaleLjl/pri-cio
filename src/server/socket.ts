@@ -82,6 +82,12 @@ io.on("connection", (socket) => {
     socket.to(conversationId).emit("conversation-read", { conversationId });
   });
 
+  // Handle explore posts updates
+  socket.on("explore-posts-update", (userId: string) => {
+    // Broadcast to all connected clients that this user's posts have been updated
+    io.emit("explore-posts-update", { userId });
+  });
+
   socket.on("disconnect", (reason) => {
     if (userId) {
       conversationRooms.forEach((members, roomId) => {

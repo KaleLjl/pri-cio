@@ -12,15 +12,28 @@ import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { ExploreItem } from '@/lib/types/explore';
 import { CURRENCIES } from '@/components/main/App';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { socketService } from '@/lib/socket';
 
 interface ChatProps {
   userId: string;
 }
 
+// API function to fetch user's explore posts
+const fetchUserExplorePosts = async (userId: string): Promise<ExploreItem[]> => {
+  const response = await fetch('/api/explore');
+  if (!response.ok) {
+    throw new Error('Failed to fetch user posts');
+  }
+  const allPosts = await response.json();
+  return allPosts.filter((post: ExploreItem) => post.userProfile?._id === userId);
+};
+
 export default function Chat({ userId }: ChatProps) {
   const { dict } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [otherUser, setOtherUser] = useState<ChatUser | null>(null);
   const [conversationId, setConversationId] = useState<string>('');
@@ -31,8 +44,31 @@ export default function Chat({ userId }: ChatProps) {
   const { ref: loadMoreRef, inView } = useInView();
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const lastMessageRef = useRef<string | null>(null);
-  const [userPosts, setUserPosts] = useState<ExploreItem[]>([]);
-  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+
+  // Use React Query to fetch and manage explore posts
+  const { data: userPosts = [], isLoading: isLoadingPosts } = useQuery({
+    queryKey: ['explore-posts', userId],
+    queryFn: () => fetchUserExplorePosts(userId),
+    enabled: !!userId && !!otherUser,
+  });
+
+  // Listen to socket updates for explore posts
+  useEffect(() => {
+    if (!userId) return;
+
+    const handleExploreUpdate = (data: { userId: string }) => {
+      if (data.userId === userId) {
+        // Invalidate and refetch the explore posts query when we receive an update
+        queryClient.invalidateQueries({ queryKey: ['explore-posts', userId] });
+      }
+    };
+
+    socketService.onExplorePostsUpdate(handleExploreUpdate);
+
+    return () => {
+      socketService.removeEventListener('explore-posts-update', handleExploreUpdate);
+    };
+  }, [userId, queryClient]);
 
   // 身份验证检查
   useEffect(() => {
@@ -61,33 +97,6 @@ export default function Chat({ userId }: ChatProps) {
     };
     checkSelfChat();
   }, [userId, status, session?.user?.email, router]);
-
-  // Fetch user's posts
-  useEffect(() => {
-    const fetchUserPosts = async () => {
-      if (!otherUser) return;
-      
-      try {
-        setIsLoadingPosts(true);
-        const response = await fetch('/api/explore');
-        if (!response.ok) {
-          throw new Error('Failed to fetch user posts');
-        }
-        const allPosts = await response.json();
-        // Filter posts by user ID
-        const userPosts = allPosts.filter((post: ExploreItem) => 
-          post.userProfile?._id === userId
-        );
-        setUserPosts(userPosts);
-      } catch (error) {
-        console.error('Error fetching user posts:', error);
-      } finally {
-        setIsLoadingPosts(false);
-      }
-    };
-
-    fetchUserPosts();
-  }, [userId, otherUser]);
 
   // Initialize chat
   useEffect(() => {

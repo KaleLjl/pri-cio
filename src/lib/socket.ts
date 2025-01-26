@@ -262,6 +262,25 @@ class SocketService {
     this.addEventHandler("user-typing", handler);
   }
 
+  onExplorePostsUpdate(callback: (data: { userId: string }) => void) {
+    if (!this.socket) return;
+    const handler = (data: { userId: string }) => {
+      console.log("Explore posts updated for user:", data);
+      callback(data);
+    };
+    this.socket.on("explore-posts-update", handler);
+    this.addEventHandler("explore-posts-update", handler);
+  }
+
+  emitExplorePostsUpdate(userId: string) {
+    if (!this.socket?.connected) {
+      console.error("Cannot emit explore posts update: Socket not connected");
+      return;
+    }
+    console.log("Emitting explore posts update for user:", userId);
+    this.socket.emit("explore-posts-update", userId);
+  }
+
   removeAllListeners() {
     if (this.socket) {
       console.log("Removing specific event listeners");
