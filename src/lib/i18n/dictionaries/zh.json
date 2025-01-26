@@ -161,7 +161,8 @@
     "actions": {
       "send": "发送",
       "back": "返回"
-    }
+    },
+    "typing": "正在输入..."
   },
   "chatHistory": {
     "loading": "加载中...",

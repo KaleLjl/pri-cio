@@ -44,12 +44,19 @@ export default function Chat({ userId }: ChatProps) {
   const { ref: loadMoreRef, inView } = useInView();
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const lastMessageRef = useRef<string | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Use React Query to fetch and manage explore posts
   const { data: userPosts = [], isLoading: isLoadingPosts } = useQuery({
     queryKey: ['explore-posts', userId],
     queryFn: () => fetchUserExplorePosts(userId),
     enabled: !!userId && !!otherUser,
+  });
+
+  // Use React Query to manage typing status
+  const { data: isTyping = false } = useQuery({
+    queryKey: ['chat-typing-status', userId],
+    initialData: false,
   });
 
   // Listen to socket updates for explore posts
@@ -219,6 +226,34 @@ export default function Chat({ userId }: ChatProps) {
     }
   }, [inView, chat.hasMore]);
 
+  // Handle typing status
+  const handleTyping = (typing: boolean) => {
+    if (!conversationId || !currentUserId) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Send typing status
+    socketService.sendTyping({
+      conversationId,
+      userId: currentUserId,
+      typing,
+    });
+
+    // If typing, set a timeout to automatically set typing to false
+    if (typing) {
+      typingTimeoutRef.current = setTimeout(() => {
+        socketService.sendTyping({
+          conversationId,
+          userId: currentUserId,
+          typing: false,
+        });
+      }, 3000); // Stop typing indicator after 3 seconds of inactivity
+    }
+  };
+
   if (error) {
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center">
@@ -242,6 +277,8 @@ export default function Chat({ userId }: ChatProps) {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (chat.inputMessage.trim()) {
+      // Clear typing status when sending message
+      handleTyping(false);
       chat.sendMessage(chat.inputMessage.trim());
     }
   };
@@ -288,8 +325,8 @@ export default function Chat({ userId }: ChatProps) {
                 </div>
                 <div className="flex-1">
                   <h1 className="text-xl font-bold">{otherUser.name || 'User'}</h1>
-                  {chat.isTyping && (
-                    <p className="text-sm text-purple-400">typing...</p>
+                  {isTyping && (
+                    <p className="text-sm text-purple-400">{dict.chat.typing}</p>
                   )}
                 </div>
                 <button
@@ -414,7 +451,10 @@ export default function Chat({ userId }: ChatProps) {
                   <input
                     type="text"
                     value={chat.inputMessage}
-                    onChange={(e) => chat.setInputMessage(e.target.value)}
+                    onChange={(e) => {
+                      chat.setInputMessage(e.target.value);
+                      handleTyping(true);
+                    }}
                     placeholder={dict.chat.input.placeholder}
                     className="flex-1 bg-gray-700/50 backdrop-blur-sm text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 transition-all"
                   />

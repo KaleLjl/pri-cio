@@ -161,7 +161,8 @@
     "actions": {
       "send": "Send",
       "back": "Go Back"
-    }
+    },
+    "typing": "typing..."
   },
   "chatHistory": {
     "loading": "Loading...",

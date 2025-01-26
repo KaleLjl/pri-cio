@@ -162,6 +162,7 @@ export interface Dictionary {
       send: string;
       back: string;
     };
+    typing: string;
   };
   chatHistory: {
     loading: string;

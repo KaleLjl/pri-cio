@@ -132,10 +132,21 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
           // 用户输入状态处理
           socketService.onUserTyping(({ userId, typing }: { userId: string; typing: boolean }) => {
-            queryClient.setQueryData<any>(
+            // 使用 React Query 管理 typing 状态
+            queryClient.setQueryData(
               ["chat-typing-status", userId],
               typing
             );
+
+            // 设置一个定时器，在一定时间后自动清除 typing 状态
+            if (typing) {
+              setTimeout(() => {
+                queryClient.setQueryData(
+                  ["chat-typing-status", userId],
+                  false
+                );
+              }, 3000); // 3 seconds timeout
+            }
           });
         };
 
