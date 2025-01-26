@@ -50,6 +50,9 @@ export default function Chat({ userId }: ChatProps) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [selectedPost, setSelectedPost] = useState<ExploreItem | null>(null);
+  const [showMyPosts, setShowMyPosts] = useState(false);
+  const [myPosts, setMyPosts] = useState<ExploreItem[]>([]);
+  const [isLoadingMyPosts, setIsLoadingMyPosts] = useState(false);
 
   // Use React Query to fetch and manage explore posts
   const { data: userPosts = [], isLoading: isLoadingPosts } = useQuery({
@@ -300,6 +303,26 @@ export default function Chat({ userId }: ChatProps) {
     chat.sendMessage(discussionData);
     setSelectedPost(null);
   };
+
+  // Fetch current user's posts
+  useEffect(() => {
+    const fetchMyPosts = async () => {
+      if (!currentUserId) return;
+      setIsLoadingMyPosts(true);
+      try {
+        const response = await fetch('/api/explore');
+        if (!response.ok) throw new Error('Failed to fetch posts');
+        const allPosts = await response.json();
+        setMyPosts(allPosts.filter((post: ExploreItem) => post.userProfile?._id === currentUserId));
+      } catch (error) {
+        console.error('Error fetching my posts:', error);
+      } finally {
+        setIsLoadingMyPosts(false);
+      }
+    };
+
+    fetchMyPosts();
+  }, [currentUserId]);
 
   if (error) {
     return (
@@ -574,16 +597,68 @@ export default function Chat({ userId }: ChatProps) {
               {/* Message Input - Part of the same container */}
               <div className="p-4 border-t border-gray-700/50">
                 <form onSubmit={handleSendMessage} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chat.inputMessage}
-                    onChange={(e) => {
-                      chat.setInputMessage(e.target.value);
-                      handleTyping(true);
-                    }}
-                    placeholder={dict.chat.input.placeholder}
-                    className="flex-1 bg-gray-700/50 backdrop-blur-sm text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 transition-all"
-                  />
+                  <div className="relative flex-1 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowMyPosts(!showMyPosts)}
+                      className="bg-gray-700/50 text-white px-3 rounded-lg hover:bg-gray-600/50 transition-all flex items-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                    <input
+                      type="text"
+                      value={chat.inputMessage}
+                      onChange={(e) => {
+                        chat.setInputMessage(e.target.value);
+                        handleTyping(true);
+                      }}
+                      placeholder={dict.chat.input.placeholder}
+                      className="flex-1 bg-gray-700/50 backdrop-blur-sm text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 transition-all"
+                    />
+                    {showMyPosts && (
+                      <div className="absolute bottom-full left-0 mb-2 w-72 bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-700/50 max-h-96 overflow-y-auto">
+                        <div className="p-4 space-y-4">
+                          {isLoadingMyPosts ? (
+                            <div className="flex justify-center py-4">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                            </div>
+                          ) : myPosts.length === 0 ? (
+                            <p className="text-center text-gray-400 py-4">{dict.chat.noPosts}</p>
+                          ) : (
+                            myPosts.map((post) => (
+                              <div
+                                key={post._id}
+                                className="flex items-start space-x-3 p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer transition-all"
+                                onClick={() => {
+                                  handlePostClick(post);
+                                  setShowMyPosts(false);
+                                }}
+                              >
+                                <div className="relative w-16 h-16 flex-shrink-0">
+                                  <ImageWithFallback
+                                    src={post.imageUrl}
+                                    alt={post.description}
+                                    fill
+                                    className="object-cover rounded-lg"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium">
+                                    {CURRENCIES.find(c => c.value === post.currency)?.symbol} {post.price}
+                                  </p>
+                                  <p className="text-xs text-gray-400 line-clamp-2">
+                                    {post.description}
+                                  </p>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="submit"
                     disabled={!chat.inputMessage.trim() || chat.isSending}
