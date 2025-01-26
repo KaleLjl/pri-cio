@@ -521,7 +521,41 @@ export default function Chat({ userId }: ChatProps) {
                             {message.content}
                           </p>
                         ) : message.content.type === 'object_discussion' ? (
-                          <div className="space-y-3 max-w-sm">
+                          <div 
+                            className="space-y-3 max-w-sm cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => {
+                              const currentContent = message.content as ObjectDiscussionData;
+                              // 使用当前议价组件中的信息创建新的帖子对象
+                              const newPost: ExploreItem = {
+                                _id: currentContent.postId,
+                                imageUrl: currentContent.imageUrl,
+                                description: currentContent.description,
+                                price: currentContent.suggestedPrice, // 使用议价的价格，而不是原始价格
+                                currency: currentContent.currency,
+                                userProfile: message.senderId === currentUserId ? otherUser : undefined,
+                                createdAt: new Date().toISOString(),
+                                location: {
+                                  latitude: 0,
+                                  longitude: 0,
+                                  city: currentContent.location.split(',')[0] || '',
+                                  country: currentContent.location.split(',')[1]?.trim() || ''
+                                },
+                                userEmail: '',
+                                historyId: '',
+                              };
+
+                              // 设置选中的帖子
+                              setSelectedPost(newPost);
+                              
+                              // 使用当前议价组件中的信息预填充
+                              const prefilledData = {
+                                price: currentContent.suggestedPrice,
+                                location: currentContent.location,
+                                meetingTime: currentContent.meetingTime
+                              };
+                              handleDiscussionSubmit(prefilledData);
+                            }}
+                          >
                             <div className="flex items-start space-x-3">
                               <div className="relative w-20 h-20 flex-shrink-0">
                                 <ImageWithFallback
