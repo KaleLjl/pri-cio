@@ -279,6 +279,7 @@ export default function Chat({ userId }: ChatProps) {
 
   const handlePostClick = (post: ExploreItem) => {
     setSelectedPost(post);
+    setShowPosts(false);
   };
 
   const handleDiscussionSubmit = (data: {
@@ -302,6 +303,43 @@ export default function Chat({ userId }: ChatProps) {
     
     chat.sendMessage(discussionData);
     setSelectedPost(null);
+    setShowPosts(false);
+  };
+
+  const handleObjectDiscussionClick = (currentContent: ObjectDiscussionData, senderId: string) => {
+    const newPost: ExploreItem = {
+      _id: currentContent.postId,
+      imageUrl: currentContent.imageUrl,
+      description: currentContent.description,
+      price: currentContent.suggestedPrice,
+      currency: currentContent.currency,
+      userProfile: senderId === currentUserId ? {
+        _id: otherUser?._id,
+        name: otherUser?.name,
+        avatarUrl: otherUser?.avatarUrl
+      } : undefined,
+      createdAt: new Date().toISOString(),
+      location: {
+        latitude: 0,
+        longitude: 0,
+        city: currentContent.location.split(',')[0] || '',
+        country: currentContent.location.split(',')[1]?.trim() || ''
+      },
+      userEmail: '',
+      historyId: '',
+    };
+
+    // 设置选中的帖子并隐藏posts栏目
+    setSelectedPost(newPost);
+    setShowPosts(false);
+    
+    // 使用当前议价组件中的信息预填充
+    const prefilledData = {
+      price: currentContent.suggestedPrice,
+      location: currentContent.location,
+      meetingTime: currentContent.meetingTime
+    };
+    handleDiscussionSubmit(prefilledData);
   };
 
   // Fetch current user's posts
@@ -525,35 +563,7 @@ export default function Chat({ userId }: ChatProps) {
                             className="space-y-3 max-w-sm cursor-pointer hover:opacity-90 transition-opacity"
                             onClick={() => {
                               const currentContent = message.content as ObjectDiscussionData;
-                              // 使用当前议价组件中的信息创建新的帖子对象
-                              const newPost: ExploreItem = {
-                                _id: currentContent.postId,
-                                imageUrl: currentContent.imageUrl,
-                                description: currentContent.description,
-                                price: currentContent.suggestedPrice, // 使用议价的价格，而不是原始价格
-                                currency: currentContent.currency,
-                                userProfile: message.senderId === currentUserId ? otherUser : undefined,
-                                createdAt: new Date().toISOString(),
-                                location: {
-                                  latitude: 0,
-                                  longitude: 0,
-                                  city: currentContent.location.split(',')[0] || '',
-                                  country: currentContent.location.split(',')[1]?.trim() || ''
-                                },
-                                userEmail: '',
-                                historyId: '',
-                              };
-
-                              // 设置选中的帖子
-                              setSelectedPost(newPost);
-                              
-                              // 使用当前议价组件中的信息预填充
-                              const prefilledData = {
-                                price: currentContent.suggestedPrice,
-                                location: currentContent.location,
-                                meetingTime: currentContent.meetingTime
-                              };
-                              handleDiscussionSubmit(prefilledData);
+                              handleObjectDiscussionClick(currentContent, message.senderId);
                             }}
                           >
                             <div className="flex items-start space-x-3">
