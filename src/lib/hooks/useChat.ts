@@ -283,14 +283,8 @@ export function useChat(props: UseChatProps | null) {
       }
     },
     onSuccess: () => {
-      // Clear the messages cache
-      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
-        ["chat-messages", props?.conversationId],
-        {
-          pages: [{ messages: [], hasMore: false }],
-          pageParams: [undefined],
-        }
-      );
+      // 完全移除消息缓存而不是设置空数组
+      queryClient.removeQueries({ queryKey: ["chat-messages", props?.conversationId] });
     },
     onError: (error) => {
       console.error("Error deleting messages:", error);

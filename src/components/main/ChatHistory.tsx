@@ -11,11 +11,13 @@ import { ChatRecord, MessageContent } from "@/lib/types/chat";
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ChatHistoryClient() {
   const { dict } = useLanguage();
   const { currentUser, loadingUser } = useCurrentUser();
   const { chats, loading, error, deleteMessages } = useChatHistory();
+  const queryClient = useQueryClient();
 
   // 处理实时消息更新和房间管理
   useEffect(() => {
@@ -143,6 +145,8 @@ export default function ChatHistoryClient() {
                           if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
                             try {
                               await deleteMessages(chat._id);
+                              // 清除该对话的消息缓存
+                              queryClient.removeQueries({ queryKey: ["chat-messages", chat._id] });
                               alert(dict.chatHistory.toast.deleteSuccess);
                             } catch (error) {
                               console.error("Failed to delete messages:", error);
