@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { useChat } from '@/lib/hooks/useChat';
-import { ChatUser } from '@/lib/types/chat';
+import { ChatUser, ObjectDiscussionData } from '@/lib/types/chat';
 import { useSession } from 'next-auth/react';
 import { useInView } from 'react-intersection-observer';
 import { format } from 'date-fns';
@@ -278,20 +278,8 @@ export default function Chat({ userId }: ChatProps) {
     setSelectedPost(post);
   };
 
-  const handleDiscussionSubmit = (data: {
-    price: string;
-    location: string;
-    meetingTime: string;
-  }) => {
-    if (!chat.inputMessage) {
-      chat.setInputMessage(
-        `Let's discuss this item:\n` +
-        `Item: ${selectedPost?.description}\n` +
-        `Price: ${CURRENCIES.find(c => c.value === selectedPost?.currency)?.symbol}${data.price}\n` +
-        `Location: ${data.location}\n` +
-        `Meeting Time: ${new Date(data.meetingTime).toLocaleString()}`
-      );
-    }
+  const handleDiscussionSubmit = (data: ObjectDiscussionData) => {
+    chat.sendMessage(data);
     setSelectedPost(null);
   };
 
@@ -458,7 +446,7 @@ export default function Chat({ userId }: ChatProps) {
               {/* Messages Area */}
               <div 
                 ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800"
+                className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800"
                 onScroll={handleScroll}
               >
                 {/* Load More Messages Indicator */}
@@ -469,28 +457,71 @@ export default function Chat({ userId }: ChatProps) {
                 )}
                 <div ref={loadMoreRef} />
                 
-                {/* Use windowing for better performance with large message lists */}
-                <div className="relative" style={{ height: chat.messages.length * 80 + 'px' }}>
+                {/* Messages List */}
+                <div className="space-y-6">
                   {chat.messages.map((message) => (
                     <div
                       key={message._id}
-                      className={`absolute w-full ${
-                        message.senderId === currentUserId ? 'flex justify-end' : 'flex justify-start'
+                      className={`flex ${
+                        message.senderId === currentUserId ? 'justify-end' : 'justify-start'
                       }`}
-                      style={{
-                        top: chat.messages.indexOf(message) * 80 + 'px',
-                        transform: 'translateZ(0)' // Enable GPU acceleration
-                      }}
                     >
                       <div
-                        className={`max-w-[70%] rounded-2xl p-3 ${
+                        className={`max-w-[70%] rounded-2xl p-4 ${
                           message.senderId === currentUserId
                             ? 'bg-purple-600/90 backdrop-blur-sm shadow-lg hover:bg-purple-500/90 transition-colors'
                             : 'bg-gray-700/90 backdrop-blur-sm shadow-lg hover:bg-gray-600/90 transition-colors'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                        <div className="flex items-center justify-end gap-2 mt-1">
+                        {typeof message.content === 'string' ? (
+                          <p className="text-sm whitespace-pre-wrap break-words max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
+                            {message.content}
+                          </p>
+                        ) : message.content.type === 'object_discussion' ? (
+                          <div className="space-y-3 max-w-sm">
+                            <div className="flex items-start space-x-3">
+                              <div className="relative w-20 h-20 flex-shrink-0">
+                                <ImageWithFallback
+                                  src={message.content.imageUrl}
+                                  alt={message.content.description}
+                                  fill
+                                  className="object-cover rounded-lg"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-300 line-clamp-2 mb-2">
+                                  {message.content.description}
+                                </p>
+                                <div className="space-y-1.5 text-sm">
+                                  <p className="flex items-center text-gray-300">
+                                    <span className="text-gray-400 w-20">{dict.objectDiscussion?.price}:</span>
+                                    <span className="ml-1 truncate">
+                                      {CURRENCIES.find(c => c.value === message.content.currency)?.symbol}
+                                      {message.content.suggestedPrice}
+                                    </span>
+                                    {message.content.suggestedPrice !== message.content.originalPrice && (
+                                      <span className="ml-2 text-xs text-gray-400 truncate">
+                                        (Original: {CURRENCIES.find(c => c.value === message.content.currency)?.symbol}
+                                        {message.content.originalPrice})
+                                      </span>
+                                    )}
+                                  </p>
+                                  <p className="flex items-center text-gray-300">
+                                    <span className="text-gray-400 w-20">{dict.objectDiscussion?.location}:</span>
+                                    <span className="ml-1 truncate">{message.content.location}</span>
+                                  </p>
+                                  <p className="flex items-center text-gray-300">
+                                    <span className="text-gray-400 w-20">{dict.objectDiscussion?.meetingTime}:</span>
+                                    <span className="ml-1 truncate">
+                                      {new Date(message.content.meetingTime).toLocaleString()}
+                                    </span>
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                        <div className="flex items-center justify-end gap-2 mt-2">
                           <span className="text-xs text-gray-300">
                             {format(new Date(message.createdAt), 'HH:mm')}
                           </span>

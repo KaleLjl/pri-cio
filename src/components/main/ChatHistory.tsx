@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { useChatHistory } from "@/lib/hooks/useChatHistory";
 import { socketService } from "@/lib/socket";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
-import { ChatRecord } from "@/lib/types/chat";
+import { ChatRecord, MessageContent } from "@/lib/types/chat";
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
@@ -43,6 +43,17 @@ export default function ChatHistoryClient() {
       console.error("Error formatting date:", error);
       return dateString;
     }
+  };
+
+  // 格式化消息内容
+  const formatMessageContent = (content: MessageContent): string => {
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (content.type === 'object_discussion') {
+      return `[${dict.objectDiscussion.price}: ${content.suggestedPrice}, ${dict.objectDiscussion.location}: ${content.location}]`;
+    }
+    return '';
   };
 
   // Loading states
@@ -91,7 +102,7 @@ export default function ChatHistoryClient() {
     <div className="max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold text-white mb-6">{dict.chatHistory.title}</h1>
       <div className="space-y-4">
-        {chats.map((chat: ChatRecord) => {
+        {chats.map(chat => {
           const otherParticipant = chat.participants.find(
             (p) => p._id !== currentUser._id
           );
@@ -150,7 +161,7 @@ export default function ChatHistoryClient() {
                   </div>
                   {chat.lastMessage && (
                     <p className={`text-sm truncate ${chat.unreadCount > 0 ? 'text-white font-medium' : 'text-gray-300'}`}>
-                      {chat.lastMessage.content}
+                      {formatMessageContent(chat.lastMessage.content)}
                     </p>
                   )}
                 </div>

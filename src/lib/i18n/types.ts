@@ -188,4 +188,13 @@ export interface Dictionary {
       deleteError: string;
     };
   };
+  objectDiscussion: {
+    price: string;
+    enterPrice: string;
+    location: string;
+    enterLocation: string;
+    meetingTime: string;
+    cancel: string;
+    send: string;
+  };
 } 

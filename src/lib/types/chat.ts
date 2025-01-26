@@ -6,15 +6,28 @@ export interface ChatUser {
 
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'error';
 
+export interface ObjectDiscussionData {
+  type: 'object_discussion';
+  postId: string;
+  imageUrl: string;
+  description: string;
+  originalPrice: string;
+  suggestedPrice: string;
+  currency: string;
+  location: string;
+  meetingTime: string;
+}
+
+export type MessageContent = string | ObjectDiscussionData;
+
 export interface ChatMessage {
   _id: string;
   conversationId: string;
+  content: MessageContent;
   senderId: string;
   receiverId: string;
-  content: string;
   createdAt: string;
   status?: MessageStatus;
-  read?: boolean;
 }
 
 export interface ChatHookResult {
@@ -26,8 +39,9 @@ export interface ChatHookResult {
   isSending: boolean;
   hasMore: boolean;
   setInputMessage: (value: string) => void;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: MessageContent) => Promise<void>;
   loadMoreMessages: () => Promise<void>;
+  deleteMessages: () => Promise<void>;
 }
 
 export interface ChatRecord {
@@ -39,7 +53,7 @@ export interface ChatRecord {
   }[];
   lastMessage?: {
     _id: string;
-    content: string;
+    content: MessageContent;
     createdAt: string;
     senderId: string;
   };

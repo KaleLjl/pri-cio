@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from "@tanstack/react-query";
 import { socketService } from "@/lib/socket";
-import { ChatMessage, ChatUser, MessageStatus } from "@/lib/types/chat";
+import { ChatMessage, ChatUser, MessageStatus, MessageContent } from "@/lib/types/chat";
+import { v4 as uuidv4 } from 'uuid';
 
 const MESSAGES_PER_PAGE = 20;
 const MESSAGE_CACHE_TIME = 1000 * 60 * 30; 
@@ -42,10 +43,12 @@ interface ChatHistoryRecord {
 
 export function useChat(props: UseChatProps | null) {
   const queryClient = useQueryClient();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   const handleTyping = useCallback(
     (typing: boolean) => {
@@ -333,40 +336,152 @@ export function useChat(props: UseChatProps | null) {
   // 获取对方的输入状态
   const otherUserTyping = queryClient.getQueryData<boolean>(["chat-typing-status", props?.otherUser._id]) || false;
 
+  useEffect(() => {
+    if (!props) return;
+    
+    loadInitialMessages();
+  }, [props?.conversationId]);
+
+  const loadInitialMessages = async () => {
+    if (!props) return;
+
+    try {
+      const response = await fetch(`/api/chat/messages?conversationId=${props.conversationId}`);
+      if (!response.ok) {
+        throw new Error('Failed to load messages');
+      }
+      const data = await response.json();
+      setMessages(data.messages);
+      setHasMore(data.hasMore);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  };
+
+  const loadMoreMessages = async () => {
+    if (!props || !hasMore) return;
+
+    try {
+      const oldestMessage = messages[0];
+      const response = await fetch(
+        `/api/chat/messages?conversationId=${props.conversationId}&before=${oldestMessage?._id}`
+      );
+      if (!response.ok) {
+        throw new Error('Failed to load more messages');
+      }
+      const data = await response.json();
+      setMessages(prevMessages => [...data.messages, ...prevMessages]);
+      setHasMore(data.hasMore);
+    } catch (error) {
+      console.error('Error loading more messages:', error);
+    }
+  };
+
+  const sendMessage = async (content: MessageContent) => {
+    if (!props) return;
+
+    const tempId = uuidv4();
+    const newMessage: ChatMessage = {
+      _id: tempId,
+      conversationId: props.conversationId,
+      content,
+      senderId: props.currentUserId,
+      receiverId: props.otherUser._id,
+      createdAt: new Date().toISOString(),
+      status: 'sending',
+    };
+
+    setMessages(prev => [...prev, newMessage]);
+    setIsSending(true);
+    setInputMessage('');
+
+    try {
+      const response = await fetch('/api/chat/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId: props.conversationId,
+          content,
+          receiverId: props.otherUser._id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      const data = await response.json();
+      setMessages(prev =>
+        prev.map(msg =>
+          msg._id === tempId
+            ? { ...data, status: 'sent' }
+            : msg
+        )
+      );
+
+      socketService.sendMessage(data);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setMessages(prev =>
+        prev.map(msg =>
+          msg._id === tempId
+            ? { ...msg, status: 'error' }
+            : msg
+        )
+      );
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const deleteMessages = async () => {
+    if (!props) return;
+
+    try {
+      const response = await fetch(`/api/chat/messages?conversationId=${props.conversationId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete messages');
+      }
+
+      setMessages([]);
+    } catch (error) {
+      console.error('Error deleting messages:', error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    if (!props) return;
+
+    const handleNewMessage = (message: ChatMessage) => {
+      if (message.conversationId === props.conversationId) {
+        setMessages(prev => [...prev, { ...message, status: 'delivered' }]);
+      }
+    };
+
+    const cleanup = socketService.onNewMessage(handleNewMessage);
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [props?.conversationId]);
+
   return {
-    messages: uniqueMessages,
+    messages,
     isLoading,
     error: error ? error.message : null,
     isTyping: otherUserTyping,
     inputMessage,
     isSending: isSending || sendMessageMutation.isPending,
-    hasMore: !!hasNextPage,
+    hasMore,
     loadingMore: isFetchingNextPage,
     setInputMessage,
-    sendMessage: async (content: string) => {
-      await sendMessageMutation.mutateAsync(content);
-      // 发送成功后清空输入框
-      setInputMessage("");
-    },
-    loadMoreMessages: async () => {
-      await fetchNextPage();
-    },
-    deleteMessages: async () => {
-      if (!props?.conversationId) throw new Error("No conversation ID");
-      
-      const response = await fetch("/api/chat/messages", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId: props.conversationId }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete messages");
-      }
-
-      // Invalidate and refetch messages
-      await queryClient.invalidateQueries({ queryKey: ["chat-messages", props.conversationId] });
-    },
+    sendMessage,
+    loadMoreMessages,
+    deleteMessages,
   };
 }
