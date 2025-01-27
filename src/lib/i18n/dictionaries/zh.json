@@ -195,6 +195,11 @@
     "enterLocation": "输入地点",
     "meetingTime": "见面时间",
     "cancel": "取消",
-    "send": "发送"
+    "send": "发送",
+    "complete": "完成交易",
+    "completed": "交易已完成",
+    "buyerLabel": "买入",
+    "sellerLabel": "卖出",
+    "noChangesMessage": "请修改价格、地点或见面时间后再发送新的议价"
   }
 } 

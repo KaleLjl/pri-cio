@@ -195,6 +195,11 @@
     "enterLocation": "Enter location",
     "meetingTime": "Meeting Time",
     "cancel": "Cancel",
-    "send": "Send"
+    "send": "Send",
+    "complete": "Complete Deal",
+    "completed": "Deal Completed",
+    "buyerLabel": "Buy",
+    "sellerLabel": "Sell",
+    "noChangesMessage": "Please modify the price, location, or meeting time before sending a new proposal"
   }
 } 

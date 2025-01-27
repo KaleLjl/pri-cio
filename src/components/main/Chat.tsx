@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { useChat } from '@/lib/hooks/useChat';
-import { ChatUser, ObjectDiscussionData } from '@/lib/types/chat';
+import { ChatUser, ObjectDiscussionData, ChatMessage } from '@/lib/types/chat';
 import { useSession } from 'next-auth/react';
 import { useInView } from 'react-intersection-observer';
 import { format } from 'date-fns';
@@ -282,6 +282,29 @@ export default function Chat({ userId }: ChatProps) {
     setShowPosts(false);
   };
 
+  // Add this function to check if the discussion data has been modified
+  const isDiscussionModified = (currentContent: ObjectDiscussionData) => {
+    // Get the last discussion message for this post
+    const lastDiscussion = chat.messages
+      .filter(msg => 
+        typeof msg.content !== 'string' && 
+        msg.content.type === 'object_discussion' &&
+        msg.content.postId === currentContent.postId
+      )
+      .pop();
+
+    if (!lastDiscussion || typeof lastDiscussion.content === 'string') return true;
+    
+    const lastContent = lastDiscussion.content as ObjectDiscussionData;
+    
+    // Check if any of the negotiable fields have been modified
+    return (
+      currentContent.suggestedPrice !== lastContent.suggestedPrice ||
+      currentContent.location !== lastContent.location ||
+      currentContent.meetingTime !== lastContent.meetingTime
+    );
+  };
+
   const handleDiscussionSubmit = (data: {
     price: string;
     location: string;
@@ -300,12 +323,33 @@ export default function Chat({ userId }: ChatProps) {
       location: data.location,
       meetingTime: data.meetingTime,
     };
-    
-    chat.sendMessage(discussionData);
-    setSelectedPost(null);
-    setShowPosts(false);
+
+    // Only send if it's modified or there are no previous discussions
+    if (isDiscussionModified(discussionData)) {
+      chat.sendMessage(discussionData);
+      setSelectedPost(null);
+      setShowPosts(false);
+    } else {
+      // Show some feedback to user that they need to modify the discussion first
+      alert(dict.objectDiscussion?.noChangesMessage || "Please modify the price, location, or meeting time before sending a new proposal.");
+    }
   };
 
+  // Update this function to determine if current user is the seller based on history
+  const isCurrentUserSeller = (postId: string) => {
+    // If the post is from my posts (bottom + button), current user is the seller
+    if (myPosts.some(post => post._id === postId)) {
+      return true;
+    }
+    // If the post is from other user's posts (top posts list), current user is the buyer
+    if (userPosts.some(post => post._id === postId)) {
+      return false;
+    }
+    // Default to false if we can't determine
+    return false;
+  };
+
+  // Update handleObjectDiscussionClick to set correct buyer/seller info
   const handleObjectDiscussionClick = (currentContent: ObjectDiscussionData, senderId: string) => {
     const newPost: ExploreItem = {
       _id: currentContent.postId,
@@ -313,11 +357,15 @@ export default function Chat({ userId }: ChatProps) {
       description: currentContent.description,
       price: currentContent.suggestedPrice,
       currency: currentContent.currency,
-      userProfile: senderId === currentUserId ? {
+      userProfile: isCurrentUserSeller(currentContent.postId) ? {
+        _id: currentUserId,
+        name: session?.user?.name || '',
+        avatarUrl: session?.user?.image || ''
+      } : {
         _id: otherUser?._id,
         name: otherUser?.name,
         avatarUrl: otherUser?.avatarUrl
-      } : undefined,
+      },
       createdAt: new Date().toISOString(),
       location: {
         latitude: 0,
@@ -329,11 +377,9 @@ export default function Chat({ userId }: ChatProps) {
       historyId: '',
     };
 
-    // 设置选中的帖子并隐藏posts栏目
     setSelectedPost(newPost);
     setShowPosts(false);
     
-    // 使用当前议价组件中的信息预填充
     const prefilledData = {
       price: currentContent.suggestedPrice,
       location: currentContent.location,
@@ -361,6 +407,33 @@ export default function Chat({ userId }: ChatProps) {
 
     fetchMyPosts();
   }, [currentUserId]);
+
+  // Add this function to check if any discussion for this post is completed
+  const isPostCompleted = (postId: string) => {
+    return chat.messages.some(
+      msg => 
+        typeof msg.content !== 'string' && 
+        msg.content.type === 'object_discussion' && 
+        msg.content.postId === postId && 
+        msg.content.isCompleted
+    );
+  };
+
+  // Add this function to check if this is the last discussion message for this post
+  const isLastDiscussionMessage = (message: ChatMessage) => {
+    if (typeof message.content === 'string') return false;
+    const content = message.content as ObjectDiscussionData;
+    
+    const discussionMessages = chat.messages.filter(
+      msg => {
+        if (typeof msg.content === 'string') return false;
+        const msgContent = msg.content as ObjectDiscussionData;
+        return msgContent.type === 'object_discussion' && msgContent.postId === content.postId;
+      }
+    );
+    
+    return discussionMessages[discussionMessages.length - 1]._id === message._id;
+  };
 
   if (error) {
     return (
@@ -560,19 +633,41 @@ export default function Chat({ userId }: ChatProps) {
                           </p>
                         ) : message.content.type === 'object_discussion' ? (
                           <div 
-                            className="space-y-3 max-w-sm cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => {
+                            className={`space-y-3 max-w-sm cursor-pointer hover:opacity-90 transition-opacity ${
+                              (message.content as ObjectDiscussionData).isCompleted || isPostCompleted((message.content as ObjectDiscussionData).postId) ? 'opacity-50' : ''
+                            }`}
+                            onClick={(e) => {
+                              // 如果点击来自按钮，不处理点击事件
+                              if ((e.target as HTMLElement).tagName === 'BUTTON') {
+                                return;
+                              }
                               const currentContent = message.content as ObjectDiscussionData;
-                              handleObjectDiscussionClick(currentContent, message.senderId);
+                              if (!currentContent.isCompleted && !isPostCompleted(currentContent.postId)) {
+                                handleObjectDiscussionClick(currentContent, message.senderId);
+                              }
                             }}
                           >
                             <div className="flex items-start space-x-3">
                               <div className="relative w-20 h-20 flex-shrink-0">
+                                {/* Show label for all discussion messages */}
+                                <div className="absolute -top-2 -left-2 z-10">
+                                  <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                    isCurrentUserSeller((message.content as ObjectDiscussionData).postId) ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
+                                  }`}>
+                                    {isCurrentUserSeller((message.content as ObjectDiscussionData).postId)
+                                      ? dict.objectDiscussion?.sellerLabel 
+                                      : dict.objectDiscussion?.buyerLabel}
+                                  </span>
+                                </div>
                                 <ImageWithFallback
                                   src={(message.content as ObjectDiscussionData).imageUrl}
                                   alt={(message.content as ObjectDiscussionData).description}
                                   fill
-                                  className="object-cover rounded-lg"
+                                  className={`object-cover rounded-lg ${
+                                    (message.content as ObjectDiscussionData).isCompleted || isPostCompleted((message.content as ObjectDiscussionData).postId) ? 'grayscale' : ''
+                                  } ${
+                                    isCurrentUserSeller((message.content as ObjectDiscussionData).postId) ? 'ring-2 ring-blue-500' : 'ring-2 ring-orange-500'
+                                  }`}
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -582,7 +677,9 @@ export default function Chat({ userId }: ChatProps) {
                                 <div className="space-y-1.5 text-sm">
                                   <p className="flex items-center text-gray-300">
                                     <span className="text-gray-400 w-20">{dict.objectDiscussion?.price}:</span>
-                                    <span className="ml-1 truncate">
+                                    <span className={`ml-1 truncate ${
+                                      isCurrentUserSeller((message.content as ObjectDiscussionData).postId) ? 'text-blue-400' : 'text-orange-400'
+                                    }`}>
                                       {CURRENCIES.find(c => c.value === (message.content as ObjectDiscussionData).currency)?.symbol}
                                       {(message.content as ObjectDiscussionData).suggestedPrice}
                                     </span>
@@ -604,6 +701,39 @@ export default function Chat({ userId }: ChatProps) {
                                     </span>
                                   </p>
                                 </div>
+                                {message.senderId !== currentUserId && 
+                                  !(message.content as ObjectDiscussionData).isCompleted && 
+                                  !isPostCompleted((message.content as ObjectDiscussionData).postId) &&
+                                  isLastDiscussionMessage(message) && (
+                                  <div className="mt-3">
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const currentContent = message.content as ObjectDiscussionData;
+                                        const updatedContent = {
+                                          ...currentContent,
+                                          isCompleted: true
+                                        };
+                                        chat.sendMessage(updatedContent);
+                                      }}
+                                      className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
+                                        isCurrentUserSeller((message.content as ObjectDiscussionData).postId) ? 'bg-blue-500 hover:bg-blue-400' : 'bg-orange-500 hover:bg-orange-400'
+                                      }`}
+                                    >
+                                      {isCurrentUserSeller((message.content as ObjectDiscussionData).postId)
+                                        ? dict.objectDiscussion?.sellerLabel 
+                                        : dict.objectDiscussion?.buyerLabel}
+                                    </button>
+                                  </div>
+                                )}
+                                {((message.content as ObjectDiscussionData).isCompleted || isPostCompleted((message.content as ObjectDiscussionData).postId)) && (
+                                  <div className="mt-2">
+                                    <span className="text-sm text-green-500">
+                                      {dict.objectDiscussion?.completed || "Deal Completed"}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>

@@ -25,5 +25,19 @@ export interface Dictionary {
     typing: string;
     noPosts: string;
   };
+  objectDiscussion: {
+    price: string;
+    enterPrice: string;
+    location: string;
+    enterLocation: string;
+    meetingTime: string;
+    cancel: string;
+    send: string;
+    complete: string;
+    completed: string;
+    buyerLabel: string;
+    sellerLabel: string;
+    noChangesMessage: string;
+  };
   // ... rest of the dictionary interface
 } 

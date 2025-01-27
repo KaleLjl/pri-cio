@@ -16,6 +16,7 @@ export interface ObjectDiscussionData {
   currency: string;
   location: string;
   meetingTime: string;
+  isCompleted?: boolean;
 }
 
 export type MessageContent = string | ObjectDiscussionData;
