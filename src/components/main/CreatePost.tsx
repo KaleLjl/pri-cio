@@ -5,7 +5,25 @@ import { useCreatePost } from '@/lib/hooks/useCreatePost';
 import Loading from '@/components/shared/Loading';
 
 const CreatePostPage = () => {
-  const { selectedImage, isLoading, result, errorMessage, uploadImage, analyzeImage, clearImage } = useCreatePost();
+  const {
+    selectedImage,
+    isLoading,
+    result,
+    errorMessage,
+    conversation,
+    uploadImage,
+    analyzeImage,
+    sendMessage,
+    clearImage,
+  } = useCreatePost();
+
+  const [messageInput, setMessageInput] = useState('');
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim()) return;
+    await sendMessage(messageInput);
+    setMessageInput('');
+  };
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
@@ -105,6 +123,39 @@ const CreatePostPage = () => {
             <p className="text-sm text-white">{errorMessage}</p>
           </div>
         )}
+
+        {/* Conversation Display */}
+        <div className="bg-gray-800 p-4 rounded-md mb-4">
+          <h2 className="font-bold text-lg mb-2">Conversation</h2>
+          {conversation.length === 0 ? (
+            <p className="text-gray-400 italic">No messages yet.</p>
+          ) : (
+            <ul>
+              {conversation.map((msg, idx) => (
+                <li key={idx} className="mb-2">
+                  <strong>{msg.role === 'user' ? 'You:' : 'GPT:'}</strong> {msg.content}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Send Message Input */}
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            className="flex-grow p-2 text-black rounded-md"
+            placeholder="Ask or respond..."
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+          />
+          <button
+            onClick={handleSendMessage}
+            className="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-700"
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
