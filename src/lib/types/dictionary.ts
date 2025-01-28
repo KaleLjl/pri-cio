@@ -38,6 +38,7 @@ export interface Dictionary {
     buyerLabel: string;
     sellerLabel: string;
     noChangesMessage: string;
+    dealError: string;
   };
   // ... rest of the dictionary interface
 } 

@@ -733,14 +733,21 @@ export default function Chat({ userId }: ChatProps) {
                                         const currentContent = message.content as ObjectDiscussionData;
                                         
                                         try {
-                                          // First try to unpublish if we have the necessary IDs
+                                          // Call the dealing API instead of explore delete
                                           if (currentContent.postId && currentContent.historyId) {
-                                            const response = await fetch(`/api/explore?historyId=${currentContent.historyId}&exploreId=${currentContent.postId}`, {
-                                              method: 'DELETE',
+                                            const response = await fetch('/api/chat/deal', {
+                                              method: 'POST',
+                                              headers: {
+                                                'Content-Type': 'application/json',
+                                              },
+                                              body: JSON.stringify({
+                                                historyId: currentContent.historyId,
+                                                exploreId: currentContent.postId,
+                                              }),
                                             });
 
                                             if (!response.ok) {
-                                              throw new Error('Failed to unpublish item');
+                                              throw new Error('Failed to complete deal');
                                             }
 
                                             // Invalidate the explore posts query to trigger a refetch
@@ -764,7 +771,7 @@ export default function Chat({ userId }: ChatProps) {
                                           chat.sendMessage(updatedContent);
                                         } catch (error) {
                                           console.error('Error completing deal:', error);
-                                          // You might want to show an error message to the user here
+                                          alert(dict.objectDiscussion?.dealError || 'Failed to complete deal. Please try again.');
                                         }
                                       }}
                                       className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
