@@ -17,6 +17,7 @@ export interface ObjectDiscussionData {
   location: string;
   meetingTime: string;
   isCompleted?: boolean;
+  historyId?: string;
 }
 
 export type MessageContent = string | ObjectDiscussionData;

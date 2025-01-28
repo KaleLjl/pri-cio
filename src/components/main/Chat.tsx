@@ -322,6 +322,7 @@ export default function Chat({ userId }: ChatProps) {
       currency: selectedPost.currency,
       location: data.location,
       meetingTime: data.meetingTime,
+      historyId: selectedPost.historyId
     };
 
     // Only send if it's modified or there are no previous discussions
@@ -350,42 +351,61 @@ export default function Chat({ userId }: ChatProps) {
   };
 
   // Update handleObjectDiscussionClick to set correct buyer/seller info
-  const handleObjectDiscussionClick = (currentContent: ObjectDiscussionData, senderId: string) => {
-    const newPost: ExploreItem = {
-      _id: currentContent.postId,
-      imageUrl: currentContent.imageUrl,
-      description: currentContent.description,
-      price: currentContent.suggestedPrice,
-      currency: currentContent.currency,
-      userProfile: isCurrentUserSeller(currentContent.postId) ? {
-        _id: currentUserId,
-        name: session?.user?.name || '',
-        avatarUrl: session?.user?.image || ''
-      } : {
-        _id: otherUser?._id,
-        name: otherUser?.name,
-        avatarUrl: otherUser?.avatarUrl
-      },
-      createdAt: new Date().toISOString(),
-      location: {
-        latitude: 0,
-        longitude: 0,
-        city: currentContent.location.split(',')[0] || '',
-        country: currentContent.location.split(',')[1]?.trim() || ''
-      },
-      userEmail: '',
-      historyId: '',
-    };
+  const handleObjectDiscussionClick = async (currentContent: ObjectDiscussionData, senderId: string) => {
+    // If the content is already completed, don't do anything
+    if (currentContent.isCompleted) return;
 
-    setSelectedPost(newPost);
-    setShowPosts(false);
-    
-    const prefilledData = {
-      price: currentContent.suggestedPrice,
-      location: currentContent.location,
-      meetingTime: currentContent.meetingTime
-    };
-    handleDiscussionSubmit(prefilledData);
+    try {
+      // First unpublish if it's a deal completion
+      if (currentContent.postId) {
+        const response = await fetch(`/api/explore?historyId=${currentContent.historyId}&exploreId=${currentContent.postId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to unpublish item');
+        }
+      }
+
+      const newPost: ExploreItem = {
+        _id: currentContent.postId,
+        imageUrl: currentContent.imageUrl,
+        description: currentContent.description,
+        price: currentContent.suggestedPrice,
+        currency: currentContent.currency,
+        userProfile: isCurrentUserSeller(currentContent.postId) ? {
+          _id: currentUserId,
+          name: session?.user?.name || '',
+          avatarUrl: session?.user?.image || ''
+        } : {
+          _id: otherUser?._id,
+          name: otherUser?.name,
+          avatarUrl: otherUser?.avatarUrl
+        },
+        createdAt: new Date().toISOString(),
+        location: {
+          latitude: 0,
+          longitude: 0,
+          city: currentContent.location.split(',')[0] || '',
+          country: currentContent.location.split(',')[1]?.trim() || ''
+        },
+        userEmail: '',
+        historyId: currentContent.historyId || '',
+      };
+
+      setSelectedPost(newPost);
+      setShowPosts(false);
+      
+      const prefilledData = {
+        price: currentContent.suggestedPrice,
+        location: currentContent.location,
+        meetingTime: currentContent.meetingTime
+      };
+      handleDiscussionSubmit(prefilledData);
+    } catch (error) {
+      console.error('Error handling discussion click:', error);
+      // You might want to show an error message to the user here
+    }
   };
 
   // Fetch current user's posts
@@ -707,15 +727,45 @@ export default function Chat({ userId }: ChatProps) {
                                   isLastDiscussionMessage(message) && (
                                   <div className="mt-3">
                                     <button
-                                      onClick={(e) => {
+                                      onClick={async (e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         const currentContent = message.content as ObjectDiscussionData;
-                                        const updatedContent = {
-                                          ...currentContent,
-                                          isCompleted: true
-                                        };
-                                        chat.sendMessage(updatedContent);
+                                        
+                                        try {
+                                          // First try to unpublish if we have the necessary IDs
+                                          if (currentContent.postId && currentContent.historyId) {
+                                            const response = await fetch(`/api/explore?historyId=${currentContent.historyId}&exploreId=${currentContent.postId}`, {
+                                              method: 'DELETE',
+                                            });
+
+                                            if (!response.ok) {
+                                              throw new Error('Failed to unpublish item');
+                                            }
+
+                                            // Invalidate the explore posts query to trigger a refetch
+                                            queryClient.invalidateQueries({ queryKey: ['explore-posts', userId] });
+
+                                            // Get the seller's ID (the post owner)
+                                            const sellerResponse = await fetch('/api/users/me');
+                                            if (sellerResponse.ok) {
+                                              const sellerData = await sellerResponse.json();
+                                              // Emit socket event to notify both users
+                                              socketService.emitExplorePostsUpdate(userId); // Notify the buyer
+                                              socketService.emitExplorePostsUpdate(sellerData._id); // Notify the seller
+                                            }
+                                          }
+
+                                          // Then mark the discussion as completed
+                                          const updatedContent = {
+                                            ...currentContent,
+                                            isCompleted: true
+                                          };
+                                          chat.sendMessage(updatedContent);
+                                        } catch (error) {
+                                          console.error('Error completing deal:', error);
+                                          // You might want to show an error message to the user here
+                                        }
                                       }}
                                       className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
                                         isCurrentUserSeller((message.content as ObjectDiscussionData).postId) ? 'bg-blue-500 hover:bg-blue-400' : 'bg-orange-500 hover:bg-orange-400'

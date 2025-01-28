@@ -148,6 +148,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
               }, 3000); // 3 seconds timeout
             }
           });
+
+          // 处理 explore posts 更新
+          socketService.onExplorePostsUpdate(({ userId }: { userId: string }) => {
+            // 使用 React Query 重新获取 explore posts
+            queryClient.invalidateQueries({ queryKey: ['explore-posts', userId] });
+          });
         };
 
         setupSocketListeners();
