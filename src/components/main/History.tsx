@@ -63,7 +63,11 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   const [postedHistories, setPostedHistories] = useState<HistoryItem[]>([]);
   const [dealingHistories, setDealingHistories] = useState<DealingItem[]>([]);
   const [isDealingLoading, setIsDealingLoading] = useState(false);
-  const savedItemsCount = histories.filter(history => !history.exploreId).length;
+  const savedItemsCount = histories.filter(history => {
+    const isPosted = history.exploreId !== undefined;
+    const isDealing = dealingHistories.some(deal => deal._id === history._id);
+    return !isPosted && !isDealing;
+  }).length;
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -407,92 +411,98 @@ export default function History({ histories: initialHistories }: HistoryProps) {
             <div className="text-center py-10 text-gray-500">{dict.history.noHistory}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-              {histories.filter(history => !history.exploreId).map((history) => (
-                <div
-                  key={history._id}
-                  className="relative bg-white rounded-2xl shadow-lg overflow-hidden group w-60 h-80 mx-auto"
-                  onMouseLeave={() => setActiveDropdown(null)}
-                >
-                  <div className="relative w-full h-full">
-                    <Image
-                      src={history.imageUrl}
-                      alt={history.description || dict.history.noDescription}
-                      fill
-                      style={{ objectFit: "cover" }}
-                      className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
-                    />
-                    <div className="absolute top-2 right-2 flex items-center gap-2">
-                      <div className="relative">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveDropdown(activeDropdown === history._id ? null : history._id);
-                          }}
-                          className="text-white hover:text-gray-800 px-2 py-1 rounded"
-                        >
-                          •••
-                        </button>
-                        {activeDropdown === history._id && (
-                          <div className="absolute right-0 top-full mt-1 w-30 bg-black shadow-lg rounded-lg z-50">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlelocation(history);
-                              }}
-                              className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
-                            >
-                              <i className="fas fa-share mr-2"></i>
-                              {actionInProgress[history._id] === 'posting' ? dict.history.actions.posting : dict.history.actions.post}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(history);
-                              }}
-                              className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
-                              disabled={!!actionInProgress[history._id]}
-                            >
-                              <i className="fas fa-edit mr-2"></i>
-                              {dict.history.actions.edit}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(history._id);
-                                setActiveDropdown(null);
-                              }}
-                              className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
-                              disabled={!!actionInProgress[history._id]}
-                            >
-                              <i className="fas fa-trash mr-2"></i>
-                              {actionInProgress[history._id] === 'deleting' ? dict.history.actions.deleting : dict.history.actions.delete}
-                            </button>
-                          </div>
-                        )}
+              {histories
+                .filter(history => {
+                  const isPosted = history.exploreId !== undefined;
+                  const isDealing = dealingHistories.some(deal => deal._id === history._id);
+                  return !isPosted && !isDealing;
+                })
+                .map((history) => (
+                  <div
+                    key={history._id}
+                    className="relative bg-white rounded-2xl shadow-lg overflow-hidden group w-60 h-80 mx-auto"
+                    onMouseLeave={() => setActiveDropdown(null)}
+                  >
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={history.imageUrl}
+                        alt={history.description || dict.history.noDescription}
+                        fill
+                        style={{ objectFit: "cover" }}
+                        className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                      />
+                      <div className="absolute top-2 right-2 flex items-center gap-2">
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdown(activeDropdown === history._id ? null : history._id);
+                            }}
+                            className="text-white hover:text-gray-800 px-2 py-1 rounded"
+                          >
+                            •••
+                          </button>
+                          {activeDropdown === history._id && (
+                            <div className="absolute right-0 top-full mt-1 w-30 bg-black shadow-lg rounded-lg z-50">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlelocation(history);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
+                              >
+                                <i className="fas fa-share mr-2"></i>
+                                {actionInProgress[history._id] === 'posting' ? dict.history.actions.posting : dict.history.actions.post}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(history);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
+                                disabled={!!actionInProgress[history._id]}
+                              >
+                                <i className="fas fa-edit mr-2"></i>
+                                {dict.history.actions.edit}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(history._id);
+                                  setActiveDropdown(null);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
+                                disabled={!!actionInProgress[history._id]}
+                              >
+                                <i className="fas fa-trash mr-2"></i>
+                                {actionInProgress[history._id] === 'deleting' ? dict.history.actions.deleting : dict.history.actions.delete}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div 
+                        className="absolute bottom-0 left-0 w-full text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        style={{
+                          backgroundImage: 'linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0))',
+                        }}
+                      >
+                        <p className="text-lg font-semibold text-white">
+                          {
+                            CURRENCIES.find((c: Currency) => c.value === history.currency)?.symbol || 
+                            history.currency
+                          } {history.price || 'N/A'}
+                        </p>
+                        <p className="text-sm mt-1">{history.description || dict.history.noDescription}</p>
+                        <p className="text-xs text-gray-300 mt-1">
+                          {history.createdAt
+                            ? new Date(history.createdAt).toLocaleString()
+                            : 'Date not available'}
+                        </p>
                       </div>
                     </div>
-                    <div 
-                      className="absolute bottom-0 left-0 w-full text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      style={{
-                        backgroundImage: 'linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0))',
-                      }}
-                    >
-                      <p className="text-lg font-semibold text-white">
-                        {
-                          CURRENCIES.find((c: Currency) => c.value === history.currency)?.symbol || 
-                          history.currency
-                        } {history.price || 'N/A'}
-                      </p>
-                      <p className="text-sm mt-1">{history.description || dict.history.noDescription}</p>
-                      <p className="text-xs text-gray-300 mt-1">
-                        {history.createdAt
-                          ? new Date(history.createdAt).toLocaleString()
-                          : 'Date not available'}
-                      </p>
-                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>

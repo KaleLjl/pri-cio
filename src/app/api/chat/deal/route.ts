@@ -21,22 +21,64 @@ export async function GET(req: Request) {
 
     // Find all dealing items where user is either buyer or seller
     const dealingItems = await db.collection('dealing')
-      .find({
-        $or: [
-          { buyerId: user._id.toString() },
-          { sellerId: user._id.toString() }
-        ]
-      })
+      .aggregate([
+        {
+          $match: {
+            $or: [
+              { buyerId: user._id.toString() },
+              { sellerId: user._id.toString() }
+            ]
+          }
+        },
+        {
+          $lookup: {
+            from: 'histories',
+            let: { historyId: { $toObjectId: '$historyId' } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$_id', '$$historyId'] }
+                }
+              }
+            ],
+            as: 'historyDetails'
+          }
+        },
+        {
+          $unwind: '$historyDetails'
+        },
+        {
+          $project: {
+            _id: '$historyDetails._id',
+            imageUrl: '$historyDetails.imageUrl',
+            price: '$historyDetails.price',
+            description: '$historyDetails.description',
+            createdAt: '$historyDetails.createdAt',
+            currency: '$historyDetails.currency',
+            dealingId: { $toString: '$_id' },
+            status: 1,
+            role: {
+              $cond: {
+                if: { $eq: ['$buyerId', user._id.toString()] },
+                then: 'buyer',
+                else: 'seller'
+              }
+            },
+            buyerId: 1,
+            sellerId: 1,
+            otherPartyEmail: {
+              $cond: {
+                if: { $eq: ['$buyerId', user._id.toString()] },
+                then: '$sellerEmail',
+                else: '$buyerEmail'
+              }
+            }
+          }
+        }
+      ])
       .toArray();
 
-    // Transform the items to include role information
-    const transformedItems = dealingItems.map(item => ({
-      ...item,
-      role: item.buyerId === user._id.toString() ? 'buyer' : 'seller',
-      dealingId: item._id.toString(),
-    }));
-
-    return NextResponse.json(transformedItems);
+    return NextResponse.json(dealingItems);
   } catch (error) {
     console.error('Error in deal API:', error);
     return NextResponse.json(
