@@ -10,7 +10,7 @@ export interface HistoryItem {
 }
 
 export interface DealingItem extends HistoryItem {
-  role: 'buyer' | 'seller';
+  role: 'buying' | 'selling';
   status: 'pending' | 'completed' | 'cancelled';
   dealingId: string;
   otherPartyEmail: string;

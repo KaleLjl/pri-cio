@@ -645,9 +645,9 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                     
                     {/* Status Badge */}
                     <div className={`absolute top-2 left-2 px-3 py-1 rounded-full text-sm font-medium ${
-                      item.role === 'buyer' ? 'bg-blue-500' : 'bg-green-500'
+                      item.role === 'buying' ? 'bg-blue-500' : 'bg-green-500'
                     } text-white shadow-lg`}>
-                      {item.role === 'buyer' ? dict.history.buyer : dict.history.seller}
+                      {item.role === 'buying' ? 'Buying' : 'Selling'}
                     </div>
 
                     {/* Deal Status */}

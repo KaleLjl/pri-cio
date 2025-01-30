@@ -48,6 +48,13 @@ export async function GET(req: Request) {
           $unwind: '$historyDetails'
         },
         {
+          $addFields: {
+            isSeller: {
+              $eq: ['$historyDetails.userEmail', session.user.email]
+            }
+          }
+        },
+        {
           $project: {
             _id: '$historyDetails._id',
             imageUrl: '$historyDetails.imageUrl',
@@ -59,18 +66,18 @@ export async function GET(req: Request) {
             status: 1,
             role: {
               $cond: {
-                if: { $eq: ['$buyerId', user._id.toString()] },
-                then: 'buyer',
-                else: 'seller'
+                if: '$isSeller',
+                then: 'selling',
+                else: 'buying'
               }
             },
             buyerId: 1,
             sellerId: 1,
             otherPartyEmail: {
               $cond: {
-                if: { $eq: ['$buyerId', user._id.toString()] },
-                then: '$sellerEmail',
-                else: '$buyerEmail'
+                if: '$isSeller',
+                then: { $toString: '$buyerEmail' },
+                else: { $toString: '$sellerEmail' }
               }
             }
           }
