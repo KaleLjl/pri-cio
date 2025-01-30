@@ -25,7 +25,41 @@ export const dictionary = {
     typing: "Typing...",
     noPosts: "No posts available",
   },
-  // ... rest of the dictionary
+  history: {
+    loading: "Loading...",
+    error: "An error occurred",
+    noHistory: "No history found",
+    editProfile: "Edit Profile",
+    savedItems: "Saved Items",
+    postedItems: "Posted Items",
+    dealingItems: "Dealing Items",
+    itemCount: "items",
+    noDescription: "No description",
+    noDealingItems: "No dealing items",
+    buyer: "Buyer",
+    seller: "Seller",
+    complete: "Complete",
+    cancel: "Cancel",
+    actions: {
+      post: "Post",
+      posting: "Posting...",
+      edit: "Edit",
+      delete: "Delete",
+      deleting: "Deleting...",
+      unpublish: "Unpublish",
+      unpublishing: "Unpublishing...",
+    },
+    toast: {
+      success: "Success!",
+      error: "Error occurred",
+    },
+    locationModal: {
+      title: "Location Permission",
+      message: "Allow access to your location?",
+      allow: "Allow",
+      deny: "Deny",
+    },
+  },
 } as const;
 
-export type Dictionary = typeof dictionary; 
+export type Dictionary = typeof dictionary;

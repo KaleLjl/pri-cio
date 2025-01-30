@@ -44,20 +44,26 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
-  const { data: session } = useSession(); // User session
+  const { data: session } = useSession();
   const userId = session?.user?.id || '';
   const userEmail = session?.user?.email || '';
-  const emailInitial = userEmail.charAt(0).toUpperCase(); // Default avatar with email initial
+  const emailInitial = userEmail.charAt(0).toUpperCase();
   const [isAvatarLoading, setIsAvatarLoading] = useState(true);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); // State for avatar URL
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const { fetchProfileData } = useProfilePage(userId);
-  const [activeTab, setActiveTab] = useState<'saved' | 'posted'>('saved');
+  const [activeTab, setActiveTab] = useState<'saved' | 'posted' | 'dealing'>('saved');
   const [transitionDirection, setTransitionDirection] = useState<'left' | 'right'>('right');
   const [savedItemsHeight, setSavedItemsHeight] = useState<number>(0);
   const [postedItemsHeight, setPostedItemsHeight] = useState<number>(0);
+  const [dealingItemsHeight, setDealingItemsHeight] = useState<number>(0);
   const [containerHeight, setContainerHeight] = useState<number>(0);
   const savedItemsRef = useRef<HTMLDivElement>(null);
   const postedItemsRef = useRef<HTMLDivElement>(null);
+  const dealingItemsRef = useRef<HTMLDivElement>(null);
+  const [postedHistories, setPostedHistories] = useState<HistoryItem[]>([]);
+  const [dealingHistories, setDealingHistories] = useState<DealingItem[]>([]);
+  const [isDealingLoading, setIsDealingLoading] = useState(false);
+  const savedItemsCount = histories.filter(history => !history.exploreId).length;
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -79,18 +85,57 @@ export default function History({ histories: initialHistories }: HistoryProps) {
         setContainerHeight(savedItemsRef.current.offsetHeight);
       } else if (activeTab === 'posted' && postedItemsRef.current) {
         setContainerHeight(postedItemsRef.current.offsetHeight);
+      } else if (activeTab === 'dealing' && dealingItemsRef.current) {
+        setContainerHeight(dealingItemsRef.current.offsetHeight);
       }
     };
 
-    updateHeight();
+    // Add a small delay to ensure the content has rendered
+    const timer = setTimeout(updateHeight, 100);
+
     // Recalculate height on window resize
     window.addEventListener('resize', updateHeight);
-    return () => window.removeEventListener('resize', updateHeight);
+    
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+      clearTimeout(timer);
+    };
   }, [activeTab, histories]);
-  
-  const handleTabChange = (tab: 'saved' | 'posted') => {
+
+  useEffect(() => {
+    const posted = histories.filter(history => history.exploreId);
+    setPostedHistories(posted);
+  }, [histories]);
+
+  useEffect(() => {
+    const fetchDealingItems = async () => {
+      if (!session?.user?.email) return;
+      
+      setIsDealingLoading(true);
+      try {
+        const response = await fetch('/api/chat/deal');
+        if (!response.ok) {
+          throw new Error('Failed to fetch dealing items');
+        }
+        const data = await response.json();
+        setDealingHistories(data);
+      } catch (error) {
+        console.error('Error fetching dealing items:', error);
+        showNewToast(
+          error instanceof Error ? error.message : 'Failed to fetch dealing items',
+          'error'
+        );
+      } finally {
+        setIsDealingLoading(false);
+      }
+    };
+
+    fetchDealingItems();
+  }, [session?.user?.email]);
+
+  const handleTabChange = (tab: 'saved' | 'posted' | 'dealing') => {
     if (tab !== activeTab) {
-      setTransitionDirection(tab === 'saved' ? 'left' : 'right');
+      setTransitionDirection(tab === 'saved' ? 'left' : tab === 'posted' ? 'right' : 'right');
       setActiveTab(tab);
     }
   };
@@ -207,14 +252,6 @@ export default function History({ histories: initialHistories }: HistoryProps) {
       console.error('Failed to post without location:', error);
     }
   };
-  
-  const [postedHistories, setPostedHistories] = useState<HistoryItem[]>([]);
-  const savedItemsCount = histories.filter(history => !history.exploreId).length;
-
-  useEffect(() => {
-    const posted = histories.filter(history => history.exploreId);
-    setPostedHistories(posted);
-  }, [histories]);
 
   const handleUnpublish = async (historyId: string, exploreId: string) => {
     try {
@@ -260,6 +297,39 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     }
   };
 
+  const handleUpdateDealingStatus = async (dealingId: string, status: 'completed' | 'cancelled') => {
+    try {
+      const response = await fetch(`/api/chat/deal/${dealingId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update dealing status');
+      }
+
+      const updatedDealing = await response.json();
+      setDealingHistories(prev => 
+        prev.map(item => 
+          item.dealingId === dealingId ? { ...item, status } : item
+        )
+      );
+
+      showNewToast(
+        `Successfully ${status} the deal!`,
+        'success'
+      );
+    } catch (error) {
+      showNewToast(
+        error instanceof Error ? error.message : 'Failed to update dealing status',
+        'error'
+      );
+    }
+  };
+
   if (error) {
     return <div className="text-center py-10 text-red-500">{dict.history.error}</div>;
   }
@@ -279,8 +349,8 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           <ImageWithFallback
             src={avatarUrl || ''}
             alt={session?.user?.name || emailInitial}
-            layout="fill"
-            objectFit="cover"
+            fill
+            style={{ objectFit: "cover" }}
             isAvatar={true}
           />
         </div>
@@ -298,18 +368,24 @@ export default function History({ histories: initialHistories }: HistoryProps) {
 
       {/* Tab Controls */}
       <div className="mt-4 flex justify-center space-x-4">
-          <button
-            onClick={() => handleTabChange('saved')}
-            className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'saved' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}
-          >
-            {dict.history.savedItems}
-          </button>
-          <button
-            onClick={() => handleTabChange('posted')}
-            className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'posted' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-black'}`}
-          >
-            {dict.history.postedItems}
-          </button>
+        <button
+          onClick={() => handleTabChange('saved')}
+          className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'saved' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}
+        >
+          {dict.history.savedItems}
+        </button>
+        <button
+          onClick={() => handleTabChange('posted')}
+          className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'posted' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}
+        >
+          {dict.history.postedItems}
+        </button>
+        <button
+          onClick={() => handleTabChange('dealing')}
+          className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'dealing' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}
+        >
+          {dict.history.dealingItems}
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -342,10 +418,8 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                       src={history.imageUrl}
                       alt={history.description || dict.history.noDescription}
                       fill
+                      style={{ objectFit: "cover" }}
                       className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      placeholder="blur"
-                      blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
                     />
                     <div className="absolute top-2 right-2 flex items-center gap-2">
                       <div className="relative">
@@ -423,21 +497,27 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           )}
         </div>
         
+        {/* Posted Items Section */}
         <div
           ref={postedItemsRef}
-          className={`mt-6 transition-transform duration-300 ${
-          activeTab === "posted" ? "translate-x-0" : "translate-x-full"
+          className={`absolute w-full transition-transform duration-300 ${
+            activeTab === "posted" ? "translate-x-0" : "translate-x-full"
           }`}
+          style={{ 
+            transform: activeTab === "posted" ? "translateX(0)" : "translateX(100%)",
+            opacity: activeTab === "posted" ? 1 : 0,
+            visibility: activeTab === "posted" ? "visible" : "hidden"
+          }}
         >
-          <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
+          <h2 className="text-2xl font-bold mb-4 flex items-center text-white">
             <span>{dict.history.postedItems}</span>
             <span className="ml-3 text-sm font-normal text-gray-500">
               ({postedHistories.length} {dict.history.itemCount})
             </span>
           </h2>
-          {/* Posted Items */}
+          {/* Posted Items Content */}
           {postedHistories.length === 0 ? (
-            <div className="text-center py-10 text-white">{dict.history.noHistory}</div>
+            <div className="text-center text-white py-10">{dict.history.noHistory}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
               {postedHistories.map((history) => (
@@ -451,10 +531,8 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                       src={history.imageUrl}
                       alt={history.description || dict.history.noDescription}
                       fill
+                      style={{ objectFit: "cover" }}
                       className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      placeholder="blur"
-                      blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQrJyEwPENBLzMzLy0zPVBCR0JHMz1DcWl5VGR2h4iIl5eXqqqq+vr6////2wBDAR"
                     />
                     <div className="absolute top-2 right-2 flex items-center gap-2">
                       <div className="relative">
@@ -505,6 +583,112 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                           ? new Date(history.createdAt).toLocaleString()
                           : 'Date not available'}
                       </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Dealing Items Section */}
+        <div
+          ref={dealingItemsRef}
+          className={`absolute w-full transition-transform duration-300 ${
+            activeTab === "dealing" ? "translate-x-0" : "translate-x-full"
+          }`}
+          style={{ 
+            transform: activeTab === "dealing" ? "translateX(0)" : "translateX(100%)",
+            opacity: activeTab === "dealing" ? 1 : 0,
+            visibility: activeTab === "dealing" ? "visible" : "hidden"
+          }}
+        >
+          <h2 className="text-2xl font-bold mb-4 flex items-center text-white">
+            <span>{dict.history.dealingItems}</span>
+            <span className="ml-3 text-sm font-normal text-gray-500">
+              ({dealingHistories.length} {dict.history.itemCount})
+            </span>
+          </h2>
+
+          {isDealingLoading ? (
+            <Loading text={dict.history.loading} />
+          ) : dealingHistories.length === 0 ? (
+            <div className="text-center text-white py-10">
+              {dict.history.noDealingItems}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+              {dealingHistories.map((item) => (
+                <div
+                  key={item._id}
+                  className="relative bg-white rounded-2xl shadow-lg overflow-hidden group w-60 h-80 mx-auto cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-xl"
+                  onMouseLeave={() => setActiveDropdown(null)}
+                >
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.description || dict.history.noDescription}
+                      fill
+                      style={{ objectFit: "cover" }}
+                      className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                    />
+                    
+                    {/* Status Badge */}
+                    <div className={`absolute top-2 left-2 px-3 py-1 rounded-full text-sm font-medium ${
+                      item.role === 'buyer' ? 'bg-blue-500' : 'bg-green-500'
+                    } text-white shadow-lg`}>
+                      {item.role === 'buyer' ? dict.history.buyer : dict.history.seller}
+                    </div>
+
+                    {/* Deal Status */}
+                    <div className={`absolute top-2 right-2 px-3 py-1 rounded-full text-sm font-medium ${
+                      item.status === 'pending' ? 'bg-yellow-500' :
+                      item.status === 'completed' ? 'bg-green-500' : 'bg-red-500'
+                    } text-white shadow-lg`}>
+                      {item.status}
+                    </div>
+
+                    {/* Item Details */}
+                    <div 
+                      className="absolute bottom-0 left-0 w-full text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      style={{
+                        backgroundImage: 'linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0))',
+                        padding: '20px',
+                      }}
+                    >
+                      <p className="text-lg font-semibold text-white mb-2">
+                        {CURRENCIES.find((c: Currency) => c.value === item.currency)?.symbol || item.currency} {item.price || 'N/A'}
+                      </p>
+                      <p className="text-sm mb-2">{item.description || dict.history.noDescription}</p>
+                      <p className="text-xs text-gray-300 mb-3">
+                        {item.createdAt
+                          ? new Date(item.createdAt).toLocaleString()
+                          : 'Date not available'}
+                      </p>
+                      
+                      {/* Action Buttons */}
+                      {item.status === 'pending' && (
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUpdateDealingStatus(item.dealingId, 'completed');
+                            }}
+                            className="flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            {dict.history.complete}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUpdateDealingStatus(item.dealingId, 'cancelled');
+                            }}
+                            className="flex-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            {dict.history.cancel}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

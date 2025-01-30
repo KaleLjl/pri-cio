@@ -3,6 +3,49 @@ import clientPromise from '@/lib/mongodb';
 import { auth } from '@/lib/auth';
 import { ObjectId } from 'mongodb';
 
+export async function GET(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db('pri-cio');
+
+    // Get user's ID from users collection
+    const user = await db.collection('users').findOne({ email: session.user.email });
+    if (!user) {
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
+    }
+
+    // Find all dealing items where user is either buyer or seller
+    const dealingItems = await db.collection('dealing')
+      .find({
+        $or: [
+          { buyerId: user._id.toString() },
+          { sellerId: user._id.toString() }
+        ]
+      })
+      .toArray();
+
+    // Transform the items to include role information
+    const transformedItems = dealingItems.map(item => ({
+      ...item,
+      role: item.buyerId === user._id.toString() ? 'buyer' : 'seller',
+      dealingId: item._id.toString(),
+    }));
+
+    return NextResponse.json(transformedItems);
+  } catch (error) {
+    console.error('Error in deal API:', error);
+    return NextResponse.json(
+      { message: 'Failed to fetch dealing items', error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const session = await auth();
@@ -85,6 +128,49 @@ export async function POST(req: Request) {
         message: 'Failed to complete deal', 
         error: error instanceof Error ? error.message : 'Unknown error'
       },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    const dealingId = url.pathname.split('/').pop();
+    
+    if (!dealingId) {
+      return NextResponse.json({ message: 'Dealing ID is required' }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const { status } = body;
+
+    if (!status || !['completed', 'cancelled'].includes(status)) {
+      return NextResponse.json({ message: 'Invalid status' }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db('pri-cio');
+
+    const result = await db.collection('dealing').updateOne(
+      { _id: new ObjectId(dealingId) },
+      { $set: { status, updatedAt: new Date() } }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ message: 'Dealing item not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in deal API:', error);
+    return NextResponse.json(
+      { message: 'Failed to update dealing status', error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

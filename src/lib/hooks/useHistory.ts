@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { HistoryItem } from '@/lib/types/history';
+import { HistoryItem, DealingItem } from '@/lib/types/history';
 import { Profile, UseProfilePage } from '../types/users';
 import { socketService } from '@/lib/socket';
 

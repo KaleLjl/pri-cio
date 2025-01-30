@@ -25,6 +25,47 @@ export interface Dictionary {
     typing: string;
     noPosts: string;
   };
+  history: {
+    loading: string;
+    error: string;
+    noHistory: string;
+    editProfile: string;
+    savedItems: string;
+    postedItems: string;
+    dealingItems: string;
+    itemCount: string;
+    noDescription: string;
+    noDealingItems: string;
+    buyer: string;
+    seller: string;
+    complete: string;
+    cancel: string;
+    actions: {
+      post: string;
+      posting: string;
+      edit: string;
+      delete: string;
+      deleting: string;
+      unpublish: string;
+      unpublishing: string;
+    };
+    toast: {
+      deleteSuccess: string;
+      deleteError: string;
+      postSuccess: string;
+      postError: string;
+      updateSuccess: string;
+      updateError: string;
+      unpublishSuccess: string;
+      unpublishError: string;
+    };
+    locationModal: {
+      title: string;
+      message: string;
+      allow: string;
+      deny: string;
+    };
+  };
   objectDiscussion: {
     price: string;
     enterPrice: string;
