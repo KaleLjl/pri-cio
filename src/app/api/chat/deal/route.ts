@@ -10,11 +10,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { historyId, exploreId } = await req.json();
+    const body = await req.json();
+    console.log('Received deal request body:', body);
 
-    if (!historyId || !exploreId) {
+    const { historyId, exploreId, buyerId, sellerId } = body;
+
+    // 添加更详细的错误信息
+    const missingFields = [];
+    if (!historyId) missingFields.push('historyId');
+    if (!exploreId) missingFields.push('exploreId');
+    if (!buyerId) missingFields.push('buyerId');
+    if (!sellerId) missingFields.push('sellerId');
+
+    if (missingFields.length > 0) {
       return NextResponse.json(
-        { message: 'Missing required fields' },
+        { 
+          message: 'Missing required fields', 
+          missingFields 
+        },
         { status: 400 }
       );
     }
@@ -47,15 +60,15 @@ export async function POST(req: Request) {
       }
     );
 
-    // 4. Add to dealing collection
+    // 4. Add to dealing collection with buyer and seller IDs
     const dealingItem = {
       ...exploreItem,
       originalExploreId: exploreId,
       historyId: historyId,
       dealStartedAt: new Date(),
-      status: 'in_progress', // 可以用来跟踪交易状态
-      buyer: session.user.email, // 记录买家信息
-      seller: exploreItem.userEmail, // 记录卖家信息
+      status: 'in_progress',
+      buyerId: buyerId,
+      sellerId: sellerId,
     };
 
     const result = await db.collection('dealing').insertOne(dealingItem);

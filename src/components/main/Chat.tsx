@@ -357,54 +357,71 @@ export default function Chat({ userId }: ChatProps) {
 
     try {
       // First unpublish if it's a deal completion
-      if (currentContent.postId) {
-        const response = await fetch(`/api/explore?historyId=${currentContent.historyId}&exploreId=${currentContent.postId}`, {
-          method: 'DELETE',
+      if (currentContent.postId && currentContent.historyId) {
+        // 确定买家和卖家的ID
+        const isSeller = isCurrentUserSeller(currentContent.postId);
+        
+        // 获取当前用户的ID和对方的ID
+        const currentMessage = chat.messages.find(msg => 
+          typeof msg.content !== 'string' && 
+          msg.content.type === 'object_discussion' && 
+          msg.content.postId === currentContent.postId
+        );
+
+        if (!currentMessage) {
+          throw new Error('Message not found');
+        }
+
+        const { senderId: msgSenderId, receiverId: msgReceiverId } = currentMessage;
+        
+        // 使用消息中的 senderId 和 receiverId 来确定买卖双方
+        const buyerId = isSeller ? msgReceiverId : msgSenderId;
+        const sellerId = isSeller ? msgSenderId : msgReceiverId;
+
+        // 验证买家和卖家ID是否存在
+        if (!buyerId || !sellerId) {
+          throw new Error('Buyer or seller ID is missing');
+        }
+
+        const response = await fetch(`/api/chat/deal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            historyId: currentContent.historyId,
+            exploreId: currentContent.postId,
+            buyerId,
+            sellerId,
+          }),
         });
 
         if (!response.ok) {
-          throw new Error('Failed to unpublish item');
+          throw new Error('Failed to complete deal');
+        }
+
+        // Invalidate the explore posts query to trigger a refetch
+        queryClient.invalidateQueries({ queryKey: ['explore-posts', userId] });
+
+        // Get the seller's ID (the post owner)
+        const sellerResponse = await fetch('/api/users/me');
+        if (sellerResponse.ok) {
+          const sellerData = await sellerResponse.json();
+          // Emit socket event to notify both users
+          socketService.emitExplorePostsUpdate(userId); // Notify the buyer
+          socketService.emitExplorePostsUpdate(sellerData._id); // Notify the seller
         }
       }
 
-      const newPost: ExploreItem = {
-        _id: currentContent.postId,
-        imageUrl: currentContent.imageUrl,
-        description: currentContent.description,
-        price: currentContent.suggestedPrice,
-        currency: currentContent.currency,
-        userProfile: isCurrentUserSeller(currentContent.postId) ? {
-          _id: currentUserId,
-          name: session?.user?.name || '',
-          avatarUrl: session?.user?.image || ''
-        } : {
-          _id: otherUser?._id,
-          name: otherUser?.name,
-          avatarUrl: otherUser?.avatarUrl
-        },
-        createdAt: new Date().toISOString(),
-        location: {
-          latitude: 0,
-          longitude: 0,
-          city: currentContent.location.split(',')[0] || '',
-          country: currentContent.location.split(',')[1]?.trim() || ''
-        },
-        userEmail: '',
-        historyId: currentContent.historyId || '',
+      // Then mark the discussion as completed
+      const updatedContent = {
+        ...currentContent,
+        isCompleted: true
       };
-
-      setSelectedPost(newPost);
-      setShowPosts(false);
-      
-      const prefilledData = {
-        price: currentContent.suggestedPrice,
-        location: currentContent.location,
-        meetingTime: currentContent.meetingTime
-      };
-      handleDiscussionSubmit(prefilledData);
+      chat.sendMessage(updatedContent);
     } catch (error) {
-      console.error('Error handling discussion click:', error);
-      // You might want to show an error message to the user here
+      console.error('Error completing deal:', error);
+      alert(dict.objectDiscussion?.dealError || 'Failed to complete deal. Please try again.');
     }
   };
 
@@ -727,55 +744,16 @@ export default function Chat({ userId }: ChatProps) {
                                   isLastDiscussionMessage(message) && (
                                   <div className="mt-3">
                                     <button
-                                      onClick={async (e) => {
+                                      onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         const currentContent = message.content as ObjectDiscussionData;
-                                        
-                                        try {
-                                          // Call the dealing API instead of explore delete
-                                          if (currentContent.postId && currentContent.historyId) {
-                                            const response = await fetch('/api/chat/deal', {
-                                              method: 'POST',
-                                              headers: {
-                                                'Content-Type': 'application/json',
-                                              },
-                                              body: JSON.stringify({
-                                                historyId: currentContent.historyId,
-                                                exploreId: currentContent.postId,
-                                              }),
-                                            });
-
-                                            if (!response.ok) {
-                                              throw new Error('Failed to complete deal');
-                                            }
-
-                                            // Invalidate the explore posts query to trigger a refetch
-                                            queryClient.invalidateQueries({ queryKey: ['explore-posts', userId] });
-
-                                            // Get the seller's ID (the post owner)
-                                            const sellerResponse = await fetch('/api/users/me');
-                                            if (sellerResponse.ok) {
-                                              const sellerData = await sellerResponse.json();
-                                              // Emit socket event to notify both users
-                                              socketService.emitExplorePostsUpdate(userId); // Notify the buyer
-                                              socketService.emitExplorePostsUpdate(sellerData._id); // Notify the seller
-                                            }
-                                          }
-
-                                          // Then mark the discussion as completed
-                                          const updatedContent = {
-                                            ...currentContent,
-                                            isCompleted: true
-                                          };
-                                          chat.sendMessage(updatedContent);
-                                        } catch (error) {
-                                          console.error('Error completing deal:', error);
-                                          alert(dict.objectDiscussion?.dealError || 'Failed to complete deal. Please try again.');
-                                        }
+                                        handleObjectDiscussionClick(currentContent, message.senderId);
                                       }}
                                       className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
-                                        isCurrentUserSeller((message.content as ObjectDiscussionData).postId) ? 'bg-blue-500 hover:bg-blue-400' : 'bg-orange-500 hover:bg-orange-400'
+                                        isCurrentUserSeller((message.content as ObjectDiscussionData).postId) 
+                                          ? 'bg-blue-500 hover:bg-blue-400' 
+                                          : 'bg-orange-500 hover:bg-orange-400'
                                       }`}
                                     >
                                       {isCurrentUserSeller((message.content as ObjectDiscussionData).postId)
