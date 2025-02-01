@@ -53,7 +53,8 @@ export default function ChatHistoryClient() {
       return content;
     }
     if (content.type === 'object_discussion') {
-      return `[${dict.objectDiscussion.price}: ${content.suggestedPrice}, ${dict.objectDiscussion.location}: ${content.location}]`;
+      // 返回更有意义的消息预览
+      return `[${content.description.slice(0, 20)}${content.description.length > 20 ? '...' : ''} - ${dict.objectDiscussion.price}: ${content.suggestedPrice}]`;
     }
     return '';
   };

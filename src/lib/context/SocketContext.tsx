@@ -38,14 +38,17 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
               if (chatIndex !== -1) {
                 const isReceiver = message.receiverId === currentUser._id;
+                // 确保正确处理 ObjectDiscussion 类型的消息
+                const lastMessage = {
+                  _id: message._id,
+                  content: message.content,
+                  createdAt: message.createdAt,
+                  senderId: message.senderId,
+                };
+
                 updated[chatIndex] = {
                   ...updated[chatIndex],
-                  lastMessage: {
-                    _id: message._id,
-                    content: message.content,
-                    createdAt: message.createdAt,
-                    senderId: message.senderId,
-                  },
+                  lastMessage,
                   updatedAt: message.createdAt,
                   unreadCount: isReceiver 
                     ? (updated[chatIndex].unreadCount || 0) + 1 
@@ -72,7 +75,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 const newPages = [...old.pages];
                 const lastPage = newPages[newPages.length - 1];
                 if (lastPage) {
-                  lastPage.messages = [...lastPage.messages, message];
+                  // 确保消息被正确添加到缓存中
+                  lastPage.messages = [...lastPage.messages, {
+                    ...message,
+                    status: message.senderId === currentUser._id ? "sent" : "delivered"
+                  }];
                 }
 
                 return {
