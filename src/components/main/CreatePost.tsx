@@ -1,14 +1,13 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useCreatePost } from '@/lib/hooks/useCreatePost';
-import Loading from '@/components/shared/Loading';
+import React, { useState } from "react";
+import { useCreatePost } from "@/lib/hooks/useCreatePost";
+import Loading from "@/components/shared/Loading";
 
 const CreatePostPage = () => {
   const {
     selectedImage,
     isLoading,
-    result,
     errorMessage,
     conversation,
     uploadImage,
@@ -17,144 +16,165 @@ const CreatePostPage = () => {
     clearImage,
   } = useCreatePost();
 
-  const [messageInput, setMessageInput] = useState('');
+  const [messageInput, setMessageInput] = useState("");
+  const [postData, setPostData] = useState<{ description: string; price: string } | null>(null);
 
   const handleSendMessage = async () => {
     if (!messageInput.trim()) return;
-    await sendMessage(messageInput);
-    setMessageInput('');
+
+    await sendMessage(messageInput).then((result: { reply: string; postData: any }) => {
+      if (result.postData) {
+        setPostData(result.postData);
+      }
+      setMessageInput("");
+    });
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-2xl mx-auto space-y-8">
-        {isLoading && (
-          <div className="absolute inset-0 z-50">
-            <Loading text="Analyzing..." />
-          </div>
-        )}
-        
-        {/* Image Upload Area */}
-        <div className="mb-4">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                uploadImage(file);
-              }
-            }}
-            className="hidden"
-            id="imageInput"
-          />
-          <label
-            htmlFor="imageInput"
-            className="block w-full h-64 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 transition-colors cursor-pointer"
-          >
-            <div className="flex flex-col items-center justify-center h-full">
-              {selectedImage ? (
-                <img
-                  src={URL.createObjectURL(selectedImage)}
-                  alt="Selected"
-                  className="max-h-full rounded-lg"
+    <div className="h-screen bg-black text-white flex flex-col pt-20 pb-8">
+      {/* Main Container */}
+      <div className="flex-grow overflow-y-auto px-6">
+        <div className="max-w-7xl mx-auto w-full relative">
+          {isLoading && (
+            <div className="absolute inset-0 z-50">
+              <Loading text="Analyzing..." />
+            </div>
+          )}
+
+          {/* Three-Column Layout */}
+          <div className="flex gap-6">
+            {/* Left Column: Image Upload */}
+            <div className="w-1/3 flex flex-col items-center">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    uploadImage(file);
+                  }
+                }}
+                className="hidden"
+                id="imageInput"
+              />
+              <label
+                htmlFor="imageInput"
+                className="block w-96 h-96 border-2 border-dashed border-gray-300 rounded-lg 
+                           hover:border-purple-500 transition-colors cursor-pointer 
+                           flex items-center justify-center"
+              >
+                {selectedImage ? (
+                  <img
+                    src={URL.createObjectURL(selectedImage)}
+                    alt="Selected"
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <svg
+                      className="w-12 h-12 text-gray-400 mx-auto"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <span className="mt-2 text-gray-500 block">Click to upload an image</span>
+                  </div>
+                )}
+              </label>
+
+              {/* Analyze & Clear Buttons */}
+              <div className="flex gap-4 mt-4">
+                <button
+                  onClick={analyzeImage}
+                  disabled={isLoading || !selectedImage}
+                  className={`py-3 px-6 rounded-md font-semibold ${
+                    isLoading || !selectedImage
+                      ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                      : "bg-purple-500 text-white hover:bg-purple-700"
+                  }`}
+                >
+                  {isLoading ? "Analyzing..." : "Analyze Image"}
+                </button>
+                <button
+                  onClick={() => {
+                    clearImage();
+                    setPostData(null); // Clears Post Preview Box
+                  }}
+                  disabled={isLoading}
+                  className={`py-3 px-6 rounded-md font-semibold ${
+                    isLoading
+                      ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                      : "bg-red-500 text-white hover:bg-red-700"
+                  }`}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            {errorMessage && (
+                <div className="p-4 mb-4 bg-red-700 rounded-md">
+                  <p className="text-sm text-white">{errorMessage}</p>
+                </div>
+            )}
+
+            {/* Middle Column: Conversation + Input */}
+            <div className="w-1/3 flex flex-col">
+              {/* Conversation Box */}
+              <div className="flex-grow bg-gray-800 p-6 rounded-lg overflow-y-auto" style={{ minHeight: "700px" }}>
+                <h2 className="font-bold text-lg mb-4">Conversation</h2>
+                {conversation.length === 0 ? (
+                  <p className="text-gray-400 italic">No messages yet.</p>
+                ) : (
+                  <ul>
+                    {conversation.map((msg, idx) => (
+                      <li key={idx} className="mb-3">
+                        <strong>{msg.role === "user" ? "You:" : "GPT:"}</strong> {msg.content}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Input Box Below Conversation */}
+              <div className="mt-4 flex items-center gap-4">
+                <input
+                  type="text"
+                  className="flex-grow p-2 text-black rounded-md"
+                  placeholder="Ask or respond..."
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
                 />
+                <button
+                  onClick={handleSendMessage}
+                  className="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-700"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column: Post Preview */}
+            <div className="w-1/3 bg-gray-700 p-6 rounded-lg overflow-y-auto" style={{ minHeight: "700px" }}>
+              <h2 className="font-bold text-lg mb-4">Post Preview</h2>
+              {postData ? (
+                <div>
+                  <p>
+                    <strong>Description:</strong> {postData.description}
+                  </p>
+                  <p className="mt-4">
+                    <strong>Price:</strong> {postData.price}
+                  </p>
+                </div>
               ) : (
-                <>
-                  <svg
-                    className="w-12 h-12 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    />
-                  </svg>
-                  <span className="mt-2 text-gray-500">Click to upload an image</span>
-                </>
+                <p className="text-gray-400 italic">
+                  Once enough details are provided, your post preview (description &amp; price) will appear here.
+                </p>
               )}
             </div>
-          </label>
-        </div>
-
-        {/* Analyze & Clear Buttons */}
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={analyzeImage}
-            disabled={isLoading || !selectedImage}
-            className={`py-2 px-4 rounded-md font-semibold ${
-              isLoading || !selectedImage
-                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                : 'bg-purple-500 text-white hover:bg-purple-700'
-            }`}
-          >
-            {isLoading ? 'Analyzing...' : 'Analyze Image'}
-          </button>
-          <button
-            onClick={clearImage}
-            disabled={isLoading}
-            className={`py-2 px-4 rounded-md font-semibold ${
-              isLoading
-                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                : 'bg-red-500 text-white hover:bg-red-700'
-            }`}
-          >
-            Clear
-          </button>
-        </div>
-
-        {/* Display raw result */}
-        {result && (
-          <div className="mb-4 p-4 bg-gray-800 rounded-md">
-            <h3 className="text-lg font-bold mb-2">Analysis Result</h3>
-            <pre className="text-sm font-mono text-gray-200">
-              {JSON.stringify(result, null, 2)}
-            </pre>
           </div>
-        )}
-
-        {/* Error Message */}
-        {errorMessage && (
-          <div className="p-4 mb-4 bg-red-700 rounded-md">
-            <p className="text-sm text-white">{errorMessage}</p>
-          </div>
-        )}
-
-        {/* Conversation Display */}
-        <div className="bg-gray-800 p-4 rounded-md mb-4">
-          <h2 className="font-bold text-lg mb-2">Conversation</h2>
-          {conversation.length === 0 ? (
-            <p className="text-gray-400 italic">No messages yet.</p>
-          ) : (
-            <ul>
-              {conversation.map((msg, idx) => (
-                <li key={idx} className="mb-2">
-                  <strong>{msg.role === 'user' ? 'You:' : 'GPT:'}</strong> {msg.content}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Send Message Input */}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            className="flex-grow p-2 text-black rounded-md"
-            placeholder="Ask or respond..."
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-          />
-          <button
-            onClick={handleSendMessage}
-            className="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-700"
-          >
-            Send
-          </button>
         </div>
       </div>
     </div>
@@ -162,151 +182,6 @@ const CreatePostPage = () => {
 };
 
 export default CreatePostPage;
-
-
-
-
-
-
-
-// 'use client';
-
-// import React, { useState } from 'react';
-// import { useCreatePost } from '@/lib/hooks/useCreatePost';
-
-// const CreatePostPage = () => {
-//   const {
-//     selectedImage,
-//     isLoading,
-//     result,
-//     errorMessage,
-//     conversation,
-//     uploadImage,
-//     analyzeImage,
-//     sendMessage,
-//     clearImage,
-//   } = useCreatePost();
-
-//   // local input state for user messages
-//   const [messageInput, setMessageInput] = useState('');
-
-//   const handleSendMessage = async () => {
-//     if (!messageInput.trim()) return;
-//     await sendMessage(messageInput);
-//     setMessageInput('');
-//   };
-
-//   return (
-//     <div className="min-h-screen bg-black text-white p-8">
-//       <h1 className="text-2xl font-bold mb-6">Test Google API</h1>
-
-//       {/* 1) File Input */}
-//       <div className="mb-4">
-//         <input
-//           type="file"
-//           accept="image/*"
-//           onChange={(e) => {
-//             if (e.target.files && e.target.files.length > 0) {
-//               uploadImage(e.target.files[0]);
-//             }
-//           }}
-//           className="block w-full text-sm text-gray-400
-//                      file:mr-4 file:py-2 file:px-4
-//                      file:rounded-md file:border-0
-//                      file:text-sm file:font-semibold
-//                      file:bg-purple-500 file:text-white
-//                      hover:file:bg-purple-700"
-//         />
-//       </div>
-
-//       {/* 2) Analyze & Clear Buttons */}
-//       <div className="flex gap-4 mb-6">
-//         <button
-//           onClick={analyzeImage}
-//           disabled={isLoading || !selectedImage}
-//           className={`py-2 px-4 rounded-md font-semibold ${
-//             isLoading || !selectedImage
-//               ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-//               : 'bg-purple-500 text-white hover:bg-purple-700'
-//           }`}
-//         >
-//           {isLoading ? 'Analyzing...' : 'Analyze Image'}
-//         </button>
-//         <button
-//           onClick={clearImage}
-//           disabled={isLoading}
-//           className={`py-2 px-4 rounded-md font-semibold ${
-//             isLoading
-//               ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-//               : 'bg-red-500 text-white hover:bg-red-700'
-//           }`}
-//         >
-//           Clear
-//         </button>
-//       </div>
-
-//       {/* 3) Display raw result (if you want) */}
-//       {result && (
-//         <div className="mb-4 p-4 bg-gray-800 rounded-md">
-//           <pre className="text-sm text-white">
-//             {JSON.stringify(result, null, 2)}
-//           </pre>
-//         </div>
-//       )}
-
-//       {/* 4) Error Message */}
-//       {errorMessage && <p className="text-red-500">{errorMessage}</p>}
-
-//       {/* 5) Conversation Display */}
-//       <div className="bg-gray-800 p-4 rounded-md mb-4">
-//         <h2 className="font-bold text-lg mb-2">Conversation</h2>
-//         {conversation.length === 0 ? (
-//           <p className="text-gray-400 italic">No messages yet.</p>
-//         ) : (
-//           <ul>
-//             {conversation.map((msg, idx) => (
-//               <li key={idx} className="mb-2">
-//                 <strong>{msg.role === 'user' ? 'You:' : 'GPT:'}</strong>{' '}
-//                 {msg.content}
-//               </li>
-//             ))}
-//           </ul>
-//         )}
-//       </div>
-
-//       {/* 6) Send Message Input */}
-//       <div className="flex items-center gap-2">
-//         <input
-//           type="text"
-//           className="flex-grow p-2 text-black rounded-md"
-//           placeholder="Ask or respond..."
-//           value={messageInput}
-//           onChange={(e) => setMessageInput(e.target.value)}
-//         />
-//         <button
-//           onClick={handleSendMessage}
-//           className="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-700"
-//         >
-//           Send
-//         </button>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default CreatePostPage;
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

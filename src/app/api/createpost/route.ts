@@ -3,6 +3,7 @@ import formidable from 'formidable';
 import fs from 'fs/promises';
 import { Readable } from 'stream';
 import dotenv from 'dotenv';
+import { IncomingMessage } from "http";
 
 dotenv.config(); // Load environment variables
 
@@ -15,95 +16,64 @@ export const config = {
   },
 };
 
-// export async function POST(request: Request) {
-//   try {
-//     // Step 1: Handle image upload
-//     const contentLength = request.headers.get('content-length');
-//     const nodeRequest = Object.assign(Readable.from(request.body as any), {
-//       headers: {
-//         'content-length': contentLength,
-//         ...Object.fromEntries(request.headers),
-//       },
-//     });
-
-//     const form = formidable({ multiples: false });
-//     const [fields, files] = await new Promise((resolve, reject) => {
-//       form.parse(nodeRequest, (err, fields, files) => {
-//         if (err) reject(err);
-//         else resolve([fields, files]);
-//       });
-//     });
-
-//     // Step 2: Validate file
-//     const imageFile = files?.image?.[0];
-//     if (!imageFile) {
-//       return NextResponse.json({ error: 'No image file uploaded' }, { status: 400 });
-//     }
-
-//     // Step 3: Analyze image using OpenAI Vision API
-//     const base64Image = await encodeImageToBase64(imageFile.filepath);
-//     const detailedDescription = await analyzeImageWithOpenAI(base64Image);
-
-//     return NextResponse.json({
-//       detailedDescription,
-//     });
-
-//   } catch (error) {
-//     console.error('Error processing the image:', error);
-//     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-//   }
-// }
 export async function POST(request: Request) {
   try {
-    const contentType = request.headers.get('content-type') || '';
+    const contentType = request.headers.get("content-type") || "";
 
-    if (contentType.includes('multipart/form-data')) {
-      // Handle Image Upload and Analysis
-      const contentLength = request.headers.get('content-length');
-      const nodeRequest = Object.assign(Readable.from(request.body as any), {
-        headers: {
-          'content-length': contentLength,
-          ...Object.fromEntries(request.headers),
-        },
-      });
+    if (contentType.includes("multipart/form-data")) {
+      const contentLength = request.headers.get("content-length");
+      const arrayBuffer = await request.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer); 
+
+      // ✅ Convert Buffer into a Readable Stream
+      const nodeRequest = new Readable();
+      nodeRequest.push(buffer);
+      nodeRequest.push(null);
+
+      // ✅ Convert Readable to mimic an IncomingMessage
+      const fakeIncomingMessage = Object.assign(nodeRequest, {
+        headers: Object.fromEntries(request.headers),
+      }) as IncomingMessage;
 
       const form = formidable({ multiples: false });
-      const [fields, files] = await new Promise((resolve, reject) => {
-        form.parse(nodeRequest, (err, fields, files) => {
-          if (err) reject(err);
-          else resolve([fields, files]);
-        });
-      });
 
-      const imageFile = files?.image?.[0];
+      const parsedForm = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>(
+        (resolve, reject) => {
+          form.parse(fakeIncomingMessage, (err, fields, files) => {
+            if (err) reject(err);
+            else resolve({ fields, files });
+          });
+        }
+      );
+
+      const imageFile = parsedForm.files?.image?.[0];
       if (!imageFile) {
-        return NextResponse.json({ error: 'No image file uploaded' }, { status: 400 });
+        return NextResponse.json({ error: "No image file uploaded" }, { status: 400 });
       }
 
       const base64Image = await encodeImageToBase64(imageFile.filepath);
       const detailedDescription = await analyzeImageWithOpenAI(base64Image);
 
       return NextResponse.json({ detailedDescription });
-    } else if (contentType.includes('application/json')) {
-      // Handle Conversation Context
+    } else if (contentType.includes("application/json")) {
       const body = await request.json();
       const { conversation } = body;
 
       if (!Array.isArray(conversation)) {
         return NextResponse.json(
-          { error: 'Invalid conversation format (expected an array)' },
+          { error: "Invalid conversation format (expected an array)" },
           { status: 400 }
         );
       }
 
       const reply = await getNextAssistantMessage(conversation);
-      return NextResponse.json({ reply });
+      return NextResponse.json(reply);
     }
 
-    return NextResponse.json({ error: 'Unsupported Content-Type' }, { status: 400 });
+    return NextResponse.json({ error: "Unsupported Content-Type" }, { status: 400 });
   } catch (error) {
-    console.error('Error processing the request:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("Error processing the request:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -121,16 +91,21 @@ const analyzeImageWithOpenAI = async (base64Image: string): Promise<string> => {
       {
         role: 'user',
         content: [
-          { 
-            type: 'text', 
-            text: 'You are a helpful assistant that determines a fair selling price for an item.' +
-                  '1. The user has uploaded a photo. You analyzed it and think what it is.' +
-                  '2. First give feedback on the image the user uploaded, for example what is it...' +
-                  '3. And ask the user for critical details—size, condition, damage, or anything else relevant—until you feel you have enough information.' +
-                  '4. Once you have enough information, you must generate a recommended selling price.' +
-                  '5. Your tone should be straightforward and helpful.'
+          {
+            type: 'text',
+            text:
+              'You are a helpful assistant that determines a fair selling price for an item. ' +
+              '1. The user has uploaded a photo—analyze it and identify what the item is. ' +
+              '2. Provide clear, specific feedback on the image (for example, what the item is and its model, if applicable). ' +
+              '3. Ask for any critical missing details (such as size, condition, damage, or other relevant features) until you have sufficient information. ' +
+              '4. Make sure to ask where is it located.'+
+              '5. Once enough information is available, generate a single recommended selling price (do not provide a price range) based on current market conditions. ' +
+              '6. Your tone should be straightforward and helpful.',
           },
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
+          {
+            type: 'image_url',
+            image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+          },
         ],
       },
     ],
@@ -158,26 +133,44 @@ const analyzeImageWithOpenAI = async (base64Image: string): Promise<string> => {
   return description;
 };
 
+// Function to get the next assistant message
 const getNextAssistantMessage = async (conversation: { role: string; content: string }[]) => {
-  // Prepend a system message for context
   const systemPrompt = {
     role: 'system',
-    content: `You are a helpful assistant that determines a fair selling price for an item. 
-              You will ask the user for critical details like size, condition, brand, or any unique features of the item. 
-              Once you have enough details, provide a recommended price.`,
+    content: `You are an AI assistant that helps users list their items for sale and determine a fair selling price. 
+You must always respond with a valid JSON object, structured as follows:
+
+\`\`\`json
+{
+  "reply": "Your conversational response to the user.",
+  "postData": {
+    "description": "A formatted post description for the listing (if enough details are available, otherwise null).",
+    "price": "A single recommended price with currency (if enough details are available, otherwise null)."
+  }
+}
+\`\`\`
+
+### Instructions:
+1. **NEVER respond with plain text** – your response **must always be valid JSON**.
+2. If you need **more details**, set \`"postData": { "description": null, "price": null }\` and ask the user for the missing details in \`"reply"\`.
+3. If you have **enough details**, generate a **market-ready post description** and a **single price**.
+4. The **price must be a single value** (e.g., \`"$2,500,000"\`) with a currency symbol.
+5. **Do not include explanations or extra text – return only the JSON object.**`,
   };
 
-  // Sanitize conversation roles
-  const sanitizedConversation = [systemPrompt, ...conversation.map((msg) => ({
-    ...msg,
-    role: msg.role === 'gpt' ? 'assistant' : msg.role, // Fix invalid roles
-  }))];
-  
+  const sanitizedConversation = [
+    systemPrompt,
+    ...conversation.map((msg) => ({
+      ...msg,
+      role: msg.role === 'gpt' ? 'assistant' : msg.role,
+    })),
+  ];
+
   const payload = {
     model: 'gpt-4',
     messages: sanitizedConversation,
     max_tokens: 300,
-    temperature: 0.7,
+    temperature: 0.5,
   };
 
   const response = await fetch(OPENAI_API_URL, {
@@ -196,7 +189,22 @@ const getNextAssistantMessage = async (conversation: { role: string; content: st
   }
 
   const result = await response.json();
-  return result.choices[0]?.message?.content || '';
+  const content = result.choices[0]?.message?.content || '';
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    console.error('Error parsing GPT JSON:', error, 'Response content:', content);
+    parsed = { reply: content, postData: { description: null, price: null } };
+  }
+  return parsed;
 };
+
+
+
+
+
+
 
 
