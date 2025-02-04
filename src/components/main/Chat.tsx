@@ -491,7 +491,7 @@ export default function Chat({ userId }: ChatProps) {
                                 key={post._id}
                                 className="flex items-start space-x-3 p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer transition-all"
                                 onClick={() => {
-                                  handlePostClick(post);
+                                  setSelectedPost(post);
                                   setShowMyPosts(false);
                                 }}
                               >
