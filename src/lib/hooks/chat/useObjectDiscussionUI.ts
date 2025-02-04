@@ -1,5 +1,4 @@
 import { ObjectDiscussionData, ChatMessage } from '@/lib/types/chat';
-import { ExploreItem } from '@/lib/types/explore';
 import { useObjectDiscussion } from './useObjectDiscussion';
 import { QueryClient } from '@tanstack/react-query';
 

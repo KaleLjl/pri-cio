@@ -54,18 +54,6 @@ export default function Chat({ userId }: ChatProps) {
     otherUserId: otherUser?._id,
   });
 
-  // Use the message actions hook
-  const {
-    sendMessage,
-    deleteMessages,
-    isSending,
-    isDeleting,
-  } = useMessageActions({
-    conversationId,
-    currentUserId,
-    otherUserId: otherUser?._id,
-  });
-
   // Use the chat UI hook
   const {
     messagesEndRef,
@@ -93,6 +81,20 @@ export default function Chat({ userId }: ChatProps) {
     hasNextPage,
   });
 
+  // Use the message actions hook
+  const {
+    sendMessage,
+    deleteMessages,
+    handleSubmit,
+    isSending,
+    isDeleting,
+  } = useMessageActions({
+    conversationId,
+    currentUserId,
+    otherUserId: otherUser?._id,
+    handleMessageSubmit,
+  });
+
   // Use the object discussion UI hook
   const {
     selectedPost,
@@ -113,13 +115,6 @@ export default function Chat({ userId }: ChatProps) {
     setShowPosts,
     dict,
   });
-
-  const onSubmit = async (e: React.FormEvent) => {
-    const message = await handleMessageSubmit(e);
-    if (message) {
-      await sendMessage(message);
-    }
-  };
 
   if (error) {
     return (
@@ -463,7 +458,7 @@ export default function Chat({ userId }: ChatProps) {
 
               {/* Message Input */}
               <div className="p-4 border-t border-gray-700/50">
-                <form onSubmit={onSubmit} className="flex gap-2">
+                <form onSubmit={handleSubmit} className="flex gap-2">
                   <div className="relative flex-1 flex gap-2">
                     <button
                       type="button"

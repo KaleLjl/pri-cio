@@ -7,9 +7,15 @@ interface UseMessageActionsProps {
   conversationId?: string;
   currentUserId?: string;
   otherUserId?: string;
+  handleMessageSubmit: (e: React.FormEvent) => Promise<string | undefined>;
 }
 
-export function useMessageActions({ conversationId, currentUserId, otherUserId }: UseMessageActionsProps) {
+export function useMessageActions({ 
+  conversationId, 
+  currentUserId, 
+  otherUserId,
+  handleMessageSubmit,
+}: UseMessageActionsProps) {
   const queryClient = useQueryClient();
   const { sendMessage: sendSocketMessage } = useSocketChat({ 
     conversationId, 
@@ -133,9 +139,18 @@ export function useMessageActions({ conversationId, currentUserId, otherUserId }
     },
   });
 
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    const message = await handleMessageSubmit(e);
+    if (message) {
+      await sendMessageMutation.mutateAsync(message);
+    }
+  };
+
   return {
     sendMessage: (content: MessageContent) => sendMessageMutation.mutateAsync(content),
     deleteMessages: () => deleteMessagesMutation.mutateAsync(),
+    handleSubmit,
     isSending: sendMessageMutation.isPending,
     isDeleting: deleteMessagesMutation.isPending,
     sendError: sendMessageMutation.error,
