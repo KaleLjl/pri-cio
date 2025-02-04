@@ -31,6 +31,7 @@ export function useSocketChat({ conversationId, currentUserId, otherUserId }: Us
 
     const handleNewMessage = (message: ChatMessage) => {
       if (message.conversationId === conversationId) {
+        // Immediately update the messages in the cache
         queryClient.setQueryData<InfiniteData<MessagesResponse>>(
           ["chat-messages", conversationId],
           (old) => {
@@ -43,13 +44,52 @@ export function useSocketChat({ conversationId, currentUserId, otherUserId }: Us
             return { ...old, pages: newPages };
           }
         );
+
+        // Force a refetch to ensure consistency
+        queryClient.invalidateQueries({
+          queryKey: ["chat-messages", conversationId],
+          exact: true,
+          refetchType: "all"
+        });
+
+        // Mark message as delivered
+        socketService.sendMessageDelivered(message._id);
+
+        // If window is focused, mark as read immediately
+        if (document.hasFocus()) {
+          socketService.sendMessageRead(message._id);
+        }
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // When tab becomes visible, refetch messages
+        queryClient.invalidateQueries({
+          queryKey: ["chat-messages", conversationId],
+          exact: true,
+          refetchType: "all"
+        });
+      }
+    };
+
+    const handleFocus = () => {
+      // When window gains focus, refetch messages
+      queryClient.invalidateQueries({
+          queryKey: ["chat-messages", conversationId],
+          exact: true,
+          refetchType: "all"
+      });
+    };
+
     socketService.onNewMessage(handleNewMessage);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       socketService.removeEventListener('message', handleNewMessage);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [conversationId, queryClient]);
 

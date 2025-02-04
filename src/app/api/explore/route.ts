@@ -8,15 +8,20 @@ import { ObjectId } from 'mongodb';
 export async function GET(req: Request) {
     const url = new URL(req.url);
     const search = url.searchParams.get('search') || '';
+    const userId = url.searchParams.get('userId');
   
     try {
       const client = await clientPromise;
-      const db = client.db('pri-cio'); // Replace with your database name
+      const db = client.db('pri-cio');
   
-      const filter = search
-        ? { description: { $regex: search, $options: 'i' } } // Case-insensitive search
-        : {}; // Fetch all posts if no query
-  
+      let filter: any = {};
+      
+      // 添加搜索条件
+      if (search) {
+        filter.description = { $regex: search, $options: 'i' };
+      }
+
+      // 获取所有帖子
       const posts = await db.collection('explore').find(filter).sort({ createdAt: -1 }).toArray();
   
       // Update user profiles for all posts
@@ -26,6 +31,11 @@ export async function GET(req: Request) {
           { projection: { _id: 1, name: 1, avatarUrl: 1 } }
         );
   
+        // 如果提供了 userId，只返回匹配的帖子
+        if (userId && userProfile?._id.toString() !== userId) {
+          return null;
+        }
+
         return {
           ...post,
           userProfile: userProfile ? {
@@ -36,7 +46,10 @@ export async function GET(req: Request) {
         };
       }));
   
-      return NextResponse.json(updatedPosts);
+      // 过滤掉 null 值（不匹配 userId 的帖子）
+      const filteredPosts = updatedPosts.filter(post => post !== null);
+  
+      return NextResponse.json(filteredPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
       return NextResponse.json({ message: 'Failed to fetch posts' }, { status: 500 });

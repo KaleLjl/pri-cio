@@ -1,6 +1,8 @@
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { ChatMessage, ChatUser, MessagesResponse } from '@/lib/types/chat';
+import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
+import { ChatMessage, ChatUser, MessagesResponse, MessageContent } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
+import { useSocketChat } from './useSocketChat';
+import { v4 as uuidv4 } from 'uuid';
 
 interface UseChatDataProps {
   userId: string;
@@ -9,6 +11,59 @@ interface UseChatDataProps {
 }
 
 export function useChatData({ userId, conversationId, otherUser }: UseChatDataProps) {
+  const { sendMessage: sendSocketMessage } = useSocketChat({
+    conversationId,
+    currentUserId: userId,
+    otherUserId: otherUser?._id,
+  });
+
+  // Send message mutation
+  const sendMessageMutation = useMutation({
+    mutationFn: async (content: MessageContent) => {
+      if (!conversationId || !otherUser?._id) {
+        throw new Error('Missing required data');
+      }
+
+      const response = await fetch('/api/chat/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId,
+          content,
+          receiverId: otherUser._id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      const data = await response.json();
+      sendSocketMessage(data);
+      return data;
+    },
+  });
+
+  // Delete messages mutation
+  const deleteMessagesMutation = useMutation({
+    mutationFn: async () => {
+      if (!conversationId) {
+        throw new Error('No conversation ID');
+      }
+
+      const response = await fetch('/api/chat/messages', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete messages');
+      }
+    },
+  });
+
   // Fetch current user data
   const {
     data: currentUser,
@@ -79,14 +134,15 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     isLoading: isLoadingPosts,
     error: postsError
   } = useQuery({
-    queryKey: ['explore-posts', userId],
+    queryKey: ['explore-posts', otherUser?._id],
     queryFn: async () => {
-      const response = await fetch('/api/explore');
+      if (!otherUser?._id) throw new Error('No other user ID');
+      // 直接获取对方用户的帖子
+      const response = await fetch(`/api/explore?userId=${otherUser._id}`);
       if (!response.ok) throw new Error('Failed to fetch user posts');
-      const allPosts = await response.json();
-      return allPosts.filter((post: ExploreItem) => post.userProfile?._id === userId);
+      return response.json();
     },
-    enabled: !!userId && !!otherUser,
+    enabled: !!otherUser?._id,
   });
 
   // Get typing status from cache
@@ -98,7 +154,14 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
   // Flatten messages from all pages
   const messages = messagesData?.pages.flatMap(page => page.messages) ?? [];
   const uniqueMessages = Array.from(
-    new Map(messages.map(msg => [msg._id, msg])).values()
+    new Map(messages.map(msg => {
+      // 如果是 ObjectDiscussion，使用 postId 和时间戳作为唯一键
+      if (typeof msg.content !== 'string' && msg.content.type === 'object_discussion') {
+        return [`${msg.content.postId}-${msg.createdAt}`, msg];
+      }
+      // 其他消息类型使用 _id
+      return [msg._id, msg];
+    })).values()
   ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   return {
@@ -120,6 +183,11 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     userPosts,
     isLoadingPosts,
     postsError: postsError?.message || null,
+    
+    // Message actions
+    sendMessage: sendMessageMutation.mutateAsync,
+    deleteMessages: deleteMessagesMutation.mutateAsync,
+    isSending: sendMessageMutation.isPending,
     
     // Typing status
     isTyping,

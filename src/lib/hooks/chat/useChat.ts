@@ -11,7 +11,7 @@ import {
   MessagesResponse,
 } from '@/lib/types/chat';
 import { v4 as uuidv4 } from 'uuid';
-import { useChatData } from '../useChatData';
+import { useChatData } from './useChatData';
 
 const MESSAGE_CACHE_TIME = 1000 * 60 * 30; 
 const TYPING_TIMEOUT = 3000; //  seconds typing timeout
