@@ -1,3 +1,5 @@
+import { UserProfile } from './user';
+
 export interface ExploreItem {
     _id: string;
     imageUrl: string;
@@ -6,16 +8,19 @@ export interface ExploreItem {
     userEmail: string;
     historyId: string;
     currency: string;
-    userProfile?: {
-      _id?: string;
-      name?: string;
-      avatarUrl?: string | null;
-    };
+    userProfile?: UserProfile;
     location?: {
       latitude: number;
       longitude: number;
       city: string;
       country: string;
     } | null;
-    createdAt: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface ExploreItemResponse {
+  items: ExploreItem[];
+  total: number;
+  hasMore: boolean;
 }

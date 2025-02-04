@@ -4,30 +4,36 @@ import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from "@ta
 import { socketService } from "@/lib/socket";
 import { 
   ChatMessage, 
-  ChatUser, 
   MessageStatus, 
   MessageContent, 
   ObjectDiscussionData,
   UseChatProps,
   MessagesResponse,
-  MutationContext,
-  ChatHistoryRecord,
-  ChatHookResult
 } from '@/lib/types/chat';
 import { v4 as uuidv4 } from 'uuid';
+import { useChatData } from '../useChatData';
 
-const MESSAGES_PER_PAGE = 20;
 const MESSAGE_CACHE_TIME = 1000 * 60 * 30; 
 const TYPING_TIMEOUT = 3000; //  seconds typing timeout
 
 export function useChat(props: UseChatProps | null) {
   const queryClient = useQueryClient();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
-  const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+
+  // Use the chat data hook
+  const {
+    isLoadingMessages,
+    messagesError,
+    sendMessage: sendMessageData,
+    deleteMessages: deleteMessagesData,
+    isSending,
+  } = useChatData({
+    userId: props?.otherUser._id || '',
+    conversationId: props?.conversationId,
+    otherUser: props?.otherUser,
+  });
 
   const handleTyping = useCallback(
     (typing: boolean) => {
@@ -164,11 +170,11 @@ export function useChat(props: UseChatProps | null) {
   // Query for fetching messages
   const {
     data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    error,
+    fetchNextPage: queryFetchNextPage,
+    hasNextPage: queryHasNextPage,
+    isFetchingNextPage: queryIsFetchingNextPage,
+    isLoading: queryIsLoading,
+    error: queryError,
   } = useInfiniteQuery<MessagesResponse>({
     queryKey: ["chat-messages", props?.conversationId],
     queryFn: async ({ pageParam = undefined }) => {
@@ -330,18 +336,26 @@ export function useChat(props: UseChatProps | null) {
         throw new Error('Failed to load messages');
       }
       const data = await response.json();
-      setMessages(data.messages);
-      setHasMore(data.hasMore);
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+        ["chat-messages", props.conversationId],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: [data as MessagesResponse],
+          };
+        }
+      );
     } catch (error) {
       console.error('Error loading messages:', error);
     }
   };
 
   const loadMoreMessages = async () => {
-    if (!props || !hasMore) return;
+    if (!props || !queryHasNextPage) return;
 
     try {
-      const oldestMessage = messages[0];
+      const oldestMessage = allMessages[0];
       const response = await fetch(
         `/api/chat/messages?conversationId=${props.conversationId}&before=${oldestMessage?._id}`
       );
@@ -349,8 +363,16 @@ export function useChat(props: UseChatProps | null) {
         throw new Error('Failed to load more messages');
       }
       const data = await response.json();
-      setMessages(prevMessages => [...data.messages, ...prevMessages]);
-      setHasMore(data.hasMore);
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+        ["chat-messages", props.conversationId],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: [data as MessagesResponse],
+          };
+        }
+      );
     } catch (error) {
       console.error('Error loading more messages:', error);
     }
@@ -370,9 +392,22 @@ export function useChat(props: UseChatProps | null) {
       status: 'sending',
     };
 
-    setMessages(prev => [...prev, newMessage]);
-    setIsSending(true);
-    setInputMessage('');
+    queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+      ["chat-messages", props.conversationId],
+      (old) => {
+        if (!old) return old;
+        const newPages = [...old.pages];
+        const lastPage = newPages[newPages.length - 1];
+        // Check if message already exists
+        if (!lastPage.messages.some(msg => msg._id === tempId)) {
+          lastPage.messages = [...lastPage.messages, { ...newMessage, status: 'delivered' }];
+        }
+        return {
+          ...old,
+          pages: newPages,
+        };
+      }
+    );
 
     try {
       const response = await fetch('/api/chat/messages', {
@@ -392,53 +427,58 @@ export function useChat(props: UseChatProps | null) {
       }
 
       const data = await response.json();
-      setMessages(prev =>
-        prev.map(msg =>
-          msg._id === tempId
-            ? { ...data, status: 'sent' }
-            : msg
-        )
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+        ["chat-messages", props.conversationId],
+        (old) => {
+          if (!old) return old;
+          const newPages = [...old.pages];
+          const lastPage = newPages[newPages.length - 1];
+          lastPage.messages = [...lastPage.messages, { ...data, status: 'sent' }];
+          return {
+            ...old,
+            pages: newPages,
+          };
+        }
       );
 
       socketService.sendMessage(data);
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages(prev =>
-        prev.map(msg =>
-          msg._id === tempId
-            ? { ...msg, status: 'error' }
-            : msg
-        )
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+        ["chat-messages", props.conversationId],
+        (old) => {
+          if (!old) return old;
+          const newPages = [...old.pages];
+          const lastPage = newPages[newPages.length - 1];
+          lastPage.messages = [...lastPage.messages, { ...newMessage, status: 'error' }];
+          return {
+            ...old,
+            pages: newPages,
+          };
+        }
       );
-    } finally {
-      setIsSending(false);
     }
   };
 
   return {
     messages: uniqueMessages,
-    isLoading,
-    error: error ? error.message : null,
-    isTyping: otherUserTyping,
+    isLoading: isLoadingMessages || queryIsLoading,
+    error: messagesError || queryError,
+    isTyping,
     inputMessage,
-    isSending: isSending || sendMessageMutation.isPending,
-    hasMore: !!hasNextPage,
-    loadingMore: isFetchingNextPage,
+    isSending,
+    hasMore: queryHasNextPage,
+    loadingMore: queryIsFetchingNextPage,
     setInputMessage,
     sendMessage: async (content: MessageContent) => {
-      setIsSending(true);
-      try {
-        await sendMessageMutation.mutateAsync(content);
-        setInputMessage("");
-      } finally {
-        setIsSending(false);
-      }
+      await sendMessageData(content);
+      setInputMessage("");
     },
     loadMoreMessages: async () => {
-      await fetchNextPage();
+      await queryFetchNextPage();
     },
     deleteMessages: async () => {
-      await deleteMessagesMutation.mutateAsync();
+      await deleteMessagesData();
     },
   };
 }
