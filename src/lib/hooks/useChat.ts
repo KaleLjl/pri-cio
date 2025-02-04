@@ -2,44 +2,23 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from "@tanstack/react-query";
 import { socketService } from "@/lib/socket";
-import { ChatMessage, ChatUser, MessageStatus, MessageContent, ObjectDiscussionData } from "@/lib/types/chat";
+import { 
+  ChatMessage, 
+  ChatUser, 
+  MessageStatus, 
+  MessageContent, 
+  ObjectDiscussionData,
+  UseChatProps,
+  MessagesResponse,
+  MutationContext,
+  ChatHistoryRecord,
+  ChatHookResult
+} from '@/lib/types/chat';
 import { v4 as uuidv4 } from 'uuid';
 
 const MESSAGES_PER_PAGE = 20;
 const MESSAGE_CACHE_TIME = 1000 * 60 * 30; 
 const TYPING_TIMEOUT = 3000; //  seconds typing timeout
-
-interface UseChatProps {
-  conversationId: string;
-  currentUserId: string;
-  otherUser: ChatUser;
-}
-
-interface MessagesResponse {
-  messages: ChatMessage[];
-  hasMore: boolean;
-  nextPage?: number;
-}
-
-interface MutationContext {
-  optimisticMessage: ChatMessage;
-}
-
-interface ChatHistoryRecord {
-  _id: string;
-  participants: {
-    _id: string;
-    name: string;
-    avatarUrl: string;
-  }[];
-  lastMessage?: {
-    _id: string;
-    content: string;
-    createdAt: string;
-    senderId: string;
-  };
-  updatedAt: string;
-}
 
 export function useChat(props: UseChatProps | null) {
   const queryClient = useQueryClient();

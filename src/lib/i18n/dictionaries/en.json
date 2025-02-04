@@ -206,6 +206,7 @@
     "completed": "Deal Completed",
     "buyerLabel": "Buy",
     "sellerLabel": "Sell",
-    "noChangesMessage": "Please modify the price, location, or meeting time before sending a new proposal"
+    "noChangesMessage": "Please modify the price, location, or meeting time before sending a new proposal",
+    "dealError": "Failed to complete deal. Please try again."
   }
 } 

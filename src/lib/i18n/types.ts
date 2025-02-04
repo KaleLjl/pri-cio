@@ -196,5 +196,11 @@ export interface Dictionary {
     meetingTime: string;
     cancel: string;
     send: string;
+    complete: string;
+    completed: string;
+    buyerLabel: string;
+    sellerLabel: string;
+    noChangesMessage: string;
+    dealError: string;
   };
 } 
