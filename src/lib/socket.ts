@@ -312,6 +312,39 @@ class SocketService {
   onConnect(callback: () => void) {
     this.socket?.on("connect", callback);
   }
+
+  // Send message delivered status
+  sendMessageDelivered(messageId: string) {
+    if (this.socket) {
+      this.socket.emit('message-delivered', messageId);
+    }
+  }
+
+  // Send message read status
+  sendMessageRead(messageId: string) {
+    if (this.socket) {
+      this.socket.emit('message-read', messageId);
+    }
+  }
+
+  // Update message status in database
+  async updateMessageStatus(messageId: string, status: string) {
+    try {
+      const response = await fetch('/api/chat/messages', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messageId, status }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update message status');
+      }
+    } catch (error) {
+      console.error('Error updating message status:', error);
+    }
+  }
 }
 
 export const socketService = SocketService.getInstance();

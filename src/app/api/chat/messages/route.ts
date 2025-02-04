@@ -140,12 +140,16 @@ export async function POST(req: Request) {
       content,
       createdAt: new Date(),
       read: false,
+      status: 'sent',
     };
 
     const result = await db.collection("messages").insertOne(newMessage);
     await db
       .collection("conversations")
-      .updateOne({ _id: conversation._id }, { $set: { updatedAt: new Date() } });
+      .updateOne({ _id: conversation._id }, { 
+        $set: { updatedAt: new Date() },
+        $inc: { unreadCount: 1 }
+      });
 
     return NextResponse.json({
       _id: result.insertedId,
@@ -288,5 +292,49 @@ export async function DELETE(req: Request) {
   } catch (error) {
     console.error("Error deleting messages:", error);
     return NextResponse.json({ error: "Failed to delete messages" }, { status: 500 });
+  }
+}
+
+// PUT: update message status
+export async function PUT(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { messageId, status } = await req.json();
+    if (!messageId || !status) {
+      return NextResponse.json({ error: "Message ID and status are required" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("pri-cio");
+
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Update message status
+    const result = await db.collection("messages").updateOne(
+      { _id: new ObjectId(messageId) },
+      { $set: { status, updatedAt: new Date() } }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      messageId,
+      status
+    });
+  } catch (error) {
+    console.error("Error updating message status:", error);
+    return NextResponse.json({ error: "Failed to update message status" }, { status: 500 });
   }
 }
