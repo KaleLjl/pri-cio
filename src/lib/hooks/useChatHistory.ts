@@ -2,7 +2,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useRef, useCallback } from "react";
-import { ChatMessage } from "@/lib/types/chat";
+import { ChatMessage, MessageContent } from "@/lib/types/chat";
 
 interface ChatRecord {
   _id: string;
@@ -13,7 +13,7 @@ interface ChatRecord {
   }[];
   lastMessage?: {
     _id: string;
-    content: string;
+    content: MessageContent;
     createdAt: string;
     senderId: string;
   };
@@ -40,11 +40,11 @@ export function useChatHistory(): UseChatHistoryReturn {
     data: chats = [],
     isLoading: loading,
     error,
-    refetch,
+    refetch: queryRefetch,
   } = useQuery({
     queryKey: ["chat-history"],
     queryFn: async () => {
-      const response = await fetch("/api/chat/conversations");
+      const response = await fetch("/api/chat/conversations/list");
       if (!response.ok) {
         throw new Error("Failed to fetch chat history");
       }
@@ -65,66 +65,71 @@ export function useChatHistory(): UseChatHistoryReturn {
     enabled: !!session,
   });
 
-  const updateChatHistory = useCallback(
-    (message: ChatMessage) => {
-      queryClient.setQueryData<ChatRecord[]>(
-        ["chat-history"],
-        (oldChats = []) => {
-          const updated = [...oldChats];
-          const chatIndex = updated.findIndex((chat) => chat._id === message.conversationId);
+  const refetch = useCallback(async () => {
+    await queryRefetch();
+  }, [queryRefetch]);
 
-          if (chatIndex !== -1) {
-            updated[chatIndex] = {
-              ...updated[chatIndex],
-              lastMessage: {
-                _id: message._id,
-                content: message.content,
-                createdAt: message.createdAt,
-                senderId: message.senderId,
-              },
-              updatedAt: message.createdAt,
-              unreadCount: message.senderId !== session?.user?.id 
-                ? (updated[chatIndex].unreadCount || 0) + 1 
-                : (updated[chatIndex].unreadCount || 0),
-            };
-          }
-
-          return updated.sort(
-            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          );
-        }
+  // Update chat history with new message
+  const updateChatHistory = useCallback((message: ChatMessage) => {
+    queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats = []) => {
+      const updatedChats = [...oldChats];
+      const chatIndex = updatedChats.findIndex(
+        (chat) => chat._id === message.conversationId
       );
-    },
-    [queryClient, session?.user?.id]
-  );
+
+      if (chatIndex > -1) {
+        updatedChats[chatIndex] = {
+          ...updatedChats[chatIndex],
+          lastMessage: {
+            _id: message._id,
+            content: message.content,
+            createdAt: message.createdAt,
+            senderId: message.senderId,
+          },
+          updatedAt: message.createdAt,
+          unreadCount: updatedChats[chatIndex].unreadCount + 1,
+        };
+      }
+
+      return updatedChats.sort((a, b) => {
+        const timeA = a.lastMessage?.createdAt || a.updatedAt;
+        const timeB = b.lastMessage?.createdAt || b.updatedAt;
+        return new Date(timeB).getTime() - new Date(timeA).getTime();
+      });
+    });
+  }, [queryClient]);
+
+  // Delete messages for a conversation
+  const deleteMessages = useCallback(async (conversationId: string) => {
+    try {
+      const response = await fetch("/api/chat/messages", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ conversationId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete messages");
+      }
+
+      // Update local cache
+      queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats = []) => {
+        return oldChats.filter((chat) => chat._id !== conversationId);
+      });
+    } catch (error) {
+      console.error("Error deleting messages:", error);
+      throw error;
+    }
+  }, [queryClient]);
 
   return {
     chats,
     loading,
-    error: error as Error | null,
-    refetch: async () => {
-      await refetch();
-    },
+    error,
+    refetch,
     updateChatHistory,
-    deleteMessages: async (conversationId: string) => {
-      try {
-        const response = await fetch("/api/chat/messages", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversationId }),
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to delete messages");
-        }
-
-        // Invalidate and refetch chat history
-        await queryClient.invalidateQueries({ queryKey: ["chat-history"] });
-      } catch (error) {
-        console.error("Error deleting messages:", error);
-        throw error;
-      }
-    },
+    deleteMessages,
   };
 }

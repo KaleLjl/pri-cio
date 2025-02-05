@@ -213,7 +213,7 @@ export async function PATCH(req: Request) {
   }
 }
 
-// DELETE: soft delete messages for a conversation
+// DELETE: soft delete messages and conversation
 export async function DELETE(req: Request) {
   try {
     const session = await auth();
@@ -242,7 +242,7 @@ export async function DELETE(req: Request) {
     const mongoSession = client.startSession();
     try {
       await mongoSession.withTransaction(async () => {
-        // Soft delete all messages in the conversation for this user
+        // 1. Soft delete all messages in the conversation for this user
         await db.collection("messages").updateMany(
           {
             conversationId: new ObjectId(conversationId),
@@ -252,24 +252,55 @@ export async function DELETE(req: Request) {
             ]
           },
           {
-            $set: { deletedBy: userId }
+            $addToSet: { deletedBy: userId }
           },
           { session: mongoSession }
         );
 
-        // Soft delete the conversation for this user and reset unread count
-        await db.collection("conversations").updateOne(
-          { _id: new ObjectId(conversationId) },
-          {
-            $set: { 
-              deletedBy: userId,
-              unreadCount: 0 // 重置未读消息计数
-            }
-          },
-          { session: mongoSession }
+        // 2. Check if all participants have deleted their messages
+        const conversation = await db.collection("conversations").findOne(
+          { _id: new ObjectId(conversationId) }
         );
 
-        // 将所有未读消息标记为已读
+        if (conversation) {
+          const allMessages = await db.collection("messages")
+            .find({ conversationId: new ObjectId(conversationId) })
+            .toArray();
+
+          const allParticipantsDeleted = allMessages.every(msg => 
+            msg.deletedBy && 
+            conversation.participants.every((p: string) => msg.deletedBy.includes(p))
+          );
+
+          if (allParticipantsDeleted) {
+            // If all participants have deleted all messages, hard delete them
+            await db.collection("messages").deleteMany(
+              { conversationId: new ObjectId(conversationId) },
+              { session: mongoSession }
+            );
+            
+            // And hard delete the conversation
+            await db.collection("conversations").deleteOne(
+              { _id: new ObjectId(conversationId) },
+              { session: mongoSession }
+            );
+          } else {
+            // Otherwise, just mark the conversation as deleted for this user
+            await db.collection("conversations").updateOne(
+              { _id: new ObjectId(conversationId) },
+              {
+                $addToSet: { deletedBy: userId },
+                $set: { 
+                  updatedAt: new Date(),
+                  unreadCount: 0 // Reset unread count for this user
+                }
+              },
+              { session: mongoSession }
+            );
+          }
+        }
+
+        // 3. Mark all messages as read for this user
         await db.collection("messages").updateMany(
           {
             conversationId: new ObjectId(conversationId),
