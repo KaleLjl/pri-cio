@@ -50,8 +50,8 @@ export default function Chat({ userId }: ChatProps) {
   // Use the socket chat hook
   const { handleTyping } = useSocketChat({
     conversationId,
-    currentUserId,
-    otherUserId: otherUser?._id,
+    currentUserId: currentUserId ?? undefined,
+    otherUserId: otherUser?._id ?? undefined,
   });
 
   // Use the chat UI hook
@@ -74,7 +74,7 @@ export default function Chat({ userId }: ChatProps) {
     handleMessageSubmit,
   } = useChatUI({
     messages,
-    currentUserId,
+    currentUserId: currentUserId ?? undefined,
     conversationId,
     handleTyping,
     fetchNextPage,
@@ -90,8 +90,8 @@ export default function Chat({ userId }: ChatProps) {
     isDeleting,
   } = useMessageActions({
     conversationId,
-    currentUserId,
-    otherUserId: otherUser?._id,
+    currentUserId: currentUserId ?? undefined,
+    otherUserId: otherUser?._id ?? undefined,
     handleMessageSubmit,
   });
 
@@ -107,6 +107,7 @@ export default function Chat({ userId }: ChatProps) {
     isPostCompleted,
     isLastDiscussionMessage,
     setEditingContent,
+    isPostInDiscussion,
   } = useObjectDiscussionUI({
     currentUserId: currentUserId || '',
     messages,
@@ -235,12 +236,21 @@ export default function Chat({ userId }: ChatProps) {
                       {userPosts.map((post: ExploreItem) => (
                         <div
                           key={post._id}
-                          className="flex-none w-32 bg-gray-700/30 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
+                          className="flex-none w-32 bg-gray-700/30 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all relative"
                           onClick={() => {
+                            if (isPostInDiscussion(post._id)) {
+                              alert(dict.objectDiscussion?.alreadyInDiscussion || "This item is already in discussion.");
+                              return;
+                            }
                             handlePostClick(post);
                             setSelectedPost(post);
                           }}
                         >
+                          {isPostInDiscussion(post._id) && (
+                            <div className="absolute top-2 right-2 z-10 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                              {dict.objectDiscussion?.inDiscussion || "In Discussion"}
+                            </div>
+                          )}
                           <div className="relative w-32 h-32">
                             <ImageWithFallback
                               src={post.imageUrl}
@@ -489,12 +499,21 @@ export default function Chat({ userId }: ChatProps) {
                             myPosts.map((post) => (
                               <div
                                 key={post._id}
-                                className="flex items-start space-x-3 p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer transition-all"
+                                className="flex items-start space-x-3 p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer transition-all relative"
                                 onClick={() => {
+                                  if (isPostInDiscussion(post._id)) {
+                                    alert(dict.objectDiscussion?.alreadyInDiscussion || "This item is already in discussion.");
+                                    return;
+                                  }
                                   setSelectedPost(post);
                                   setShowMyPosts(false);
                                 }}
                               >
+                                {isPostInDiscussion(post._id) && (
+                                  <div className="absolute top-2 right-2 z-10 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                                    {dict.objectDiscussion?.inDiscussion || "In Discussion"}
+                                  </div>
+                                )}
                                 <div className="relative w-16 h-16 flex-shrink-0">
                                   <ImageWithFallback
                                     src={post.imageUrl}

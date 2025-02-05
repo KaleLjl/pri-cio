@@ -207,6 +207,8 @@
     "buyerLabel": "Buy",
     "sellerLabel": "Sell",
     "noChangesMessage": "Please modify the price, location, or meeting time before sending a new proposal",
-    "dealError": "Failed to complete deal. Please try again."
+    "dealError": "Failed to complete deal. Please try again.",
+    "alreadyInDiscussion": "This item is already in discussion",
+    "inDiscussion": "In Discussion"
   }
 } 

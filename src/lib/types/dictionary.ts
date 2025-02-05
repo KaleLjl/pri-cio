@@ -80,6 +80,8 @@ export interface Dictionary {
     sellerLabel: string;
     noChangesMessage: string;
     dealError: string;
+    alreadyInDiscussion: string;
+    inDiscussion: string;
   };
   // ... rest of the dictionary interface
 } 

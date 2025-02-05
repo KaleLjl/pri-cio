@@ -207,6 +207,8 @@
     "buyerLabel": "买入",
     "sellerLabel": "卖出",
     "noChangesMessage": "请修改价格、地点或见面时间后再发送新的议价",
-    "dealError": "完成交易失败，请重试"
+    "dealError": "完成交易失败，请重试",
+    "alreadyInDiscussion": "该商品正在讨论中",
+    "inDiscussion": "讨论中"
   }
 } 

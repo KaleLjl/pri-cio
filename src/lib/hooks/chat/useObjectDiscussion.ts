@@ -99,6 +99,17 @@ export const useObjectDiscussion = ({
     return false;
   };
 
+  // Add new function to check if a post is already in discussion
+  const isPostInDiscussion = (postId: string) => {
+    return messages.some(
+      (msg) =>
+        typeof msg.content !== 'string' &&
+        msg.content.type === 'object_discussion' &&
+        msg.content.postId === postId &&
+        !msg.content.isCompleted
+    );
+  };
+
   const handleDiscussionSubmit = (data: {
     price: string;
     location: string;
@@ -245,6 +256,7 @@ export const useObjectDiscussion = ({
     isLastDiscussionMessage,
     isPostCompleted,
     isCurrentUserSeller,
+    isPostInDiscussion,
     handleDiscussionSubmit,
     handleObjectDiscussionClick,
     handleDealComplete,

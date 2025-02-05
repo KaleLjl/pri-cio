@@ -14,6 +14,8 @@ interface UseObjectDiscussionUIProps {
     objectDiscussion?: {
       dealError?: string;
       noChangesMessage?: string;
+      alreadyInDiscussion?: string;
+      inDiscussion?: string;
     };
   };
 }
@@ -24,7 +26,13 @@ export function useObjectDiscussionUI({
   sendMessage,
   queryClient,
   setShowPosts,
-  dict = { objectDiscussion: { dealError: 'Failed to complete deal. Please try again.' } },
+  dict = { 
+    objectDiscussion: { 
+      dealError: 'Failed to complete deal. Please try again.',
+      alreadyInDiscussion: 'This item is already in discussion.',
+      inDiscussion: 'In Discussion',
+    } 
+  },
 }: UseObjectDiscussionUIProps) {
   // Use the base object discussion hook
   const objectDiscussion = useObjectDiscussion({
@@ -136,5 +144,6 @@ export function useObjectDiscussionUI({
     isPostCompleted: objectDiscussion.isPostCompleted,
     isLastDiscussionMessage: objectDiscussion.isLastDiscussionMessage,
     setEditingContent: objectDiscussion.setEditingContent,
+    isPostInDiscussion: objectDiscussion.isPostInDiscussion,
   };
 } 
