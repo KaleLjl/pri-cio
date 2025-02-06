@@ -17,52 +17,6 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     otherUserId: otherUser?._id,
   });
 
-  // Send message mutation
-  const sendMessageMutation = useMutation({
-    mutationFn: async (content: MessageContent) => {
-      if (!conversationId || !otherUser?._id) {
-        throw new Error('Missing required data');
-      }
-
-      const response = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId,
-          content,
-          receiverId: otherUser._id,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
-
-      const data = await response.json();
-      sendSocketMessage(data);
-      return data;
-    },
-  });
-
-  // Delete messages mutation
-  const deleteMessagesMutation = useMutation({
-    mutationFn: async () => {
-      if (!conversationId) {
-        throw new Error('No conversation ID');
-      }
-
-      const response = await fetch('/api/chat/messages', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to delete messages');
-      }
-    },
-  });
 
   // Fetch current user data
   const {
@@ -184,10 +138,6 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     isLoadingPosts,
     postsError: postsError?.message || null,
     
-    // Message actions
-    sendMessage: sendMessageMutation.mutateAsync,
-    deleteMessages: deleteMessagesMutation.mutateAsync,
-    isSending: sendMessageMutation.isPending,
     
     // Typing status
     isTyping,

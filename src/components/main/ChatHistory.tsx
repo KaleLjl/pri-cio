@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { useChatHistory } from "@/lib/hooks/useChatHistory";
 import { socketService } from "@/lib/socket";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
-import { ChatRecord, MessageContent } from "@/lib/types/chat";
+import {  MessageContent } from "@/lib/types/chat";
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
