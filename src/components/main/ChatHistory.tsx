@@ -2,7 +2,6 @@
 "use client";
 import { useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { format } from "date-fns";
 import { useChatHistory } from "@/lib/hooks/useChatHistory";
 import { socketService } from "@/lib/socket";

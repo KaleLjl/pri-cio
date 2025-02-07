@@ -107,13 +107,15 @@ export async function POST(req: Request) {
     }
     const senderId = sender._id.toString();
 
-    let conversation;
-    if (conversationId) {
-      conversation = await db.collection("conversations").findOne({
-        _id: new ObjectId(conversationId),
-        participants: { $all: [senderId, receiverId] },
-      });
-    }
+    // 首先尝试查找现有的对话，不管是否提供了conversationId
+    let conversation = await db.collection("conversations").findOne({
+      participants: {
+        $all: [senderId, receiverId],
+        $size: 2
+      }
+    });
+
+    // 如果没有找到现有对话，则创建新对话
     if (!conversation) {
       conversation = {
         _id: new ObjectId(),
