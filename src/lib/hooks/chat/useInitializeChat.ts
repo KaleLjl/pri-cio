@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ChatUser } from '@/lib/types/chat';
 import { useLanguage } from '@/lib/context/LanguageContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface UseInitializeChatProps {
   userId: string;
@@ -20,11 +21,13 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
   const { dict } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [conversationId, setConversationId] = useState<string>('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [otherUser, setOtherUser] = useState<ChatUser | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasInitialized = useRef(false);
 
   // 身份验证检查
   useEffect(() => {
@@ -36,11 +39,14 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
   // Initialize chat
   useEffect(() => {
     const initializeChat = async () => {
-      if (status !== 'authenticated' || !userId) return;
+      if (status !== 'authenticated' || !userId || hasInitialized.current) {
+        return;
+      }
       
       try {
         setIsInitializing(true);
         setError(null);
+        hasInitialized.current = true;
 
         // Create or get conversation
         const response = await fetch('/api/chat/conversations/initialize', {
@@ -75,9 +81,30 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
           setOtherUser(otherUserData);
         }
 
+        // 更新chat history缓存
+        queryClient.setQueryData(['chat-history'], (oldChats: any[] = []) => {
+          // 检查聊天是否已存在
+          const chatExists = oldChats.some(chat => chat._id === data._id);
+          if (chatExists) {
+            return oldChats;
+          }
+
+          // 添加新的聊天
+          const newChat = {
+            _id: data._id,
+            participants: data.participants,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+            unreadCount: 0
+          };
+
+          return [newChat, ...oldChats];
+        });
+
       } catch (error) {
         console.error('Error initializing chat:', error);
         setError(error instanceof Error ? error.message : dict.chat.error.fetch);
+        hasInitialized.current = false;  // Reset if there was an error
       } finally {
         setIsInitializing(false);
       }
@@ -86,7 +113,7 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
     if (userId) {
       initializeChat();
     }
-  }, [userId, status, session?.user?.name, dict.chat.error.fetch]);
+  }, [userId, status, session?.user?.name, dict.chat.error.fetch, queryClient]);
 
   return {
     currentUserId,

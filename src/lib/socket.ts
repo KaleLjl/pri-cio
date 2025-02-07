@@ -142,10 +142,19 @@ class SocketService {
 
   joinRoom(conversationId: string) {
     if (!this.socket?.connected) {
-      console.error("Cannot join room: Socket not connected");
+      console.log("Socket not connected, queueing room join:", conversationId);
       this.activeRooms.add(conversationId);
+      
+      // 如果socket未连接，等待连接后重试
+      if (this.socket) {
+        this.socket.once('connect', () => {
+          console.log("Socket reconnected, joining queued room:", conversationId);
+          this.socket?.emit("join-room", conversationId);
+        });
+      }
       return;
     }
+    
     console.log("Joining room:", conversationId);
     this.activeRooms.add(conversationId);
     this.socket.emit("join-room", conversationId);

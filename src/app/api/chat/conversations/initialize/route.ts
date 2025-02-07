@@ -6,13 +6,18 @@ import { ObjectId } from 'mongodb';
 // Initialize or get a single conversation between two users
 export async function POST(req: Request) {
   try {
+    console.log('=== Chat Initialization API Called ===');
     const session = await auth();
     if (!session?.user?.email) {
+      console.log('Unauthorized: No session or email');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { participantId } = await req.json();
+    console.log('Initializing chat with participant:', participantId);
+    
     if (!participantId || !ObjectId.isValid(participantId)) {
+      console.log('Invalid participant ID:', participantId);
       return NextResponse.json({ error: 'Invalid participant ID' }, { status: 400 });
     }
 
@@ -26,10 +31,12 @@ export async function POST(req: Request) {
     );
 
     if (!currentUser) {
+      console.log('Current user not found for email:', session.user.email);
       return NextResponse.json({ error: 'Current user not found' }, { status: 404 });
     }
 
     const currentUserId = currentUser._id.toString();
+    console.log('Current user ID:', currentUserId);
 
     // Verify participant exists
     const participant = await db.collection('users').findOne(
@@ -38,8 +45,11 @@ export async function POST(req: Request) {
     );
 
     if (!participant) {
+      console.log('Participant not found for ID:', participantId);
       return NextResponse.json({ error: 'Participant not found' }, { status: 404 });
     }
+
+    console.log('Participant found:', participant);
 
     // Find existing conversation or create new one
     const existingConversation = await db.collection('conversations').findOne({
@@ -49,7 +59,10 @@ export async function POST(req: Request) {
       }
     });
 
+    console.log('Existing conversation found:', existingConversation ? existingConversation._id : 'none');
+
     if (existingConversation) {
+      console.log('Returning existing conversation');
       return NextResponse.json({
         _id: existingConversation._id,
         participants: [
@@ -70,11 +83,14 @@ export async function POST(req: Request) {
     }
 
     // Create new conversation
+    console.log('Creating new conversation between', currentUserId, 'and', participantId);
     const newConversation = await db.collection('conversations').insertOne({
       participants: [currentUserId, participantId],
       createdAt: new Date(),
       updatedAt: new Date()
     });
+
+    console.log('New conversation created with ID:', newConversation.insertedId);
 
     return NextResponse.json({
       _id: newConversation.insertedId,

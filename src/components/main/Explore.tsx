@@ -214,16 +214,22 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
 
   const handleAvatarClick = useCallback((userId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent the post modal from opening
-    console.log('Avatar clicked, userId:', userId);
+    console.log('=== Avatar Click Handler ===');
+    console.log('Clicked userId:', userId);
+    console.log('Current userId:', currentUserId);
+    
     if (!userId) {
       console.log('No userId provided');
       return;
     }
+    
     // 使用 MongoDB _id 进行比较
     if (currentUserId === userId) {
       console.log('Cannot chat with yourself');
       return;
     }
+    
+    console.log('Navigating to chat page:', `/chat/${userId}`);
     router.push(`/chat/${userId}`);
   }, [router, currentUserId]);
 

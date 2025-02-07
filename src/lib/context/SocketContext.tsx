@@ -97,15 +97,27 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             
             if (!conversationExists) {
               try {
-                const response = await fetch("/api/chat/conversations");
+                const response = await fetch("/api/chat/conversations/list");
                 if (!response.ok) {
-                  throw new Error("Failed to fetch chat history");
+                  throw new Error(`Failed to fetch chat history: ${response.status}`);
                 }
                 const newChats = await response.json();
-                queryClient.setQueryData(["chat-history"], newChats);
-                socketService.joinRoom(conversationId);
+                
+                // 验证并更新缓存
+                if (Array.isArray(newChats)) {
+                  queryClient.setQueryData(["chat-history"], newChats);
+                  // 确保加入新的房间
+                  const newChat = newChats.find(chat => chat._id === conversationId);
+                  if (newChat) {
+                    socketService.joinRoom(conversationId);
+                  }
+                } else {
+                  throw new Error("Invalid response format");
+                }
               } catch (error) {
                 console.error("Error fetching new chat history:", error);
+                // 尝试重新获取会话列表
+                queryClient.invalidateQueries({ queryKey: ["chat-history"] });
               }
             }
           });

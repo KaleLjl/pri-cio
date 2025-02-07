@@ -49,9 +49,12 @@ export function useChatHistory(): UseChatHistoryReturn {
         throw new Error("Failed to fetch chat history");
       }
       const data = await response.json();
-      chatCacheRef.current = new Map((data as ChatRecord[]).map((chat) => [chat._id, chat]));
+      
+      // 更新缓存
+      const newChats = data as ChatRecord[];
+      chatCacheRef.current = new Map(newChats.map((chat) => [chat._id, chat]));
 
-      return Array.from(chatCacheRef.current.values()).sort((a, b) => {
+      return newChats.sort((a, b) => {
         const timeA = a.lastMessage?.createdAt || a.updatedAt;
         const timeB = b.lastMessage?.createdAt || b.updatedAt;
         return new Date(timeB).getTime() - new Date(timeA).getTime();
@@ -78,6 +81,7 @@ export function useChatHistory(): UseChatHistoryReturn {
       );
 
       if (chatIndex > -1) {
+        // 更新现有聊天
         updatedChats[chatIndex] = {
           ...updatedChats[chatIndex],
           lastMessage: {
@@ -91,6 +95,7 @@ export function useChatHistory(): UseChatHistoryReturn {
         };
       }
 
+      // 按最新消息时间排序
       return updatedChats.sort((a, b) => {
         const timeA = a.lastMessage?.createdAt || a.updatedAt;
         const timeB = b.lastMessage?.createdAt || b.updatedAt;
@@ -114,9 +119,11 @@ export function useChatHistory(): UseChatHistoryReturn {
         throw new Error("Failed to delete messages");
       }
 
-      // Update local cache
+      // 更新本地缓存
       queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats = []) => {
-        return oldChats.filter((chat) => chat._id !== conversationId);
+        const updatedChats = oldChats.filter((chat) => chat._id !== conversationId);
+        chatCacheRef.current = new Map(updatedChats.map(chat => [chat._id, chat]));
+        return updatedChats;
       });
     } catch (error) {
       console.error("Error deleting messages:", error);
