@@ -1,0 +1,21 @@
+export const en = {
+    objectDiscussion: {
+        price: 'Price',
+        enterPrice: 'Enter price',
+        location: 'Location',
+        enterLocation: 'Enter location',
+        meetingTime: 'Meeting time',
+        cancel: 'Cancel',
+        send: 'Send',
+        complete: 'Complete Deal',
+        completed: 'Deal Completed',
+        canceled: 'Deal Canceled',
+        discussing: 'In Discussion',
+        buyerLabel: 'Buyer',
+        sellerLabel: 'Seller',
+        noChangesMessage: 'No changes made',
+        dealError: 'Failed to complete deal. Please try again.',
+        alreadyInDiscussion: 'This item is already in discussion',
+        inDiscussion: 'In Discussion',
+    },
+}; 

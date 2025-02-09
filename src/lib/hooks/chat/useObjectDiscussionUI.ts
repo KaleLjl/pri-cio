@@ -67,6 +67,7 @@ export function useObjectDiscussionUI({
           suggestedPrice: data.price,
           location: data.location,
           meetingTime: data.meetingTime,
+          status: 'discussing'
         };
 
         // 检查内容是否被修改
@@ -83,6 +84,7 @@ export function useObjectDiscussionUI({
         const discussionData: ObjectDiscussionData = {
           type: 'object_discussion',
           postId: selectedPost._id,
+          discussingId: `${selectedPost._id}_${Date.now()}`,
           imageUrl: selectedPost.imageUrl,
           description: selectedPost.description,
           originalPrice: selectedPost.price,
@@ -90,6 +92,7 @@ export function useObjectDiscussionUI({
           currency: selectedPost.currency,
           location: data.location,
           meetingTime: data.meetingTime,
+          status: 'discussing',
           historyId: selectedPost.historyId,
         };
 
@@ -128,6 +131,20 @@ export function useObjectDiscussionUI({
     }
   };
 
+  // Handle discussion cancellation
+  const handleCancelDiscussion = async (
+    currentContent: ObjectDiscussionData,
+    senderId: string,
+  ) => {
+    try {
+      await objectDiscussion.handleCancelDiscussion(currentContent, senderId);
+    } catch (error) {
+      console.error('Error canceling discussion:', error);
+      const DEFAULT_ERROR = 'Failed to cancel deal. Please try again.';
+      alert(dict?.objectDiscussion?.dealError ?? DEFAULT_ERROR);
+    }
+  };
+
   return {
     // States
     selectedPost,
@@ -138,6 +155,7 @@ export function useObjectDiscussionUI({
     handleDiscussionSubmit,
     handleObjectDiscussionClick,
     handleDealComplete,
+    handleCancelDiscussion,
     
     // Original object discussion methods
     isCurrentUserSeller: objectDiscussion.isCurrentUserSeller,
@@ -145,5 +163,6 @@ export function useObjectDiscussionUI({
     isLastDiscussionMessage: objectDiscussion.isLastDiscussionMessage,
     setEditingContent: objectDiscussion.setEditingContent,
     isPostInDiscussion: objectDiscussion.isPostInDiscussion,
+    isPostFinalized: objectDiscussion.isPostFinalized,
   };
 } 

@@ -71,14 +71,20 @@ export const useObjectDiscussion = ({
   const isPostCompleted = (
     postId: string,
     messages: Array<{ content: any }>,
-  ) => {
-    return messages.some(
+  ): boolean => {
+    const discussionMessages = messages.filter(
       (msg) =>
         typeof msg.content !== 'string' &&
         msg.content.type === 'object_discussion' &&
-        msg.content.postId === postId &&
-        msg.content.isCompleted,
+        msg.content.postId === postId,
     );
+
+    if (discussionMessages.length === 0) {
+      return false;
+    }
+
+    const lastMessage = discussionMessages[discussionMessages.length - 1];
+    return (lastMessage.content as ObjectDiscussionData).status === 'completed';
   };
 
   // Update this function to determine if current user is the seller based on history
@@ -99,15 +105,56 @@ export const useObjectDiscussion = ({
     return false;
   };
 
-  // Add new function to check if a post is already in discussion
+  // Modify the check if a post is already in discussion
   const isPostInDiscussion = (postId: string) => {
-    return messages.some(
+    // 找到这个帖子的所有讨论消息
+    const discussionMessages = messages.filter(msg =>
+      typeof msg.content !== 'string' &&
+      msg.content.type === 'object_discussion' &&
+      msg.content.postId === postId
+    );
+
+    // 如果没有讨论消息，返回 false
+    if (discussionMessages.length === 0) {
+      return false;
+    }
+
+    // 按时间排序，找到最新的一组讨论（相同的 discussingId）
+    const latestMessage = discussionMessages[discussionMessages.length - 1];
+    const latestDiscussingId = (latestMessage.content as ObjectDiscussionData).discussingId;
+
+    // 检查这组讨论是否处于 discussing 状态
+    const latestDiscussion = discussionMessages.filter(
+      msg => typeof msg.content !== 'string' && 
+      (msg.content as ObjectDiscussionData).discussingId === latestDiscussingId
+    );
+
+    const lastMessageOfLatestDiscussion = latestDiscussion[latestDiscussion.length - 1];
+    return (lastMessageOfLatestDiscussion.content as ObjectDiscussionData).status === 'discussing';
+  };
+
+  // 检查帖子是否已完成或取消
+  const isPostFinalized = (
+    postId: string,
+    discussingId: string,
+    messages: Array<{ content: any }>,
+  ): boolean => {
+    // 找到所有相同 discussingId 的消息
+    const discussionMessages = messages.filter(
       (msg) =>
         typeof msg.content !== 'string' &&
         msg.content.type === 'object_discussion' &&
-        msg.content.postId === postId &&
-        !msg.content.isCompleted
+        msg.content.discussingId === discussingId
     );
+
+    if (discussionMessages.length === 0) {
+      return false;
+    }
+
+    // 获取最后一条消息的状态
+    const lastMessage = discussionMessages[discussionMessages.length - 1];
+    return (lastMessage.content as ObjectDiscussionData).status === 'completed' || 
+           (lastMessage.content as ObjectDiscussionData).status === 'canceled';
   };
 
   const handleDiscussionSubmit = (data: {
@@ -122,6 +169,7 @@ export const useObjectDiscussion = ({
         suggestedPrice: data.price,
         location: data.location,
         meetingTime: data.meetingTime,
+        status: 'discussing'
       };
 
       // Check if the content has been modified
@@ -144,6 +192,7 @@ export const useObjectDiscussion = ({
         currency: selectedPost.currency,
         location: data.location,
         meetingTime: data.meetingTime,
+        status: 'discussing',
         historyId: selectedPost.historyId,
       };
 
@@ -158,8 +207,8 @@ export const useObjectDiscussion = ({
     senderId: string,
     messages: Array<{ content: any; senderId: string; receiverId: string }>,
   ) => {
-    // If the content is already completed, don't do anything
-    if (currentContent.isCompleted) return;
+    // 如果不是 discussing 状态，不做任何操作
+    if (currentContent.status !== 'discussing') return;
 
     // If the message is from the current user, do nothing
     if (senderId === currentUserId) return;
@@ -173,8 +222,7 @@ export const useObjectDiscussion = ({
     senderId: string,
     messages: Array<{ content: any; senderId: string; receiverId: string }>,
   ) => {
-    // If the content is already completed, don't do anything
-    if (currentContent.isCompleted) return;
+    if (currentContent.status !== 'discussing') return;
 
     try {
       // First unpublish if it's a deal completion
@@ -236,13 +284,29 @@ export const useObjectDiscussion = ({
       }
 
       // Then mark the discussion as completed
-      const updatedContent = {
+      const updatedContent: ObjectDiscussionData = {
         ...currentContent,
-        isCompleted: true,
+        status: 'completed' as const
       };
-      sendMessage(updatedContent);
+      await sendMessage(updatedContent);
     } catch (error) {
       console.error('Error completing deal:', error);
+      throw error;
+    }
+  };
+
+  const handleCancelDiscussion = async (
+    currentContent: ObjectDiscussionData,
+    senderId: string,
+  ) => {
+    try {
+      const updatedContent: ObjectDiscussionData = {
+        ...currentContent,
+        status: 'canceled' as const
+      };
+      await sendMessage(updatedContent);
+    } catch (error) {
+      console.error('Error canceling discussion:', error);
       throw error;
     }
   };
@@ -257,8 +321,10 @@ export const useObjectDiscussion = ({
     isPostCompleted,
     isCurrentUserSeller,
     isPostInDiscussion,
+    isPostFinalized,
     handleDiscussionSubmit,
     handleObjectDiscussionClick,
     handleDealComplete,
+    handleCancelDiscussion,
   };
 }; 

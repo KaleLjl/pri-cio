@@ -103,11 +103,13 @@ export default function Chat({ userId }: ChatProps) {
     handleDiscussionSubmit,
     handleObjectDiscussionClick,
     handleDealComplete,
+    handleCancelDiscussion,
     isCurrentUserSeller,
     isPostCompleted,
     isLastDiscussionMessage,
     setEditingContent,
     isPostInDiscussion,
+    isPostFinalized,
   } = useObjectDiscussionUI({
     currentUserId: currentUserId || '',
     messages,
@@ -317,9 +319,12 @@ export default function Chat({ userId }: ChatProps) {
                           </p>
                         ) : message.content.type === 'object_discussion' ? (
                           <div 
-                            className={`space-y-3 max-w-sm cursor-pointer hover:opacity-90 transition-opacity ${
-                              (message.content as ObjectDiscussionData).isCompleted || isPostCompleted(
+                            className={`space-y-3 max-w-sm ${
+                              (message.content as ObjectDiscussionData).status === 'discussing' ? 'cursor-pointer' : 'cursor-default'
+                            } hover:opacity-90 transition-opacity ${
+                              isPostFinalized(
                                 (message.content as ObjectDiscussionData).postId,
+                                (message.content as ObjectDiscussionData).discussingId,
                                 messages
                               ) ? 'opacity-50' : ''
                             }`}
@@ -328,7 +333,7 @@ export default function Chat({ userId }: ChatProps) {
                                 return;
                               }
                               const currentContent = message.content as ObjectDiscussionData;
-                              if (!currentContent.isCompleted && !isPostCompleted(currentContent.postId, messages)) {
+                              if (currentContent.status === 'discussing') {
                                 handleObjectDiscussionClick(currentContent, message.senderId);
                               }
                             }}
@@ -349,7 +354,11 @@ export default function Chat({ userId }: ChatProps) {
                                   alt={(message.content as ObjectDiscussionData).description}
                                   fill
                                   className={`object-cover rounded-lg ${
-                                    (message.content as ObjectDiscussionData).isCompleted || isPostCompleted((message.content as ObjectDiscussionData).postId, messages) ? 'grayscale' : ''
+                                    isPostFinalized(
+                                      (message.content as ObjectDiscussionData).postId,
+                                      (message.content as ObjectDiscussionData).discussingId,
+                                      messages
+                                    ) ? 'grayscale' : ''
                                   } ${
                                     isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) ? 'ring-2 ring-blue-500' : 'ring-2 ring-orange-500'
                                   }`}
@@ -386,34 +395,55 @@ export default function Chat({ userId }: ChatProps) {
                                     </span>
                                   </p>
                                 </div>
-                                {message.senderId !== currentUserId && 
-                                  !(message.content as ObjectDiscussionData).isCompleted && 
-                                  !isPostCompleted((message.content as ObjectDiscussionData).postId, messages) &&
+                                
+                                {/* Action Buttons */}
+                                {(message.content as ObjectDiscussionData).status === 'discussing' &&
                                   isLastDiscussionMessage(message, messages) && (
-                                  <div className="mt-3">
+                                  <div className="mt-3 flex space-x-2">
+                                    {/* Deal button - only visible to the receiver */}
+                                    {message.senderId !== currentUserId && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          const currentContent = message.content as ObjectDiscussionData;
+                                          handleDealComplete(currentContent, message.senderId);
+                                        }}
+                                        className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
+                                          isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) 
+                                            ? 'bg-blue-500 hover:bg-blue-400' 
+                                            : 'bg-orange-500 hover:bg-orange-400'
+                                        }`}
+                                      >
+                                        {dict.objectDiscussion?.complete}
+                                      </button>
+                                    )}
+                                    
+                                    {/* Cancel button - visible to both parties */}
                                     <button
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         const currentContent = message.content as ObjectDiscussionData;
-                                        handleDealComplete(currentContent, message.senderId);
+                                        handleCancelDiscussion(currentContent, message.senderId);
                                       }}
-                                      className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
-                                        isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) 
-                                          ? 'bg-blue-500 hover:bg-blue-400' 
-                                          : 'bg-orange-500 hover:bg-orange-400'
-                                      }`}
+                                      className="px-3 py-1 text-sm text-white bg-red-500 hover:bg-red-400 rounded-lg transition-colors"
                                     >
-                                      {isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts)
-                                        ? dict.objectDiscussion?.sellerLabel 
-                                        : dict.objectDiscussion?.buyerLabel}
+                                      {dict.objectDiscussion?.cancel}
                                     </button>
                                   </div>
                                 )}
-                                {((message.content as ObjectDiscussionData).isCompleted || isPostCompleted((message.content as ObjectDiscussionData).postId, messages)) && (
+
+                                {/* Status display */}
+                                {(message.content as ObjectDiscussionData).status !== 'discussing' && (
                                   <div className="mt-2">
-                                    <span className="text-sm text-green-500">
-                                      {dict.objectDiscussion?.completed || "Deal Completed"}
+                                    <span className={`text-sm ${
+                                      (message.content as ObjectDiscussionData).status === 'completed' ? 'text-green-500' :
+                                      'text-red-500'
+                                    }`}>
+                                      {(message.content as ObjectDiscussionData).status === 'completed' 
+                                        ? dict.objectDiscussion?.completed 
+                                        : dict.objectDiscussion?.canceled}
                                     </span>
                                   </div>
                                 )}

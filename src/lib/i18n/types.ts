@@ -198,6 +198,8 @@ export interface Dictionary {
     send: string;
     complete: string;
     completed: string;
+    canceled: string;
+    discussing: string;
     buyerLabel: string;
     sellerLabel: string;
     noChangesMessage: string;
