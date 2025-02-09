@@ -35,7 +35,16 @@ export function useSocketChat({ conversationId, currentUserId, otherUserId }: Us
         queryClient.setQueryData<InfiniteData<MessagesResponse>>(
           ["chat-messages", conversationId],
           (old) => {
-            if (!old) return old;
+            if (!old) {
+              // 如果是第一条消息，创建初始结构而不是返回null
+              return {
+                pages: [{
+                  messages: [{ ...message, status: 'delivered' }],
+                  hasMore: false
+                }],
+                pageParams: [null]
+              };
+            }
             const newPages = [...old.pages];
             const lastPage = newPages[newPages.length - 1];
             if (!lastPage.messages.some(msg => msg._id === message._id)) {
@@ -45,12 +54,17 @@ export function useSocketChat({ conversationId, currentUserId, otherUserId }: Us
           }
         );
 
-        // Force a refetch to ensure consistency
-        queryClient.invalidateQueries({
-          queryKey: ["chat-messages", conversationId],
-          exact: true,
-          refetchType: "all"
-        });
+        // 只有在不是第一条消息时才触发重新获取
+        const currentData = queryClient.getQueryData<InfiniteData<MessagesResponse>>(
+          ["chat-messages", conversationId]
+        );
+        if (currentData && currentData.pages[0].messages.length > 1) {
+          queryClient.invalidateQueries({
+            queryKey: ["chat-messages", conversationId],
+            exact: true,
+            refetchType: "all"
+          });
+        }
 
         // Mark message as delivered
         socketService.sendMessageDelivered(message._id);
