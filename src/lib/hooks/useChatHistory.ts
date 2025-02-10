@@ -115,8 +115,10 @@ export function useChatHistory(): UseChatHistoryReturn {
         body: JSON.stringify({ conversationId }),
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error("Failed to delete messages");
+        throw new Error(data.error || "Failed to delete messages");
       }
 
       // 更新本地缓存

@@ -19,7 +19,7 @@ import {
 import { format } from 'date-fns';
 
 export default function Chat({ userId }: ChatProps) {
-  const { dict } = useLanguage();
+  const { dict, lang } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -149,7 +149,7 @@ export default function Chat({ userId }: ChatProps) {
               {/* User Info */}
               <div className="flex items-center space-x-4 p-4 bg-gray-800/95 backdrop-blur-sm rounded-t-lg shadow-lg">
                 <button
-                  onClick={() => router.back()}
+                  onClick={() => router.push(`/${lang}/chathistory`)}
                   className="p-2 hover:bg-gray-700 rounded-full transition-colors"
                   aria-label={dict.chat.actions.back}
                 >
@@ -216,7 +216,7 @@ export default function Chat({ userId }: ChatProps) {
                           alert(dict.chatHistory.toast.deleteSuccess);
                         } catch (error) {
                           console.error("Failed to delete messages:", error);
-                          alert(dict.chatHistory.toast.deleteError);
+                          alert(error instanceof Error ? error.message : dict.chatHistory.toast.deleteError);
                         }
                       }
                     }}

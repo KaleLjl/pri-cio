@@ -150,7 +150,7 @@ export default function ChatHistoryClient() {
                               alert(dict.chatHistory.toast.deleteSuccess);
                             } catch (error) {
                               console.error("Failed to delete messages:", error);
-                              alert(dict.chatHistory.toast.deleteError);
+                              alert(error instanceof Error ? error.message : dict.chatHistory.toast.deleteError);
                             }
                           }
                         }}

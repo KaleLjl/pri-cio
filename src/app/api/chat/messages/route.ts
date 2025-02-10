@@ -240,69 +240,101 @@ export async function DELETE(req: Request) {
 
     const userId = user._id.toString();
 
+    // 检查是否有正在进行的讨论
+    const messages = await db.collection("messages")
+      .find({ 
+        conversationId: new ObjectId(conversationId),
+        "content.type": "object_discussion",
+        "content.discussingId": { $exists: true }
+      })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    // 按discussingId分组，找出每个讨论的最后一条消息
+    const discussionGroups = new Map();
+    messages.forEach(msg => {
+      const discussingId = msg.content.discussingId;
+      if (!discussionGroups.has(discussingId) || 
+          new Date(msg.createdAt) > new Date(discussionGroups.get(discussingId).createdAt)) {
+        discussionGroups.set(discussingId, msg);
+      }
+    });
+
+    // 检查是否有任何讨论的最后状态是"discussing"
+    for (const [_, lastMessage] of discussionGroups) {
+      if (lastMessage.content.status === "discussing") {
+        return NextResponse.json({ 
+          error: "Cannot delete conversation with ongoing discussions. Please complete or cancel all discussions first." 
+        }, { status: 400 });
+      }
+    }
+
     // Start a session for transaction
     const mongoSession = client.startSession();
     try {
       await mongoSession.withTransaction(async () => {
-        // 1. Soft delete all messages in the conversation for this user
-        await db.collection("messages").updateMany(
-          {
-            conversationId: new ObjectId(conversationId),
-            $or: [
-              { deletedBy: { $exists: false } },
-              { deletedBy: { $ne: userId } }
-            ]
-          },
-          {
-            $addToSet: { deletedBy: userId }
-          },
+        // 1. 获取对话信息和消息状态
+        const conversation = await db.collection("conversations").findOne(
+          { _id: new ObjectId(conversationId) },
           { session: mongoSession }
         );
 
-        // 2. Check if all participants have deleted their messages
-        const conversation = await db.collection("conversations").findOne(
-          { _id: new ObjectId(conversationId) }
-        );
-
-        if (conversation) {
-          const allMessages = await db.collection("messages")
-            .find({ conversationId: new ObjectId(conversationId) })
-            .toArray();
-
-          const allParticipantsDeleted = allMessages.every(msg => 
-            msg.deletedBy && 
-            conversation.participants.every((p: string) => msg.deletedBy.includes(p))
-          );
-
-          if (allParticipantsDeleted) {
-            // If all participants have deleted all messages, hard delete them
-            await db.collection("messages").deleteMany(
-              { conversationId: new ObjectId(conversationId) },
-              { session: mongoSession }
-            );
-            
-            // And hard delete the conversation
-            await db.collection("conversations").deleteOne(
-              { _id: new ObjectId(conversationId) },
-              { session: mongoSession }
-            );
-          } else {
-            // Otherwise, just mark the conversation as deleted for this user
-            await db.collection("conversations").updateOne(
-              { _id: new ObjectId(conversationId) },
-              {
-                $addToSet: { deletedBy: userId },
-                $set: { 
-                  updatedAt: new Date(),
-                  unreadCount: 0 // Reset unread count for this user
-                }
-              },
-              { session: mongoSession }
-            );
-          }
+        if (!conversation) {
+          throw new Error("Conversation not found");
         }
 
-        // 3. Mark all messages as read for this user
+        // 2. 检查消息的删除状态
+        const messages = await db.collection("messages")
+          .find({ conversationId: new ObjectId(conversationId) })
+          .toArray();
+
+        // 3. 判断是否所有参与者都已删除消息
+        const otherParticipantId = conversation.participants.find((p: string) => p !== userId);
+        const allMessagesDeletedByOther = messages.every(msg => 
+          msg.deletedBy?.includes(otherParticipantId)
+        );
+
+        if (allMessagesDeletedByOther) {
+          // 如果对方已经删除了所有消息，直接进行硬删除
+          await db.collection("messages").deleteMany(
+            { conversationId: new ObjectId(conversationId) },
+            { session: mongoSession }
+          );
+          
+          await db.collection("conversations").deleteOne(
+            { _id: new ObjectId(conversationId) },
+            { session: mongoSession }
+          );
+        } else {
+          // 否则只进行软删除
+          await db.collection("messages").updateMany(
+            { 
+              conversationId: new ObjectId(conversationId),
+              $or: [
+                { deletedBy: { $exists: false } },
+                { deletedBy: { $ne: userId } }
+              ]
+            },
+            {
+              $addToSet: { deletedBy: userId }
+            },
+            { session: mongoSession }
+          );
+
+          await db.collection("conversations").updateOne(
+            { _id: new ObjectId(conversationId) },
+            {
+              $addToSet: { deletedBy: userId },
+              $set: { 
+                updatedAt: new Date(),
+                unreadCount: 0
+              }
+            },
+            { session: mongoSession }
+          );
+        }
+
+        // 4. 标记消息为已读（无论是软删除还是硬删除）
         await db.collection("messages").updateMany(
           {
             conversationId: new ObjectId(conversationId),
@@ -324,7 +356,9 @@ export async function DELETE(req: Request) {
     });
   } catch (error) {
     console.error("Error deleting messages:", error);
-    return NextResponse.json({ error: "Failed to delete messages" }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : "Failed to delete messages" 
+    }, { status: 500 });
   }
 }
 
