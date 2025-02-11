@@ -1,25 +1,37 @@
 import { useState } from 'react';
 import { ObjectDiscussionData } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
-import { socketService } from '@/lib/socket';
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useContext } from 'react';
+import { SocketContext } from '@/lib/context/SocketContext';
+import { v4 as uuidv4 } from 'uuid';
+import { useMessageActions } from '@/lib/hooks/chat/useMessageActions';
 
 interface UseObjectDiscussionProps {
   currentUserId: string;
-  sendMessage: (content: ObjectDiscussionData) => Promise<void>;
-  queryClient: any; // You should import QueryClient type from react-query
-  messages: Array<{ content: any; _id: string; senderId: string; receiverId: string }>;
+  messages: Array<{ 
+    content: any; 
+    _id: string; 
+    senderId: string; 
+    receiverId: string;
+    conversationId: string;
+  }>;
 }
 
 export const useObjectDiscussion = ({
   currentUserId,
-  sendMessage,
-  queryClient,
   messages,
 }: UseObjectDiscussionProps) => {
-  const { dict } = useLanguage();
+  const socket = useContext(SocketContext);
   const [selectedPost, setSelectedPost] = useState<ExploreItem | null>(null);
   const [editingContent, setEditingContent] = useState<ObjectDiscussionData | null>(null);
+
+  // 使用 useMessageActions
+  const { sendMessage } = useMessageActions({
+    conversationId: messages[0]?.conversationId,
+    currentUserId,
+    otherUserId: messages[0]?.senderId === currentUserId ? messages[0]?.receiverId : messages[0]?.senderId,
+    handleMessageSubmit: async () => ''
+  });
 
   // Check if the discussion data has been modified
   const isDiscussionModified = (
@@ -157,13 +169,13 @@ export const useObjectDiscussion = ({
            (lastMessage.content as ObjectDiscussionData).status === 'canceled';
   };
 
-  const handleDiscussionSubmit = (data: {
+//因为discussion组件本质上也是一个消息,所以使用sendmessage的hook来提交
+  const handleDiscussionSubmit = async (data: {
     price: string;
     location: string;
     meetingTime: string;
   }) => {
     if (editingContent) {
-      // If we're editing an existing discussion
       const discussionData: ObjectDiscussionData = {
         ...editingContent,
         suggestedPrice: data.price,
@@ -172,16 +184,11 @@ export const useObjectDiscussion = ({
         status: 'discussing'
       };
 
-      // Check if the content has been modified
-      if (!isDiscussionModified(discussionData, messages)) {
-        alert(dict.objectDiscussion?.noChangesMessage || "Please modify the price, location, or meeting time before sending a new proposal.");
-        return;
-      }
-
-      sendMessage(discussionData);
+      // 使用 sendMessage 而不是直接使用 socket
+      await sendMessage(discussionData);
       setEditingContent(null);
     } else if (selectedPost) {
-      // If we're creating a new discussion
+      // 创建新讨论
       const discussionData: ObjectDiscussionData = {
         type: 'object_discussion',
         postId: selectedPost._id,
@@ -194,10 +201,18 @@ export const useObjectDiscussion = ({
         meetingTime: data.meetingTime,
         status: 'discussing',
         historyId: selectedPost.historyId,
+        discussingId: uuidv4() // 为新讨论生成唯一ID
       };
 
-      // For new discussions, we don't need to check for modifications
-      sendMessage(discussionData);
+      socket.sendMessage({
+        _id: uuidv4(),
+        conversationId: messages[0].conversationId,
+        content: discussionData,
+        senderId: currentUserId,
+        receiverId: messages[0].senderId === currentUserId ? messages[0].receiverId : messages[0].senderId,
+        createdAt: new Date().toISOString(),
+        status: 'sending'
+      });
       setSelectedPost(null);
     }
   };
@@ -220,75 +235,38 @@ export const useObjectDiscussion = ({
   const handleDealComplete = async (
     currentContent: ObjectDiscussionData,
     senderId: string,
-    messages: Array<{ content: any; senderId: string; receiverId: string }>,
   ) => {
     if (currentContent.status !== 'discussing') return;
 
     try {
-      // First unpublish if it's a deal completion
+      // 保留 HTTP 请求，因为需要在数据库中更新交易状态
       if (currentContent.postId && currentContent.historyId) {
-        // 确定买家和卖家的ID
-        const isSeller = isCurrentUserSeller(currentContent.postId, [], []); // You need to pass actual myPosts and userPosts here
-
-        // 获取当前用户的ID和对方的ID
-        const currentMessage = messages.find(
-          (msg) =>
-            typeof msg.content !== 'string' &&
-            msg.content.type === 'object_discussion' &&
-            msg.content.postId === currentContent.postId,
-        );
-
-        if (!currentMessage) {
-          throw new Error('Message not found');
-        }
-
-        const { senderId: msgSenderId, receiverId: msgReceiverId } = currentMessage;
-
-        // 使用消息中的 senderId 和 receiverId 来确定买卖双方
-        const buyerId = isSeller ? msgReceiverId : msgSenderId;
-        const sellerId = isSeller ? msgSenderId : msgReceiverId;
-
-        // 验证买家和卖家ID是否存在
-        if (!buyerId || !sellerId) {
-          throw new Error('Buyer or seller ID is missing');
-        }
-
         const response = await fetch(`/api/chat/deal`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             historyId: currentContent.historyId,
             exploreId: currentContent.postId,
-            buyerId,
-            sellerId,
+            buyerId: senderId === currentUserId ? currentUserId : messages[0].senderId,
+            sellerId: senderId === currentUserId ? messages[0].senderId : currentUserId,
           }),
         });
 
         if (!response.ok) {
           throw new Error('Failed to complete deal');
         }
-
-        // Invalidate the explore posts query to trigger a refetch
-        queryClient.invalidateQueries({ queryKey: ['explore-posts'] });
-
-        // Get the seller's ID (the post owner)
-        const sellerResponse = await fetch('/api/users/me');
-        if (sellerResponse.ok) {
-          const sellerData = await sellerResponse.json();
-          // Emit socket event to notify both users
-          socketService.emitExplorePostsUpdate(buyerId); // Notify the buyer
-          socketService.emitExplorePostsUpdate(sellerData._id); // Notify the seller
-        }
       }
 
-      // Then mark the discussion as completed
-      const updatedContent: ObjectDiscussionData = {
-        ...currentContent,
-        status: 'completed' as const
-      };
-      await sendMessage(updatedContent);
+      // 然后通过 socket 发送消息更新聊天状态
+      socket.sendMessage({
+        _id: uuidv4(),
+        conversationId: messages[0].conversationId,
+        content: { ...currentContent, status: 'completed' as const },
+        senderId: currentUserId,
+        receiverId: messages[0].senderId === currentUserId ? messages[0].receiverId : messages[0].senderId,
+        createdAt: new Date().toISOString(),
+        status: 'sending'
+      });
     } catch (error) {
       console.error('Error completing deal:', error);
       throw error;
@@ -297,18 +275,16 @@ export const useObjectDiscussion = ({
 
   const handleCancelDiscussion = async (
     currentContent: ObjectDiscussionData,
-    senderId: string,
   ) => {
-    try {
-      const updatedContent: ObjectDiscussionData = {
-        ...currentContent,
-        status: 'canceled' as const
-      };
-      await sendMessage(updatedContent);
-    } catch (error) {
-      console.error('Error canceling discussion:', error);
-      throw error;
-    }
+    socket.sendMessage({
+      _id: uuidv4(),
+      conversationId: messages[0].conversationId,
+      content: { ...currentContent, status: 'canceled' as const },
+      senderId: currentUserId,
+      receiverId: messages[0].senderId === currentUserId ? messages[0].receiverId : messages[0].senderId,
+      createdAt: new Date().toISOString(),
+      status: 'sending'
+    });
   };
 
   return {
