@@ -1,7 +1,8 @@
-import { useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatMessage, MessageContent, MessagesResponse } from '@/lib/types/chat';
-import { useSocketChat } from './useSocketChat';
+import { ChatMessage, MessageContent } from '@/lib/types/chat';
+import { useContext } from 'react';
+import { SocketContext } from '@/lib/context/SocketContext';
 
 interface UseMessageActionsProps {
   conversationId?: string;
@@ -17,11 +18,7 @@ export function useMessageActions({
   handleMessageSubmit,
 }: UseMessageActionsProps) {
   const queryClient = useQueryClient();
-  const { sendMessage: sendSocketMessage } = useSocketChat({ 
-    conversationId, 
-    currentUserId, 
-    otherUserId 
-  });
+  const socket = useContext(SocketContext);
 
   // Send message mutation
   const sendMessageMutation = useMutation({
@@ -49,10 +46,8 @@ export function useMessageActions({
     onMutate: async (content: MessageContent) => {
       if (!conversationId || !currentUserId || !otherUserId) return;
 
-      // Create optimistic message
-      const tempId = uuidv4();
       const optimisticMessage: ChatMessage = {
-        _id: tempId,
+        _id: uuidv4(),
         conversationId,
         content,
         senderId: currentUserId,
@@ -61,57 +56,24 @@ export function useMessageActions({
         status: 'sending',
       };
 
-      // Update cache optimistically
-      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
-        ['chat-messages', conversationId],
-        (old) => {
-          if (!old) return old;
-          const newPages = [...old.pages];
-          const lastPage = newPages[newPages.length - 1];
-          lastPage.messages = [...lastPage.messages, optimisticMessage];
-          return { ...old, pages: newPages };
-        }
-      );
+      // 发送消息（SocketContext 会处理缓存更新）
+      socket.sendMessage(optimisticMessage);
 
       return { optimisticMessage };
     },
     onSuccess: (newMessage, _, context) => {
-      if (!conversationId) return;
-
-      // Update cache with actual message
-      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
-        ['chat-messages', conversationId],
-        (old) => {
-          if (!old) return old;
-          const newPages = [...old.pages];
-          const lastPage = newPages[newPages.length - 1];
-          lastPage.messages = lastPage.messages.map(msg => 
-            msg._id === context?.optimisticMessage._id ? { ...newMessage, status: 'sent' } : msg
-          );
-          return { ...old, pages: newPages };
-        }
-      );
-
-      // Send through socket
-      sendSocketMessage(newMessage);
+      if (!context?.optimisticMessage) return;
+      
+      // 更新状态为已发送
+      socket.updateMessageStatus(context.optimisticMessage._id, 'sent');
+      
+      // 不需要再次发送消息，因为服务器已经确认
     },
     onError: (error, _, context) => {
-      if (!conversationId) return;
+      if (!context?.optimisticMessage) return;
 
-      // Revert optimistic update
-      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
-        ['chat-messages', conversationId],
-        (old) => {
-          if (!old) return old;
-          const newPages = [...old.pages];
-          const lastPage = newPages[newPages.length - 1];
-          lastPage.messages = lastPage.messages.map(msg => 
-            msg._id === context?.optimisticMessage._id ? { ...msg, status: 'error' } : msg
-          );
-          return { ...old, pages: newPages };
-        }
-      );
-
+      // 更新错误状态
+      socket.updateMessageStatus(context.optimisticMessage._id, 'error');
       console.error('Error sending message:', error);
     },
   });

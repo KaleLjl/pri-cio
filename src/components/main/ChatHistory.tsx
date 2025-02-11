@@ -1,10 +1,8 @@
 // components/ChatHistory.tsx
 "use client";
-import { useEffect } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useChatHistory } from "@/lib/hooks/useChatHistory";
-import { socketService } from "@/lib/socket";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
 import {  MessageContent } from "@/lib/types/chat";
 import { useLanguage } from '@/lib/context/LanguageContext';
@@ -17,23 +15,6 @@ export default function ChatHistoryClient() {
   const { currentUser, loadingUser } = useCurrentUser();
   const { chats, loading, error, deleteMessages } = useChatHistory();
   const queryClient = useQueryClient();
-
-  // 处理实时消息更新和房间管理
-  useEffect(() => {
-    if (!currentUser?._id || !chats?.length) return;
-
-    // 只处理房间的加入和离开
-    chats.forEach(chat => {
-      socketService.joinRoom(chat._id);
-    });
-
-    // 清理函数
-    return () => {
-      chats.forEach(chat => {
-        socketService.leaveRoom(chat._id);
-      });
-    };
-  }, [currentUser?._id, chats]);
 
   // 格式化日期
   const formatDate = (dateString: string) => {

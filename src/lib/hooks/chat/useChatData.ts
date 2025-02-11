@@ -1,8 +1,7 @@
-import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { ChatMessage, ChatUser, MessagesResponse, MessageContent } from '@/lib/types/chat';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { ChatMessage, ChatUser, MessagesResponse } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
-import { useSocketChat } from './useSocketChat';
-import { v4 as uuidv4 } from 'uuid';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface UseChatDataProps {
   userId: string;
@@ -11,13 +10,6 @@ interface UseChatDataProps {
 }
 
 export function useChatData({ userId, conversationId, otherUser }: UseChatDataProps) {
-  const { sendMessage: sendSocketMessage } = useSocketChat({
-    conversationId,
-    currentUserId: userId,
-    otherUserId: otherUser?._id,
-  });
-
-
   // Fetch current user data
   const {
     data: currentUser,
@@ -72,14 +64,18 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
 
       return response.json();
     },
+    initialPageParam: undefined,
     getNextPageParam: (lastPage: MessagesResponse) => {
       if (!lastPage.hasMore) return undefined;
       const firstMessage = lastPage.messages[0];
       return firstMessage?._id;
     },
     enabled: !!conversationId,
-    staleTime: 1000 * 60 * 30, // 30 minutes
-    initialPageParam: undefined,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    gcTime: Infinity,
+    refetchOnReconnect: true,
   });
 
   // Fetch user posts
@@ -91,7 +87,6 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     queryKey: ['explore-posts', otherUser?._id],
     queryFn: async () => {
       if (!otherUser?._id) throw new Error('No other user ID');
-      // 直接获取对方用户的帖子
       const response = await fetch(`/api/explore?userId=${otherUser._id}`);
       if (!response.ok) throw new Error('Failed to fetch user posts');
       return response.json();
@@ -101,7 +96,7 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
 
   // Get typing status from cache
   const { data: isTyping = false } = useQuery({
-    queryKey: ['chat-typing-status', userId],
+    queryKey: ['chat-typing-status', otherUser?._id],
     initialData: false,
   });
 
@@ -109,11 +104,9 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
   const messages = messagesData?.pages.flatMap(page => page.messages) ?? [];
   const uniqueMessages = Array.from(
     new Map(messages.map(msg => {
-      // 如果是 ObjectDiscussion，使用 postId 和时间戳作为唯一键
       if (typeof msg.content !== 'string' && msg.content.type === 'object_discussion') {
         return [`${msg.content.postId}-${msg.createdAt}`, msg];
       }
-      // 其他消息类型使用 _id
       return [msg._id, msg];
     })).values()
   ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -137,7 +130,6 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     userPosts,
     isLoadingPosts,
     postsError: postsError?.message || null,
-    
     
     // Typing status
     isTyping,
