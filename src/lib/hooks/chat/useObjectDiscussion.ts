@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { ObjectDiscussionData } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
-import { useContext } from 'react';
-import { SocketContext } from '@/lib/context/SocketContext';
 import { v4 as uuidv4 } from 'uuid';
-import { useMessageActions } from '@/lib/hooks/chat/useMessageActions';
 
 interface UseObjectDiscussionProps {
   currentUserId: string;
@@ -15,23 +12,16 @@ interface UseObjectDiscussionProps {
     receiverId: string;
     conversationId: string;
   }>;
+  sendMessage: (content: ObjectDiscussionData) => Promise<void>;
 }
 
 export const useObjectDiscussion = ({
   currentUserId,
   messages,
+  sendMessage,
 }: UseObjectDiscussionProps) => {
-  const socket = useContext(SocketContext);
   const [selectedPost, setSelectedPost] = useState<ExploreItem | null>(null);
   const [editingContent, setEditingContent] = useState<ObjectDiscussionData | null>(null);
-
-  // 使用 useMessageActions
-  const { sendMessage } = useMessageActions({
-    conversationId: messages[0]?.conversationId,
-    currentUserId,
-    otherUserId: messages[0]?.senderId === currentUserId ? messages[0]?.receiverId : messages[0]?.senderId,
-    handleMessageSubmit: async () => ''
-  });
 
   // Check if the discussion data has been modified
   const isDiscussionModified = (
@@ -169,7 +159,6 @@ export const useObjectDiscussion = ({
            (lastMessage.content as ObjectDiscussionData).status === 'canceled';
   };
 
-//因为discussion组件本质上也是一个消息,所以使用sendmessage的hook来提交
   const handleDiscussionSubmit = async (data: {
     price: string;
     location: string;
@@ -184,7 +173,6 @@ export const useObjectDiscussion = ({
         status: 'discussing'
       };
 
-      // 使用 sendMessage 而不是直接使用 socket
       await sendMessage(discussionData);
       setEditingContent(null);
     } else if (selectedPost) {
@@ -204,15 +192,7 @@ export const useObjectDiscussion = ({
         discussingId: uuidv4() // 为新讨论生成唯一ID
       };
 
-      socket.sendMessage({
-        _id: uuidv4(),
-        conversationId: messages[0].conversationId,
-        content: discussionData,
-        senderId: currentUserId,
-        receiverId: messages[0].senderId === currentUserId ? messages[0].receiverId : messages[0].senderId,
-        createdAt: new Date().toISOString(),
-        status: 'sending'
-      });
+      await sendMessage(discussionData);
       setSelectedPost(null);
     }
   };
@@ -239,7 +219,6 @@ export const useObjectDiscussion = ({
     if (currentContent.status !== 'discussing') return;
 
     try {
-      // 保留 HTTP 请求，因为需要在数据库中更新交易状态
       if (currentContent.postId && currentContent.historyId) {
         const response = await fetch(`/api/chat/deal`, {
           method: 'POST',
@@ -257,15 +236,10 @@ export const useObjectDiscussion = ({
         }
       }
 
-      // 然后通过 socket 发送消息更新聊天状态
-      socket.sendMessage({
-        _id: uuidv4(),
-        conversationId: messages[0].conversationId,
-        content: { ...currentContent, status: 'completed' as const },
-        senderId: currentUserId,
-        receiverId: messages[0].senderId === currentUserId ? messages[0].receiverId : messages[0].senderId,
-        createdAt: new Date().toISOString(),
-        status: 'sending'
+      // 使用 sendMessage 而不是 socket
+      await sendMessage({
+        ...currentContent,
+        status: 'completed' as const
       });
     } catch (error) {
       console.error('Error completing deal:', error);
@@ -276,14 +250,9 @@ export const useObjectDiscussion = ({
   const handleCancelDiscussion = async (
     currentContent: ObjectDiscussionData,
   ) => {
-    socket.sendMessage({
-      _id: uuidv4(),
-      conversationId: messages[0].conversationId,
-      content: { ...currentContent, status: 'canceled' as const },
-      senderId: currentUserId,
-      receiverId: messages[0].senderId === currentUserId ? messages[0].receiverId : messages[0].senderId,
-      createdAt: new Date().toISOString(),
-      status: 'sending'
+    await sendMessage({
+      ...currentContent,
+      status: 'canceled' as const
     });
   };
 

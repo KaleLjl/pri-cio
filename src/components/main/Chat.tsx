@@ -11,7 +11,6 @@ import ObjectDiscussion from '@/components/shared/ObjectDiscussion';
 import {
   useInitializeChat,
   useChatData,
-  useSocketChat,
   useMessageActions,
   useChatUI,
   useObjectDiscussionUI,
@@ -47,14 +46,7 @@ export default function Chat({ userId }: ChatProps) {
     otherUser,
   });
 
-  // Use the socket chat hook
-  const { handleTyping } = useSocketChat({
-    conversationId,
-    currentUserId: currentUserId ?? undefined,
-    otherUserId: otherUser?._id ?? undefined,
-  });
-
-  // Use the chat UI hook
+  // Use the chat UI hook (now includes typing functionality)
   const {
     messagesEndRef,
     messagesContainerRef,
@@ -76,7 +68,6 @@ export default function Chat({ userId }: ChatProps) {
     messages,
     currentUserId: currentUserId ?? undefined,
     conversationId,
-    handleTyping,
     fetchNextPage,
     hasNextPage,
   });

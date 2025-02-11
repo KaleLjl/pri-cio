@@ -1,13 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useContext } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { ChatMessage, ObjectDiscussionData } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
+import { SocketContext } from '@/lib/context/SocketContext';
 
 interface UseChatUIProps {
   messages: ChatMessage[];
   currentUserId?: string;
   conversationId?: string;
-  handleTyping: (typing: boolean) => void;
   fetchNextPage: () => Promise<void>;
   hasNextPage?: boolean;
 }
@@ -16,10 +16,12 @@ export function useChatUI({
   messages,
   currentUserId,
   conversationId,
-  handleTyping,
   fetchNextPage,
   hasNextPage,
 }: UseChatUIProps) {
+  const socket = useContext(SocketContext);
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<string | null>(null);
@@ -126,6 +128,31 @@ export function useChatUI({
 
     fetchMyPosts();
   }, [currentUserId]);
+
+  // Handle typing
+  const handleTyping = (typing: boolean) => {
+    if (!conversationId || !currentUserId) return;
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    socket.sendTyping({
+      conversationId,
+      userId: currentUserId,
+      typing,
+    });
+
+    if (typing) {
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.sendTyping({
+          conversationId,
+          userId: currentUserId,
+          typing: false,
+        });
+      }, 3000);
+    }
+  };
 
   // Handle message input
   const handleMessageInput = (e: React.ChangeEvent<HTMLInputElement>) => {
