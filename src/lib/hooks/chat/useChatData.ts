@@ -1,7 +1,5 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { ChatMessage, ChatUser, MessagesResponse } from '@/lib/types/chat';
-import { ExploreItem } from '@/lib/types/explore';
-import { useQueryClient } from '@tanstack/react-query';
+import { ChatUser, MessagesResponse } from '@/lib/types/chat';
 
 interface UseChatDataProps {
   userId: string;

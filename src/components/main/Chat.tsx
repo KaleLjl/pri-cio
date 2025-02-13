@@ -16,11 +16,14 @@ import {
   useObjectDiscussionUI,
 } from '@/lib/hooks/chat';
 import { format } from 'date-fns';
+import { useChatHistory } from '@/lib/hooks/useChatHistory';
+import { useEffect } from 'react';
 
 export default function Chat({ userId }: ChatProps) {
   const { dict, lang } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { markAsRead } = useChatHistory();
 
   // Use the initialization hook
   const {
@@ -109,6 +112,15 @@ export default function Chat({ userId }: ChatProps) {
     setShowPosts,
     dict,
   });
+
+  // 在对话初始化完成后标记消息为已读
+  useEffect(() => {
+    if (conversationId) {
+      markAsRead(conversationId).catch(error => {
+        console.error("Failed to mark messages as read:", error);
+      });
+    }
+  }, [conversationId, markAsRead]);
 
   if (error) {
     return (

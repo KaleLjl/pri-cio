@@ -1,7 +1,6 @@
 import { ObjectDiscussionData, ChatMessage } from '@/lib/types/chat';
 import { useObjectDiscussion } from './useObjectDiscussion';
 import { QueryClient } from '@tanstack/react-query';
-import { ExploreItem } from '@/lib/types/explore';
 import { useState } from 'react';
 
 interface UseObjectDiscussionUIProps {
@@ -38,7 +37,6 @@ export function useObjectDiscussionUI({
   const objectDiscussion = useObjectDiscussion({
     currentUserId,
     sendMessage,
-    queryClient,
     messages,
   });
 
@@ -123,7 +121,7 @@ export function useObjectDiscussionUI({
     senderId: string,
   ) => {
     try {
-      await objectDiscussion.handleDealComplete(currentContent, senderId, messages);
+      await objectDiscussion.handleDealComplete(currentContent, senderId);
     } catch (error) {
       console.error('Error completing deal:', error);
       const DEFAULT_ERROR = 'Failed to complete deal. Please try again.';
@@ -137,7 +135,7 @@ export function useObjectDiscussionUI({
     senderId: string,
   ) => {
     try {
-      await objectDiscussion.handleCancelDiscussion(currentContent, senderId);
+      await objectDiscussion.handleCancelDiscussion(currentContent);
     } catch (error) {
       console.error('Error canceling discussion:', error);
       const DEFAULT_ERROR = 'Failed to cancel deal. Please try again.';

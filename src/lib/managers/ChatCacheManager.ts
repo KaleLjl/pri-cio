@@ -148,7 +148,7 @@ export class ChatCacheManager {
           if (hasMessage) {
             return {
               ...chat,
-              unreadCount: 0
+              unreadCount: 0  // 清零未读计数
             };
           }
           return chat;
@@ -168,7 +168,7 @@ export class ChatCacheManager {
       if (chatIndex !== -1) {
         updated[chatIndex] = {
           ...updated[chatIndex],
-          unreadCount: 0
+          unreadCount: 0  // 清零未读计数
         };
       }
       return updated;

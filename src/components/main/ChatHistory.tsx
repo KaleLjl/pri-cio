@@ -9,12 +9,15 @@ import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { useQueryClient } from '@tanstack/react-query';
+import { useContext } from 'react';
+import { SocketContext } from '@/lib/context/SocketContext';
 
 export default function ChatHistoryClient() {
   const { dict } = useLanguage();
   const { currentUser, loadingUser } = useCurrentUser();
-  const { chats, loading, error, deleteMessages } = useChatHistory();
+  const { chats, loading, error, deleteMessages, markAsRead } = useChatHistory();
   const queryClient = useQueryClient();
+  const socket = useContext(SocketContext);
 
   // 格式化日期
   const formatDate = (dateString: string) => {
@@ -97,6 +100,13 @@ export default function ChatHistoryClient() {
             <Link
               key={chat._id}
               href={`/chat/${otherParticipant._id}`}
+              onClick={() => {
+                if (chat.unreadCount > 0) {
+                  markAsRead(chat._id, chat.lastMessage?._id).catch(error => {
+                    console.error("Failed to mark messages as read:", error);
+                  });
+                }
+              }}
               className="block p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
             >
               <div className="flex items-center space-x-4">
