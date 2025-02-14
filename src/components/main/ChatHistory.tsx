@@ -1,40 +1,23 @@
 // components/ChatHistory.tsx
 "use client";
-import { useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { format } from "date-fns";
 import { useChatHistory } from "@/lib/hooks/useChatHistory";
-import { socketService } from "@/lib/socket";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
-import { ChatRecord, MessageContent } from "@/lib/types/chat";
+import {  MessageContent } from "@/lib/types/chat";
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { useQueryClient } from '@tanstack/react-query';
+import { useContext } from 'react';
+import { SocketContext } from '@/lib/context/SocketContext';
 
 export default function ChatHistoryClient() {
   const { dict } = useLanguage();
   const { currentUser, loadingUser } = useCurrentUser();
-  const { chats, loading, error, deleteMessages } = useChatHistory();
+  const { chats, loading, error, deleteMessages, markAsRead } = useChatHistory();
   const queryClient = useQueryClient();
-
-  // 处理实时消息更新和房间管理
-  useEffect(() => {
-    if (!currentUser?._id || !chats?.length) return;
-
-    // 只处理房间的加入和离开
-    chats.forEach(chat => {
-      socketService.joinRoom(chat._id);
-    });
-
-    // 清理函数
-    return () => {
-      chats.forEach(chat => {
-        socketService.leaveRoom(chat._id);
-      });
-    };
-  }, [currentUser?._id, chats]);
+  const socket = useContext(SocketContext);
 
   // 格式化日期
   const formatDate = (dateString: string) => {
@@ -53,7 +36,8 @@ export default function ChatHistoryClient() {
       return content;
     }
     if (content.type === 'object_discussion') {
-      return `[${dict.objectDiscussion.price}: ${content.suggestedPrice}, ${dict.objectDiscussion.location}: ${content.location}]`;
+      // 返回更有意义的消息预览
+      return `[${content.description.slice(0, 20)}${content.description.length > 20 ? '...' : ''} - ${dict.objectDiscussion.price}: ${content.suggestedPrice}]`;
     }
     return '';
   };
@@ -116,6 +100,13 @@ export default function ChatHistoryClient() {
             <Link
               key={chat._id}
               href={`/chat/${otherParticipant._id}`}
+              onClick={() => {
+                if (chat.unreadCount > 0) {
+                  markAsRead(chat._id, chat.lastMessage?._id).catch(error => {
+                    console.error("Failed to mark messages as read:", error);
+                  });
+                }
+              }}
               className="block p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
             >
               <div className="flex items-center space-x-4">
@@ -150,7 +141,7 @@ export default function ChatHistoryClient() {
                               alert(dict.chatHistory.toast.deleteSuccess);
                             } catch (error) {
                               console.error("Failed to delete messages:", error);
-                              alert(dict.chatHistory.toast.deleteError);
+                              alert(error instanceof Error ? error.message : dict.chatHistory.toast.deleteError);
                             }
                           }
                         }}

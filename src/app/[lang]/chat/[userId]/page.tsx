@@ -9,7 +9,7 @@ export default async function ChatPage({
   
   return (
     <main className="flex-1 overflow-hidden">
-      <Chat userId={userId} />
+      <Chat key={userId} userId={userId} />
     </main>
   );
 } 

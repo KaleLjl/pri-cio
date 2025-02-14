@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     AWS_REGION: 'eu-west-2',
   },
   images: {
+    domains: ['sourdoughjesha.com'],
     remotePatterns: [
       {
         protocol: 'https',

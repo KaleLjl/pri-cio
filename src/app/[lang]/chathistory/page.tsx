@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+
 import ChatHistoryClient from '@/components/main/ChatHistory';
 
 export default async function ChatHistoryPage() {

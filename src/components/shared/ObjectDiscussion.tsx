@@ -6,6 +6,11 @@ import { useLanguage } from '@/lib/context/LanguageContext';
 
 interface ObjectDiscussionProps {
   post: ExploreItem;
+  initialValues?: {
+    price: string;
+    location: string;
+    meetingTime: string;
+  };
   onClose: () => void;
   onSubmit: (data: {
     price: string;
@@ -14,13 +19,18 @@ interface ObjectDiscussionProps {
   }) => void;
 }
 
-export default function ObjectDiscussion({ post, onClose, onSubmit }: ObjectDiscussionProps) {
+export default function ObjectDiscussion({ 
+  post, 
+  initialValues,
+  onClose, 
+  onSubmit 
+}: ObjectDiscussionProps) {
   const { dict } = useLanguage();
-  const [price, setPrice] = React.useState(post.price);
+  const [price, setPrice] = React.useState(initialValues?.price || post.price);
   const [location, setLocation] = React.useState(
-    post.location ? `${post.location.city}, ${post.location.country}` : ''
+    initialValues?.location || (post.location ? `${post.location.city}, ${post.location.country}` : '')
   );
-  const [meetingTime, setMeetingTime] = React.useState('');
+  const [meetingTime, setMeetingTime] = React.useState(initialValues?.meetingTime || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

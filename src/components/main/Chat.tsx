@@ -1,476 +1,126 @@
 'use client';
-
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
-import { useChat } from '@/lib/hooks/useChat';
-import { ChatUser, ObjectDiscussionData, ChatMessage } from '@/lib/types/chat';
-import { useSession } from 'next-auth/react';
-import { useInView } from 'react-intersection-observer';
-import { format } from 'date-fns';
+import { ObjectDiscussionData, ChatProps } from '@/lib/types/chat';
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { ExploreItem } from '@/lib/types/explore';
 import { CURRENCIES } from '@/components/main/App';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { socketService } from '@/lib/socket';
+import { useQueryClient } from '@tanstack/react-query';
 import ObjectDiscussion from '@/components/shared/ObjectDiscussion';
-
-interface ChatProps {
-  userId: string;
-}
-
-// API function to fetch user's explore posts
-const fetchUserExplorePosts = async (userId: string): Promise<ExploreItem[]> => {
-  const response = await fetch('/api/explore');
-  if (!response.ok) {
-    throw new Error('Failed to fetch user posts');
-  }
-  const allPosts = await response.json();
-  return allPosts.filter((post: ExploreItem) => post.userProfile?._id === userId);
-};
+import {
+  useInitializeChat,
+  useChatData,
+  useMessageActions,
+  useChatUI,
+  useObjectDiscussionUI,
+} from '@/lib/hooks/chat';
+import { format } from 'date-fns';
+import { useChatHistory } from '@/lib/hooks/useChatHistory';
+import { useEffect } from 'react';
 
 export default function Chat({ userId }: ChatProps) {
-  const { dict } = useLanguage();
-  const { data: session, status } = useSession();
+  const { dict, lang } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [otherUser, setOtherUser] = useState<ChatUser | null>(null);
-  const [conversationId, setConversationId] = useState<string>('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const { ref: loadMoreRef, inView } = useInView();
-  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
-  const lastMessageRef = useRef<string | null>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
-  const [showPosts, setShowPosts] = useState(true);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const [selectedPost, setSelectedPost] = useState<ExploreItem | null>(null);
-  const [showMyPosts, setShowMyPosts] = useState(false);
-  const [myPosts, setMyPosts] = useState<ExploreItem[]>([]);
-  const [isLoadingMyPosts, setIsLoadingMyPosts] = useState(false);
+  const { markAsRead } = useChatHistory();
 
-  // Use React Query to fetch and manage explore posts
-  const { data: userPosts = [], isLoading: isLoadingPosts } = useQuery({
-    queryKey: ['explore-posts', userId],
-    queryFn: () => fetchUserExplorePosts(userId),
-    enabled: !!userId && !!otherUser,
+  // Use the initialization hook
+  const {
+    currentUserId,
+    otherUser,
+    conversationId,
+    isInitializing,
+    error,
+  } = useInitializeChat({ userId });
+
+  // Use the chat data hook
+  const {
+    messages,
+    userPosts,
+    isLoadingPosts,
+    isTyping,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useChatData({
+    userId,
+    conversationId,
+    otherUser,
   });
 
-  // Use React Query to manage typing status
-  const { data: isTyping = false } = useQuery({
-    queryKey: ['chat-typing-status', userId],
-    initialData: false,
+  // Use the chat UI hook (now includes typing functionality)
+  const {
+    messagesEndRef,
+    messagesContainerRef,
+    loadMoreRef,
+    inputMessage,
+    showPosts,
+    showMyPosts,
+    myPosts,
+    isLoadingMyPosts,
+    loadingMore,
+    setShowMyPosts,
+    setShowPosts,
+    handleScroll,
+    handleTogglePosts,
+    handlePostClick,
+    handleMessageInput,
+    handleMessageSubmit,
+  } = useChatUI({
+    messages,
+    currentUserId: currentUserId ?? undefined,
+    conversationId,
+    fetchNextPage,
+    hasNextPage,
   });
 
-  // Listen to socket updates for explore posts
+  // Use the message actions hook
+  const {
+    sendMessage,
+    deleteMessages,
+    handleSubmit,
+    isSending,
+    isDeleting,
+  } = useMessageActions({
+    conversationId,
+    currentUserId: currentUserId ?? undefined,
+    otherUserId: otherUser?._id ?? undefined,
+    handleMessageSubmit,
+  });
+
+  // Use the object discussion UI hook
+  const {
+    selectedPost,
+    editingContent,
+    setSelectedPost,
+    handleDiscussionSubmit,
+    handleObjectDiscussionClick,
+    handleDealComplete,
+    handleCancelDiscussion,
+    isCurrentUserSeller,
+    isPostCompleted,
+    isLastDiscussionMessage,
+    setEditingContent,
+    isPostInDiscussion,
+    isPostFinalized,
+  } = useObjectDiscussionUI({
+    currentUserId: currentUserId || '',
+    messages,
+    sendMessage,
+    queryClient,
+    setShowPosts,
+    dict,
+  });
+
+  // 在对话初始化完成后标记消息为已读
   useEffect(() => {
-    if (!userId) return;
-
-    const handleExploreUpdate = (data: { userId: string }) => {
-      if (data.userId === userId) {
-        // Invalidate and refetch the explore posts query when we receive an update
-        queryClient.invalidateQueries({ queryKey: ['explore-posts', userId] });
-      }
-    };
-
-    socketService.onExplorePostsUpdate(handleExploreUpdate);
-
-    return () => {
-      socketService.removeEventListener('explore-posts-update', handleExploreUpdate);
-    };
-  }, [userId, queryClient]);
-
-  // 身份验证检查
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/signin');
+    if (conversationId) {
+      markAsRead(conversationId).catch(error => {
+        console.error("Failed to mark messages as read:", error);
+      });
     }
-  }, [status, router]);
-
-  // 立即检查是否是自己的ID
-  useEffect(() => {
-    const checkSelfChat = async () => {
-      if (status === 'authenticated' && session?.user?.email) {
-        try {
-          const response = await fetch('/api/users/me');
-          if (response.ok) {
-            const userData = await response.json();
-            if (userData._id === userId) {
-              router.push('/chat');
-              return;
-            }
-          }
-        } catch (error) {
-          console.error('Error checking self chat:', error);
-        }
-      }
-    };
-    checkSelfChat();
-  }, [userId, status, session?.user?.email, router]);
-
-  // Initialize chat
-  useEffect(() => {
-    const initializeChat = async () => {
-      if (status !== 'authenticated') return;
-      
-      try {
-        // Make API calls in parallel
-        const [currentUserResponse, userResponse] = await Promise.all([
-          fetch('/api/users/me'),
-          fetch(`/api/users/${userId}`)
-        ]);
-
-        if (!currentUserResponse.ok) {
-          throw new Error(dict.chat.error.fetch);
-        }
-        if (!userResponse.ok) {
-          throw new Error(dict.chat.error.fetch);
-        }
-
-        const [currentUserData, userData] = await Promise.all([
-          currentUserResponse.json(),
-          userResponse.json()
-        ]);
-
-        setCurrentUserId(currentUserData._id);
-        setOtherUser({
-          _id: userId,
-          name: userData.name,
-          avatarUrl: userData.avatarUrl,
-        });
-
-        // Create or get conversation
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            participantId: userId,
-            limit: 20,
-            offset: 0
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(dict.chat.error.fetch);
-        }
-
-        const data = await response.json();
-        setConversationId(data._id);
-      } catch (error) {
-        console.error('Error initializing chat:', error);
-        setError(error instanceof Error ? error.message : dict.chat.error.fetch);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-
-    if (userId) {
-      initializeChat();
-    }
-  }, [userId, status, dict.chat.error.fetch]);
-
-  // Initialize chat hook only when we have all required data
-  const chat = useChat(
-    currentUserId && otherUser && conversationId
-      ? {
-          conversationId,
-          currentUserId,
-          otherUser,
-        }
-      : null
-  );
-
-  // Scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
-    if (shouldScrollToBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  // Check if we're at the bottom of the chat
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-    setShouldScrollToBottom(isNearBottom);
-  };
-
-  useEffect(() => {
-    if (!chat.messages.length) return;
-
-    const lastMessage = chat.messages[chat.messages.length - 1];
-    const isNewMessage = lastMessage._id !== lastMessageRef.current;
-    
-    if (isNewMessage) {
-      lastMessageRef.current = lastMessage._id;
-      // Only scroll if it's a new message and we're near the bottom
-      // or if it's our own message
-      if (shouldScrollToBottom || lastMessage.senderId === currentUserId) {
-        scrollToBottom();
-      }
-
-      // 只有当消息是接收到的新消息时才标记为已读
-      if (conversationId && currentUserId && lastMessage.senderId !== currentUserId) {
-        fetch('/api/chat/messages', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ conversationId }),
-        }).catch(console.error);
-      }
-    }
-  }, [chat.messages, currentUserId, shouldScrollToBottom, conversationId]);
-
-  // Load more messages when scrolling up
-  useEffect(() => {
-    if (inView && !loadingMore && chat.hasMore) {
-      setLoadingMore(true);
-      chat.loadMoreMessages().finally(() => setLoadingMore(false));
-    }
-  }, [inView, chat.hasMore]);
-
-  // Handle typing status
-  const handleTyping = (typing: boolean) => {
-    if (!conversationId || !currentUserId) return;
-
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    // Send typing status
-    socketService.sendTyping({
-      conversationId,
-      userId: currentUserId,
-      typing,
-    });
-
-    // If typing, set a timeout to automatically set typing to false
-    if (typing) {
-      typingTimeoutRef.current = setTimeout(() => {
-        socketService.sendTyping({
-          conversationId,
-          userId: currentUserId,
-          typing: false,
-        });
-      }, 3000); // Stop typing indicator after 3 seconds of inactivity
-    }
-  };
-
-  // Save scroll position before toggling posts
-  const handleTogglePosts = () => {
-    if (messagesContainerRef.current) {
-      setScrollPosition(messagesContainerRef.current.scrollTop);
-    }
-    setShowPosts(prev => !prev);
-  };
-
-  // Restore scroll position after toggling posts
-  useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = scrollPosition;
-    }
-  }, [showPosts, scrollPosition]);
-
-  const handlePostClick = (post: ExploreItem) => {
-    setSelectedPost(post);
-    setShowPosts(false);
-  };
-
-  // Add this function to check if the discussion data has been modified
-  const isDiscussionModified = (currentContent: ObjectDiscussionData) => {
-    // Get the last discussion message for this post
-    const lastDiscussion = chat.messages
-      .filter(msg => 
-        typeof msg.content !== 'string' && 
-        msg.content.type === 'object_discussion' &&
-        msg.content.postId === currentContent.postId
-      )
-      .pop();
-
-    if (!lastDiscussion || typeof lastDiscussion.content === 'string') return true;
-    
-    const lastContent = lastDiscussion.content as ObjectDiscussionData;
-    
-    // Check if any of the negotiable fields have been modified
-    return (
-      currentContent.suggestedPrice !== lastContent.suggestedPrice ||
-      currentContent.location !== lastContent.location ||
-      currentContent.meetingTime !== lastContent.meetingTime
-    );
-  };
-
-  const handleDiscussionSubmit = (data: {
-    price: string;
-    location: string;
-    meetingTime: string;
-  }) => {
-    if (!selectedPost) return;
-    
-    const discussionData: ObjectDiscussionData = {
-      type: 'object_discussion',
-      postId: selectedPost._id,
-      imageUrl: selectedPost.imageUrl,
-      description: selectedPost.description,
-      originalPrice: selectedPost.price,
-      suggestedPrice: data.price,
-      currency: selectedPost.currency,
-      location: data.location,
-      meetingTime: data.meetingTime,
-      historyId: selectedPost.historyId
-    };
-
-    // Only send if it's modified or there are no previous discussions
-    if (isDiscussionModified(discussionData)) {
-      chat.sendMessage(discussionData);
-      setSelectedPost(null);
-      setShowPosts(false);
-    } else {
-      // Show some feedback to user that they need to modify the discussion first
-      alert(dict.objectDiscussion?.noChangesMessage || "Please modify the price, location, or meeting time before sending a new proposal.");
-    }
-  };
-
-  // Update this function to determine if current user is the seller based on history
-  const isCurrentUserSeller = (postId: string) => {
-    // If the post is from my posts (bottom + button), current user is the seller
-    if (myPosts.some(post => post._id === postId)) {
-      return true;
-    }
-    // If the post is from other user's posts (top posts list), current user is the buyer
-    if (userPosts.some(post => post._id === postId)) {
-      return false;
-    }
-    // Default to false if we can't determine
-    return false;
-  };
-
-  // Update handleObjectDiscussionClick to set correct buyer/seller info
-  const handleObjectDiscussionClick = async (currentContent: ObjectDiscussionData, senderId: string) => {
-    // If the content is already completed, don't do anything
-    if (currentContent.isCompleted) return;
-
-    try {
-      // First unpublish if it's a deal completion
-      if (currentContent.postId && currentContent.historyId) {
-        // 确定买家和卖家的ID
-        const isSeller = isCurrentUserSeller(currentContent.postId);
-        
-        // 获取当前用户的ID和对方的ID
-        const currentMessage = chat.messages.find(msg => 
-          typeof msg.content !== 'string' && 
-          msg.content.type === 'object_discussion' && 
-          msg.content.postId === currentContent.postId
-        );
-
-        if (!currentMessage) {
-          throw new Error('Message not found');
-        }
-
-        const { senderId: msgSenderId, receiverId: msgReceiverId } = currentMessage;
-        
-        // 使用消息中的 senderId 和 receiverId 来确定买卖双方
-        const buyerId = isSeller ? msgReceiverId : msgSenderId;
-        const sellerId = isSeller ? msgSenderId : msgReceiverId;
-
-        // 验证买家和卖家ID是否存在
-        if (!buyerId || !sellerId) {
-          throw new Error('Buyer or seller ID is missing');
-        }
-
-        const response = await fetch(`/api/chat/deal`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            historyId: currentContent.historyId,
-            exploreId: currentContent.postId,
-            buyerId,
-            sellerId,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to complete deal');
-        }
-
-        // Invalidate the explore posts query to trigger a refetch
-        queryClient.invalidateQueries({ queryKey: ['explore-posts', userId] });
-
-        // Get the seller's ID (the post owner)
-        const sellerResponse = await fetch('/api/users/me');
-        if (sellerResponse.ok) {
-          const sellerData = await sellerResponse.json();
-          // Emit socket event to notify both users
-          socketService.emitExplorePostsUpdate(userId); // Notify the buyer
-          socketService.emitExplorePostsUpdate(sellerData._id); // Notify the seller
-        }
-      }
-
-      // Then mark the discussion as completed
-      const updatedContent = {
-        ...currentContent,
-        isCompleted: true
-      };
-      chat.sendMessage(updatedContent);
-    } catch (error) {
-      console.error('Error completing deal:', error);
-      alert(dict.objectDiscussion?.dealError || 'Failed to complete deal. Please try again.');
-    }
-  };
-
-  // Fetch current user's posts
-  useEffect(() => {
-    const fetchMyPosts = async () => {
-      if (!currentUserId) return;
-      setIsLoadingMyPosts(true);
-      try {
-        const response = await fetch('/api/explore');
-        if (!response.ok) throw new Error('Failed to fetch posts');
-        const allPosts = await response.json();
-        setMyPosts(allPosts.filter((post: ExploreItem) => post.userProfile?._id === currentUserId));
-      } catch (error) {
-        console.error('Error fetching my posts:', error);
-      } finally {
-        setIsLoadingMyPosts(false);
-      }
-    };
-
-    fetchMyPosts();
-  }, [currentUserId]);
-
-  // Add this function to check if any discussion for this post is completed
-  const isPostCompleted = (postId: string) => {
-    return chat.messages.some(
-      msg => 
-        typeof msg.content !== 'string' && 
-        msg.content.type === 'object_discussion' && 
-        msg.content.postId === postId && 
-        msg.content.isCompleted
-    );
-  };
-
-  // Add this function to check if this is the last discussion message for this post
-  const isLastDiscussionMessage = (message: ChatMessage) => {
-    if (typeof message.content === 'string') return false;
-    const content = message.content as ObjectDiscussionData;
-    
-    const discussionMessages = chat.messages.filter(
-      msg => {
-        if (typeof msg.content === 'string') return false;
-        const msgContent = msg.content as ObjectDiscussionData;
-        return msgContent.type === 'object_discussion' && msgContent.postId === content.postId;
-      }
-    );
-    
-    return discussionMessages[discussionMessages.length - 1]._id === message._id;
-  };
+  }, [conversationId, markAsRead]);
 
   if (error) {
     return (
@@ -492,15 +142,6 @@ export default function Chat({ userId }: ChatProps) {
     return <Loading text={dict.chat.loading.chat} />;
   }
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (chat.inputMessage.trim()) {
-      // Clear typing status when sending message
-      handleTyping(false);
-      chat.sendMessage(chat.inputMessage.trim());
-    }
-  };
-
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black text-white">
       <div className="absolute inset-0 flex flex-col">
@@ -511,7 +152,7 @@ export default function Chat({ userId }: ChatProps) {
               {/* User Info */}
               <div className="flex items-center space-x-4 p-4 bg-gray-800/95 backdrop-blur-sm rounded-t-lg shadow-lg">
                 <button
-                  onClick={() => router.back()}
+                  onClick={() => router.push(`/${lang}/chathistory`)}
                   className="p-2 hover:bg-gray-700 rounded-full transition-colors"
                   aria-label={dict.chat.actions.back}
                 >
@@ -574,12 +215,11 @@ export default function Chat({ userId }: ChatProps) {
                     onClick={async () => {
                       if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
                         try {
-                          await chat.deleteMessages();
-                          // Show success message
+                          await deleteMessages();
                           alert(dict.chatHistory.toast.deleteSuccess);
                         } catch (error) {
                           console.error("Failed to delete messages:", error);
-                          alert(dict.chatHistory.toast.deleteError);
+                          alert(error instanceof Error ? error.message : dict.chatHistory.toast.deleteError);
                         }
                       }
                     }}
@@ -598,12 +238,24 @@ export default function Chat({ userId }: ChatProps) {
                 <div className="bg-gray-800/70 backdrop-blur-sm p-4 rounded-b-lg shadow-lg border-t border-gray-700/50">
                   <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
                     <div className="flex space-x-4 pb-2">
-                      {userPosts.map((post) => (
+                      {userPosts.map((post: ExploreItem) => (
                         <div
                           key={post._id}
-                          className="flex-none w-32 bg-gray-700/30 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
-                          onClick={() => handlePostClick(post)}
+                          className="flex-none w-32 bg-gray-700/30 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all relative"
+                          onClick={() => {
+                            if (isPostInDiscussion(post._id)) {
+                              alert(dict.objectDiscussion?.alreadyInDiscussion || "This item is already in discussion.");
+                              return;
+                            }
+                            handlePostClick(post);
+                            setSelectedPost(post);
+                          }}
                         >
+                          {isPostInDiscussion(post._id) && (
+                            <div className="absolute top-2 right-2 z-10 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                              {dict.objectDiscussion?.inDiscussion || "In Discussion"}
+                            </div>
+                          )}
                           <div className="relative w-32 h-32">
                             <ImageWithFallback
                               src={post.imageUrl}
@@ -641,7 +293,7 @@ export default function Chat({ userId }: ChatProps) {
                 onScroll={handleScroll}
               >
                 {/* Load More Messages Indicator */}
-                {chat.loadingMore && (
+                {isFetchingNextPage && (
                   <div className="flex justify-center py-2">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
                   </div>
@@ -650,7 +302,7 @@ export default function Chat({ userId }: ChatProps) {
                 
                 {/* Messages List */}
                 <div className="space-y-6">
-                  {chat.messages.map((message) => (
+                  {messages.map((message) => (
                     <div
                       key={message._id}
                       className={`flex ${
@@ -670,28 +322,32 @@ export default function Chat({ userId }: ChatProps) {
                           </p>
                         ) : message.content.type === 'object_discussion' ? (
                           <div 
-                            className={`space-y-3 max-w-sm cursor-pointer hover:opacity-90 transition-opacity ${
-                              (message.content as ObjectDiscussionData).isCompleted || isPostCompleted((message.content as ObjectDiscussionData).postId) ? 'opacity-50' : ''
+                            className={`space-y-3 max-w-sm ${
+                              (message.content as ObjectDiscussionData).status === 'discussing' ? 'cursor-pointer' : 'cursor-default'
+                            } hover:opacity-90 transition-opacity ${
+                              isPostFinalized(
+                                (message.content as ObjectDiscussionData).postId,
+                                (message.content as ObjectDiscussionData).discussingId,
+                                messages
+                              ) ? 'opacity-50' : ''
                             }`}
                             onClick={(e) => {
-                              // 如果点击来自按钮，不处理点击事件
                               if ((e.target as HTMLElement).tagName === 'BUTTON') {
                                 return;
                               }
                               const currentContent = message.content as ObjectDiscussionData;
-                              if (!currentContent.isCompleted && !isPostCompleted(currentContent.postId)) {
+                              if (currentContent.status === 'discussing') {
                                 handleObjectDiscussionClick(currentContent, message.senderId);
                               }
                             }}
                           >
                             <div className="flex items-start space-x-3">
                               <div className="relative w-20 h-20 flex-shrink-0">
-                                {/* Show label for all discussion messages */}
                                 <div className="absolute -top-2 -left-2 z-10">
                                   <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                                    isCurrentUserSeller((message.content as ObjectDiscussionData).postId) ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
+                                    isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
                                   }`}>
-                                    {isCurrentUserSeller((message.content as ObjectDiscussionData).postId)
+                                    {isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts)
                                       ? dict.objectDiscussion?.sellerLabel 
                                       : dict.objectDiscussion?.buyerLabel}
                                   </span>
@@ -701,9 +357,13 @@ export default function Chat({ userId }: ChatProps) {
                                   alt={(message.content as ObjectDiscussionData).description}
                                   fill
                                   className={`object-cover rounded-lg ${
-                                    (message.content as ObjectDiscussionData).isCompleted || isPostCompleted((message.content as ObjectDiscussionData).postId) ? 'grayscale' : ''
+                                    isPostFinalized(
+                                      (message.content as ObjectDiscussionData).postId,
+                                      (message.content as ObjectDiscussionData).discussingId,
+                                      messages
+                                    ) ? 'grayscale' : ''
                                   } ${
-                                    isCurrentUserSeller((message.content as ObjectDiscussionData).postId) ? 'ring-2 ring-blue-500' : 'ring-2 ring-orange-500'
+                                    isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) ? 'ring-2 ring-blue-500' : 'ring-2 ring-orange-500'
                                   }`}
                                 />
                               </div>
@@ -715,7 +375,7 @@ export default function Chat({ userId }: ChatProps) {
                                   <p className="flex items-center text-gray-300">
                                     <span className="text-gray-400 w-20">{dict.objectDiscussion?.price}:</span>
                                     <span className={`ml-1 truncate ${
-                                      isCurrentUserSeller((message.content as ObjectDiscussionData).postId) ? 'text-blue-400' : 'text-orange-400'
+                                      isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) ? 'text-blue-400' : 'text-orange-400'
                                     }`}>
                                       {CURRENCIES.find(c => c.value === (message.content as ObjectDiscussionData).currency)?.symbol}
                                       {(message.content as ObjectDiscussionData).suggestedPrice}
@@ -738,34 +398,55 @@ export default function Chat({ userId }: ChatProps) {
                                     </span>
                                   </p>
                                 </div>
-                                {message.senderId !== currentUserId && 
-                                  !(message.content as ObjectDiscussionData).isCompleted && 
-                                  !isPostCompleted((message.content as ObjectDiscussionData).postId) &&
-                                  isLastDiscussionMessage(message) && (
-                                  <div className="mt-3">
+                                
+                                {/* Action Buttons */}
+                                {(message.content as ObjectDiscussionData).status === 'discussing' &&
+                                  isLastDiscussionMessage(message, messages) && (
+                                  <div className="mt-3 flex space-x-2">
+                                    {/* Deal button - only visible to the receiver */}
+                                    {message.senderId !== currentUserId && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          const currentContent = message.content as ObjectDiscussionData;
+                                          handleDealComplete(currentContent, message.senderId);
+                                        }}
+                                        className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
+                                          isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) 
+                                            ? 'bg-blue-500 hover:bg-blue-400' 
+                                            : 'bg-orange-500 hover:bg-orange-400'
+                                        }`}
+                                      >
+                                        {dict.objectDiscussion?.complete}
+                                      </button>
+                                    )}
+                                    
+                                    {/* Cancel button - visible to both parties */}
                                     <button
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         const currentContent = message.content as ObjectDiscussionData;
-                                        handleObjectDiscussionClick(currentContent, message.senderId);
+                                        handleCancelDiscussion(currentContent, message.senderId);
                                       }}
-                                      className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
-                                        isCurrentUserSeller((message.content as ObjectDiscussionData).postId) 
-                                          ? 'bg-blue-500 hover:bg-blue-400' 
-                                          : 'bg-orange-500 hover:bg-orange-400'
-                                      }`}
+                                      className="px-3 py-1 text-sm text-white bg-red-500 hover:bg-red-400 rounded-lg transition-colors"
                                     >
-                                      {isCurrentUserSeller((message.content as ObjectDiscussionData).postId)
-                                        ? dict.objectDiscussion?.sellerLabel 
-                                        : dict.objectDiscussion?.buyerLabel}
+                                      {dict.objectDiscussion?.cancel}
                                     </button>
                                   </div>
                                 )}
-                                {((message.content as ObjectDiscussionData).isCompleted || isPostCompleted((message.content as ObjectDiscussionData).postId)) && (
+
+                                {/* Status display */}
+                                {(message.content as ObjectDiscussionData).status !== 'discussing' && (
                                   <div className="mt-2">
-                                    <span className="text-sm text-green-500">
-                                      {dict.objectDiscussion?.completed || "Deal Completed"}
+                                    <span className={`text-sm ${
+                                      (message.content as ObjectDiscussionData).status === 'completed' ? 'text-green-500' :
+                                      'text-red-500'
+                                    }`}>
+                                      {(message.content as ObjectDiscussionData).status === 'completed' 
+                                        ? dict.objectDiscussion?.completed 
+                                        : dict.objectDiscussion?.canceled}
                                     </span>
                                   </div>
                                 )}
@@ -795,17 +476,32 @@ export default function Chat({ userId }: ChatProps) {
               </div>
 
               {/* Object Discussion */}
-              {selectedPost && (
+              {(selectedPost || editingContent) && (
                 <ObjectDiscussion
-                  post={selectedPost}
-                  onClose={() => setSelectedPost(null)}
+                  post={selectedPost || {
+                    _id: editingContent!.postId,
+                    imageUrl: editingContent!.imageUrl,
+                    description: editingContent!.description,
+                    price: editingContent!.originalPrice,
+                    currency: editingContent!.currency,
+                    historyId: editingContent!.historyId,
+                  } as ExploreItem}
+                  initialValues={editingContent ? {
+                    price: editingContent.suggestedPrice,
+                    location: editingContent.location,
+                    meetingTime: editingContent.meetingTime,
+                  } : undefined}
+                  onClose={() => {
+                    setSelectedPost(null);
+                    setEditingContent(null);
+                  }}
                   onSubmit={handleDiscussionSubmit}
                 />
               )}
 
-              {/* Message Input - Part of the same container */}
+              {/* Message Input */}
               <div className="p-4 border-t border-gray-700/50">
-                <form onSubmit={handleSendMessage} className="flex gap-2">
+                <form onSubmit={handleSubmit} className="flex gap-2">
                   <div className="relative flex-1 flex gap-2">
                     <button
                       type="button"
@@ -818,11 +514,8 @@ export default function Chat({ userId }: ChatProps) {
                     </button>
                     <input
                       type="text"
-                      value={chat.inputMessage}
-                      onChange={(e) => {
-                        chat.setInputMessage(e.target.value);
-                        handleTyping(true);
-                      }}
+                      value={inputMessage}
+                      onChange={handleMessageInput}
                       placeholder={dict.chat.input.placeholder}
                       className="flex-1 bg-gray-700/50 backdrop-blur-sm text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 transition-all"
                     />
@@ -834,17 +527,26 @@ export default function Chat({ userId }: ChatProps) {
                               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
                             </div>
                           ) : myPosts.length === 0 ? (
-                            <p className="text-center text-gray-400 py-4">{dict.chat.noPosts}</p>
+                            <p className="text-center text-gray-400 py-4">{dict.explore.noPostsFound}</p>
                           ) : (
                             myPosts.map((post) => (
                               <div
                                 key={post._id}
-                                className="flex items-start space-x-3 p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer transition-all"
+                                className="flex items-start space-x-3 p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer transition-all relative"
                                 onClick={() => {
-                                  handlePostClick(post);
+                                  if (isPostInDiscussion(post._id)) {
+                                    alert(dict.objectDiscussion?.alreadyInDiscussion || "This item is already in discussion.");
+                                    return;
+                                  }
+                                  setSelectedPost(post);
                                   setShowMyPosts(false);
                                 }}
                               >
+                                {isPostInDiscussion(post._id) && (
+                                  <div className="absolute top-2 right-2 z-10 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                                    {dict.objectDiscussion?.inDiscussion || "In Discussion"}
+                                  </div>
+                                )}
                                 <div className="relative w-16 h-16 flex-shrink-0">
                                   <ImageWithFallback
                                     src={post.imageUrl}
@@ -870,10 +572,10 @@ export default function Chat({ userId }: ChatProps) {
                   </div>
                   <button
                     type="submit"
-                    disabled={!chat.inputMessage.trim() || chat.isSending}
+                    disabled={!inputMessage.trim() || isSending}
                     className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium"
                   >
-                    {chat.isSending ? (
+                    {isSending ? (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     ) : (
                       dict.chat.actions.send

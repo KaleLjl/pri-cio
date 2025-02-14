@@ -142,10 +142,19 @@ class SocketService {
 
   joinRoom(conversationId: string) {
     if (!this.socket?.connected) {
-      console.error("Cannot join room: Socket not connected");
+      console.log("Socket not connected, queueing room join:", conversationId);
       this.activeRooms.add(conversationId);
+      
+      // 如果socket未连接，等待连接后重试
+      if (this.socket) {
+        this.socket.once('connect', () => {
+          console.log("Socket reconnected, joining queued room:", conversationId);
+          this.socket?.emit("join-room", conversationId);
+        });
+      }
       return;
     }
+    
     console.log("Joining room:", conversationId);
     this.activeRooms.add(conversationId);
     this.socket.emit("join-room", conversationId);
@@ -311,6 +320,39 @@ class SocketService {
 
   onConnect(callback: () => void) {
     this.socket?.on("connect", callback);
+  }
+
+  // Send message delivered status
+  sendMessageDelivered(messageId: string) {
+    if (this.socket) {
+      this.socket.emit('message-delivered', messageId);
+    }
+  }
+
+  // Send message read status
+  sendMessageRead(messageId: string) {
+    if (this.socket) {
+      this.socket.emit('message-read', messageId);
+    }
+  }
+
+  // Update message status in database
+  async updateMessageStatus(messageId: string, status: string) {
+    try {
+      const response = await fetch('/api/chat/messages', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messageId, status }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update message status');
+      }
+    } catch (error) {
+      console.error('Error updating message status:', error);
+    }
   }
 }
 

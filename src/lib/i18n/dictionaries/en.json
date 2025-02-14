@@ -204,8 +204,12 @@
     "send": "Send",
     "complete": "Complete Deal",
     "completed": "Deal Completed",
+    "canceled": "Deal Canceled",
+    "discussing": "In Discussion",
     "buyerLabel": "Buy",
     "sellerLabel": "Sell",
-    "noChangesMessage": "Please modify the price, location, or meeting time before sending a new proposal"
+    "noChangesMessage": "Please modify the price, location, or meeting time before sending a new proposal",
+    "dealError": "Failed to complete deal. Please try again.",
+    "alreadyInDiscussion": "This item is already in discussion"
   }
 } 

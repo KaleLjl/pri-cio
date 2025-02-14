@@ -1,18 +1,20 @@
-export interface Profile {
+export interface UserProfile {
+  _id: string;
   email?: string;
   name?: string;
   about?: string;
   website?: string;
   avatarUrl?: string | null;
-  updatedAt?: Date;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface UseProfilePage {
   avatarUrl: string | null;
-  formData: Profile;
+  formData: UserProfile;
   handleAvatarChange: (file: File) => Promise<void>;
   handleInputChange: (name: string, value: string) => void;
   resetForm: () => void;
   saveProfile: () => Promise<void>;
-  fetchProfileData: () => Promise<Profile>;
-}
+  fetchProfileData: () => Promise<UserProfile>;
+} 
