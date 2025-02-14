@@ -11,13 +11,13 @@ export class ChatCacheManager {
   }
 
   // 处理新消息
-  public handleNewMessage(message: ChatMessage) {
+  public async handleNewMessage(message: ChatMessage) {
     // 先获取现有缓存
     const existingData = this.queryClient.getQueryData<InfiniteData<MessagesResponse>>(
       ["chat-messages", message.conversationId]
     );
 
-    // 更新缓存
+    // 更新消息缓存
     this.queryClient.setQueryData<InfiniteData<MessagesResponse>>(
       ["chat-messages", message.conversationId],
       (old) => {
@@ -41,26 +41,17 @@ export class ChatCacheManager {
         }
 
         // 创建新的数据结构
-        const newPages = old.pages.map((page, index) => ({
-          ...page,
-          messages: index === old.pages.length - 1 
-            ? [...page.messages, message]
-            : page.messages
-        }));
-
         return {
           ...old,
-          pages: newPages
+          pages: old.pages.map((page, index) => ({
+            ...page,
+            messages: index === old.pages.length - 1 
+              ? [...page.messages, message]
+              : page.messages
+          }))
         };
       }
     );
-
-    // 强制通知更新，但不重新获取
-    this.queryClient.invalidateQueries({
-      queryKey: ["chat-messages", message.conversationId],
-      exact: true,
-      refetchType: "none"
-    });
 
     // 更新聊天历史缓存
     this.queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
@@ -77,14 +68,13 @@ export class ChatCacheManager {
           senderId: message.senderId,
         };
 
-        const isReceiver = message.receiverId === message.receiverId; // 判断当前用户是否是接收者
+        const isReceiver = message.receiverId === message.receiverId;
         const currentUnreadCount = updated[chatIndex].unreadCount || 0;
 
         updated[chatIndex] = {
           ...updated[chatIndex],
           lastMessage,
           updatedAt: message.createdAt,
-          // 如果是接收者且消息状态不是'read'，则增加未读计数
           unreadCount: isReceiver && message.status !== 'read' 
             ? currentUnreadCount + 1 
             : currentUnreadCount
@@ -94,10 +84,17 @@ export class ChatCacheManager {
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
     });
+
+    // 强制通知更新，但不重新获取
+    this.queryClient.invalidateQueries({
+      queryKey: ["chat-messages", message.conversationId],
+      exact: true,
+      refetchType: "none"
+    });
   }
 
   // 处理新对话
-  public async handleNewConversation(conversationId: string) {
+  public async handleNewConversation(conversationId: string): Promise<void> {
     const currentChats = this.queryClient.getQueryData<ChatRecord[]>(["chat-history"]) || [];
     const conversationExists = currentChats.some(chat => chat._id === conversationId);
     
@@ -110,11 +107,20 @@ export class ChatCacheManager {
         const newChats = await response.json();
         
         if (Array.isArray(newChats)) {
-          this.queryClient.setQueryData(["chat-history"], newChats);
+          // 等待缓存更新完成
+          await this.queryClient.setQueryData(["chat-history"], newChats);
+          
+          // 确保新对话已经加入到缓存中
+          const updatedChats = this.queryClient.getQueryData<ChatRecord[]>(["chat-history"]) || [];
+          if (!updatedChats.some(chat => chat._id === conversationId)) {
+            // 如果仍然没有找到对话，强制刷新
+            await this.queryClient.invalidateQueries({ queryKey: ["chat-history"] });
+          }
         }
       } catch (error) {
         console.error("Error fetching new chat history:", error);
-        this.queryClient.invalidateQueries({ queryKey: ["chat-history"] });
+        // 发生错误时强制刷新
+        await this.queryClient.invalidateQueries({ queryKey: ["chat-history"] });
       }
     }
   }

@@ -46,11 +46,19 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         
         // 初始化事件监听
         socketManager.initializeEventListeners({
-          onNewMessage: (message) => {
+          onNewMessage: async (message) => {
+            // 检查是否是新对话的消息
+            const chats = queryClient.getQueryData<ChatRecord[]>(["chat-history"]) || [];
+            if (!chats.some(chat => chat._id === message.conversationId)) {
+              // 如果是新对话，先等待处理新对话
+              await cacheManager.handleNewConversation(message.conversationId);
+            }
+            // 然后再处理消息
             cacheManager.handleNewMessage(message);
           },
-          onNewConversation: ({ conversationId }) => {
-            cacheManager.handleNewConversation(conversationId);
+          onNewConversation: async ({ conversationId }) => {
+            // 确保新对话被完全处理
+            await cacheManager.handleNewConversation(conversationId);
           },
           onMessageDelivered: (messageId) => {
             cacheManager.updateMessageStatus(messageId, "delivered");
@@ -73,7 +81,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         socketService.disconnect();
       }
     };
-  }, [session, currentUser, socketManager, cacheManager]);
+  }, [session, currentUser, socketManager, cacheManager, queryClient]);
 
   // 监听聊天列表变化并管理房间
   useEffect(() => {
