@@ -9,7 +9,7 @@ import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { useQueryClient } from '@tanstack/react-query';
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { SocketContext } from '@/lib/context/SocketContext';
 
 export default function ChatHistoryClient() {
@@ -18,6 +18,19 @@ export default function ChatHistoryClient() {
   const { chats, loading, error, deleteMessages, markAsRead } = useChatHistory();
   const queryClient = useQueryClient();
   const socket = useContext(SocketContext);
+
+  // 添加实时更新支持
+  useEffect(() => {
+    // 当组件挂载时，确保聊天历史是最新的
+    queryClient.invalidateQueries({ queryKey: ["chat-history"] });
+
+    // 可选：定期刷新以确保同步
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["chat-history"] });
+    }, 30000); // 每30秒刷新一次
+
+    return () => clearInterval(interval);
+  }, [queryClient]);
 
   // 格式化日期
   const formatDate = (dateString: string) => {
