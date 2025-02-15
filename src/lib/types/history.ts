@@ -1,6 +1,6 @@
 export interface HistoryItem {
   _id: string;
-  imageUrl: string;
+  imageUrl: string[];
   price: string;
   description: string;
   createdAt: string;
