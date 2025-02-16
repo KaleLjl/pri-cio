@@ -9,7 +9,6 @@ import LogoImage from '/public/image/logo.png';
 import { FaSearch, FaGlobe } from 'react-icons/fa';
 import { Avatar, Menu, MenuItem } from '@mui/material';
 import { i18n } from '@/lib/i18n/i18n-config';
-import type { Dictionary } from '@/lib/i18n/types';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import { useLanguage } from '@/lib/context/LanguageContext';
 
@@ -80,7 +79,6 @@ const Navigation: React.FC = () => {
         { label: dict.navigation.app, href: `/${currentLang}/app` },
         { label: dict.navigation.messages || 'Messages', href: `/${currentLang}/chathistory` },
         { label: dict.navigation.createpost || 'Create Post', href: `/${currentLang}/createpost` },
-        { label: 'Upload Images', href: `/${currentLang}/upload` },
         { label: dict.navigation.signout, href: '/' },
         { 
           label: (
