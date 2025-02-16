@@ -60,6 +60,7 @@ export interface Dictionary {
     priceButton: string;
     deleteButton: string;
     exportButton: string;
+    shareButton: string;
     descriptionPlaceholder: string;
     errorTitle: string;
     closeButton: string;
