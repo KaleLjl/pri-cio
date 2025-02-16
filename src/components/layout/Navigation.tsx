@@ -80,6 +80,7 @@ const Navigation: React.FC = () => {
         { label: dict.navigation.app, href: `/${currentLang}/app` },
         { label: dict.navigation.messages || 'Messages', href: `/${currentLang}/chathistory` },
         { label: dict.navigation.createpost || 'Create Post', href: `/${currentLang}/createpost` },
+        { label: 'Upload Images', href: `/${currentLang}/upload` },
         { label: dict.navigation.signout, href: '/' },
         { 
           label: (
