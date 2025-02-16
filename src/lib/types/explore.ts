@@ -2,19 +2,29 @@ import { UserProfile } from './user';
 
 export interface ExploreItem {
     _id: string;
-    imageUrl: string[];
+    images: {
+      id: string;
+      url: string;
+      isPrimary: boolean;
+    }[];
+    imageUrl?: string;
     price: string;
     description: string;
     userEmail: string;
     historyId: string;
     currency: string;
-    userProfile?: UserProfile;
+    userProfile?: {
+      _id?: string;
+      avatarUrl?: string;
+      name?: string;
+    };
     location?: {
       latitude: number;
       longitude: number;
-      city: string;
-      country: string;
-    } | null;
+      city?: string;
+      country?: string;
+    };
+    exploreId?: string;
     createdAt?: string;
     updatedAt?: string;
 }

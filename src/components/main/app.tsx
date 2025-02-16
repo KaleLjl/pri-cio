@@ -69,17 +69,17 @@ export default function ImageCapture() {
       <div className="flex flex-col justify-center mb-4">
         <div className="flex flex-col space-y-4">
           <div className="px-4">
-            {!imageState.selectedImage && (
+            {!imageState.images.length && (
               <h2 className="text-3xl font-light text-white text-center tracking-wide">
                 {dict.app.title}
               </h2>
             )}
-            {imageState.selectedImage && !uiState.isEditing && (
+            {imageState.images.length > 0 && !uiState.isEditing && (
               <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
                 {dict.app.titleWithPrice}
               </h2>
             )}
-            {imageState.selectedImage && uiState.isEditing && (
+            {imageState.images.length > 0 && uiState.isEditing && (
               <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
                 {dict.app.titleEditing}
               </h2>
@@ -87,7 +87,7 @@ export default function ImageCapture() {
           </div>
           
           {/* 货币选择器只在没有图片时显示 */}
-          {!imageState.selectedImage && (
+          {!imageState.images.length && (
             <div className="flex justify-center">
               <select
                 value={metaState.currency}
@@ -126,10 +126,10 @@ export default function ImageCapture() {
         {/* 这是图片的显示区域 */}
         <div className="flex flex-col items-center">
           <div className="w-full max-w-96 aspect-square relative group">
-            {imageState.selectedImage ? (
+            {imageState.primaryImage ? (
               <div className="relative w-full h-full rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                 <Image 
-                  src={imageState.selectedImage} 
+                  src={imageState.primaryImage} 
                   alt="Selected" 
                   fill
                   className="object-cover"
@@ -152,8 +152,51 @@ export default function ImageCapture() {
               </div>
             )}
           </div>
+
+          {/* 缩略图预览区域 */}
+          {imageState.images.length > 0 && (
+            <div className="mt-4 flex gap-2 overflow-x-auto w-full max-w-96 pb-2">
+              {imageState.images.map((image) => (
+                <div
+                  key={image.id}
+                  className={`relative w-16 h-16 flex-shrink-0 cursor-pointer rounded-lg overflow-hidden
+                    ${image.isPrimary ? 'ring-2 ring-purple-500' : 'hover:ring-2 hover:ring-purple-300'}`}
+                  onClick={() => imageActions.setPrimaryImage(image.id)}
+                >
+                  <Image
+                    src={image.url}
+                    alt="Thumbnail"
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                  <button
+                    className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-bl-lg"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      imageActions.removeImage(image.id);
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              <div
+                className="w-16 h-16 flex-shrink-0 border-2 border-dashed border-gray-300 rounded-lg 
+                  flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
+                onClick={imageActions.uploadImageFromDevice}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-400">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </div>
+            </div>
+          )}
+
           {/* 这是价格与描述的显示区域 */}
-          {imageState.selectedImage && (
+          {imageState.primaryImage && (
             <div className="mt-2 text-center w-full space-y-4">
               <div className="flex justify-center">
                 {uiState.isEditing && uiState.activeField === 'price' ? (
@@ -242,7 +285,7 @@ export default function ImageCapture() {
 
       {/* 以下三个区域为不同时候的按钮 */}
       {/* 这是在为上传图片时候显示的按钮 */}
-      {!imageState.selectedImage && (
+      {!imageState.images.length && (
         <div className="flex space-x-4">
           <button onClick={imageActions.uploadImageFromDevice} disabled={aiState.isLoading} className="flex items-center justify-start w-32 px-4 py-2 bg-white text-black rounded-lg hover:bg-purple-500 hover:text-white disabled:opacity-50 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
@@ -253,7 +296,7 @@ export default function ImageCapture() {
         </div>
       )}
       {/* 这是在上传图片后显示的按钮 */}
-      {imageState.selectedImage && (
+      {imageState.images.length > 0 && (
         <div className="flex space-x-4">
           <button 
             onClick={handleToHistory} 
@@ -267,7 +310,7 @@ export default function ImageCapture() {
           </button>
           <button 
             onClick={() => handleShareCardGeneration({
-              imageUrl: imageState.selectedImage,
+              imageUrl: imageState.primaryImage!,
               price: metaState.price,
               description: metaState.description,
               currency: metaState.currency

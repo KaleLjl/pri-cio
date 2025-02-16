@@ -1,86 +1,55 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image, { ImageProps } from 'next/image';
 
-interface ImageWithFallbackProps extends Omit<ImageProps, 'src' | 'alt'> {
-  src: string;
-  alt: string;
+interface ImageWithFallbackProps extends Omit<ImageProps, 'src'> {
+  src: string | undefined;
   isAvatar?: boolean;
+  alt: string;
 }
 
-const ImageWithFallback = ({ src, alt, isAvatar = false, fill, width, height, sizes = "100vw", ...props }: ImageWithFallbackProps) => {
-  const [imgSrc, setImgSrc] = useState(src);
+export default function ImageWithFallback({
+  src,
+  isAvatar = false,
+  alt,
+  ...props
+}: ImageWithFallbackProps) {
   const [error, setError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [fontSize, setFontSize] = useState('1rem');
+  const [fontSize, setFontSize] = useState('16px');
 
   useEffect(() => {
-    setImgSrc(src);
-    setError(false);
-  }, [src]);
-
-  useEffect(() => {
-    if (containerRef.current) {
-      // 获取容器的尺寸
-      const containerWidth = containerRef.current.offsetWidth;
-      // 根据容器宽度计算字体大小，这里使用容器宽度的40%作为字体大小
-      const calculatedSize = Math.floor(containerWidth * 0.4);
-      setFontSize(`${calculatedSize}px`);
+    if (error && isAvatar && containerRef.current) {
+      const containerSize = containerRef.current.offsetWidth;
+      setFontSize(`${containerSize * 0.4}px`);
     }
-  }, [width, height]); // 当宽度或高度改变时重新计算
+  }, [error, isAvatar]);
 
-  const initial = useMemo(() => {
-    if (!alt) return '?';
-    // Split the name by spaces and get initials for each part
-    const initials = alt.split(' ')
-      .map((part: string) => part.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2); // Take up to 2 initials
-    return initials || '?';
-  }, [alt]);
-
-  if (error || !imgSrc) {
+  if (error && isAvatar) {
     return (
       <div 
         ref={containerRef}
-        className={`w-full h-full bg-purple-600 flex items-center justify-center text-white font-semibold ${isAvatar ? 'rounded-full' : 'rounded-[2rem]'}`}
-        style={{ fontSize }}
+        className="w-full h-full bg-purple-600 flex items-center justify-center rounded-full"
+        style={{
+          fontSize,
+          fontWeight: 600,
+          color: 'white',
+          lineHeight: 1,
+          letterSpacing: '-0.05em'
+        }}
       >
-        {initial}
+        {alt.charAt(0).toUpperCase()}
       </div>
     );
   }
 
-  const imageProps = {
-    ...props,
-    src: imgSrc,
-    alt,
-    sizes,
-    onError: () => {
-      setError(true);
-    }
-  };
-
-  // If fill is true, use fill mode
-  if (fill) {
-    return (
-      <Image
-        {...imageProps}
-        fill={true}
-      />
-    );
-  }
-
-  // Otherwise use width/height mode
   return (
     <Image
-      {...imageProps}
-      width={width || 500}
-      height={height || 500}
+      {...props}
+      alt={alt}
+      src={src || '/fallback.jpg'}
+      onError={() => setError(true)}
     />
   );
-};
-
-export default ImageWithFallback; 
+} 

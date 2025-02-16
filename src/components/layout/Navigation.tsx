@@ -88,8 +88,8 @@ const Navigation: React.FC = () => {
               <ImageWithFallback
                 src={currentAvatarUrl || ''}
                 alt={session?.user?.name || emailInitial}
-                layout="fill"
-                objectFit="cover"
+                fill
+                style={{ objectFit: "cover" }}
                 isAvatar={true}
               />
             </div>

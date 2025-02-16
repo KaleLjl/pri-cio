@@ -120,12 +120,12 @@ const ProfilePage = () => {
   
         {/* 头像上传区域 */}
         <Box display="flex" alignItems="center" justifyContent="center" my={4}>
-          <div className="relative w-20 h-20 rounded-full overflow-hidden">
+          <div className="relative w-32 h-32 rounded-full overflow-hidden">
             <ImageWithFallback
               src={displayedAvatar || ''}
               alt={formData.name || emailInitial}
-              layout="fill"
-              objectFit="cover"
+              fill
+              style={{ objectFit: "cover" }}
               isAvatar={true}
             />
           </div>

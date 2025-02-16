@@ -89,8 +89,14 @@ export interface Dictionary {
     editProfile: string;
     savedItems: string;
     postedItems: string;
+    dealingItems: string;
     itemCount: string;
     noDescription: string;
+    noDealingItems: string;
+    buyer: string;
+    seller: string;
+    complete: string;
+    cancel: string;
     actions: {
       post: string;
       posting: string;

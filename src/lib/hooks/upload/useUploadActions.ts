@@ -11,7 +11,7 @@ interface UseUploadActionsParams {
   imageActions: UploadImageProcessActions;
   uiActions: UploadUIActions;
   aiActions: UploadAIActions;
-  saveToHistory: (price: string, description: string, imageUrl: string, currency: string) => Promise<void>;
+  saveToHistory: (price: string, description: string, images: { id: string; url: string; isPrimary: boolean; }[], currency: string) => Promise<void>;
   generateShareCard: (params: { imageUrl: string; price: string; description: string; currency: string; }) => Promise<string>;
 }
 
@@ -36,14 +36,14 @@ export const useUploadActions = ({
   const handleToHistory = useCallback(async () => {
     try {
       uiActions.stopEditing();
-      if (!imageState.selectedImage) {
+      if (!imageState.images.length) {
         throw new Error('No image selected');
       }
 
       await saveToHistory(
         metaState.price, 
         metaState.description, 
-        imageState.selectedImage,
+        imageState.images,
         metaState.currency
       ).catch(error => {
         console.error('Failed to save to history:', {
@@ -52,7 +52,7 @@ export const useUploadActions = ({
           requestData: {
             price: metaState.price,
             description: metaState.description,
-            imageUrl: imageState.selectedImage,
+            images: imageState.images,
             currency: metaState.currency
           }
         });
@@ -66,21 +66,21 @@ export const useUploadActions = ({
         timestamp: new Date().toISOString()
       });
     }
-  }, [imageState.selectedImage, metaState.price, metaState.description, metaState.currency, saveToHistory, uiActions]);
+  }, [imageState.images, metaState.price, metaState.description, metaState.currency, saveToHistory, uiActions]);
 
   const handleAnalyzeImage = useCallback(async () => {
     await aiActions.analyzeImageWithAI(
-      imageState.selectedImage,
+      imageState.primaryImage,
       metaState.currency,
       (description, price) => {
         metaActions.setDescription(description);
         metaActions.setPrice(price);
       }
     );
-  }, [imageState.selectedImage, metaState.currency, aiActions, metaActions]);
+  }, [imageState.primaryImage, metaState.currency, aiActions, metaActions]);
 
   const handleClearAll = useCallback(() => {
-    imageActions.clearImage();
+    imageActions.clearImages();
     metaActions.resetMetaData();
     uiActions.stopEditing();
   }, [imageActions, metaActions, uiActions]);

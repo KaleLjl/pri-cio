@@ -24,7 +24,7 @@ const fetchExplorePosts = async (): Promise<ExploreItem[]> => {
     // Validate and transform the data
     const validatedData = data.map((item: ExploreItem) => ({
       ...item,
-      imageUrl: item.imageUrl || '/image/placeholder.jpg',
+      images: item.images || [],
       createdAt: item.createdAt || new Date().toISOString(),
       description: item.description || 'No description available',
       price: item.price || 0,

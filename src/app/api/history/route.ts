@@ -34,29 +34,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { price, description, imageUrl, currency } = await request.json();
+    const { price, description, images, currency } = await request.json();
     
-    // 1. 先上传图片到 S3
-    const fileName = `history-${session.user.email}-${Date.now()}.jpg`;
-    const s3ImageUrl = await uploadToS3(imageUrl, fileName);
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return NextResponse.json({ error: 'At least one image is required' }, { status: 400 });
+    }
+
+    // 上传所有图片到 S3
+    const uploadedImages = await Promise.all(
+      images.map(async (image) => {
+        if (!image.url) {
+          throw new Error('Image URL is required for each image');
+        }
+        const fileName = `history-${session.user.email}-${Date.now()}-${image.id}.jpg`;
+        const s3ImageUrl = await uploadToS3(image.url, fileName);
+        return {
+          ...image,
+          url: s3ImageUrl
+        };
+      })
+    );
     
     const client = await clientPromise;
     const db = client.db("pri-cio");
     
-    // 2. 保存 S3 URL 到数据库
+    // 保存记录到数据库
     const result = await db.collection("histories").insertOne({
       price,
       description,
       userEmail: session.user.email,
-      imageUrl: s3ImageUrl,  // 使用 S3 URL
+      images: uploadedImages,
       currency,
       createdAt: new Date(),
     });
 
     return NextResponse.json({ 
       success: true, 
-      id: result.insertedId,
-      imageUrl: s3ImageUrl 
+      _id: result.insertedId,
+      images: uploadedImages
     });
   } catch (error) {
     console.error('API Error:', error);

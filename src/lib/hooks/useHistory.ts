@@ -1,8 +1,15 @@
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { HistoryItem, DealingItem } from '@/lib/types/history';
-import { Profile, UseProfilePage } from '../types/users';
 import { socketService } from '@/lib/socket';
+
+interface Profile {
+  name: string;
+  about: string;
+  website: string;
+  avatarUrl: string | null;
+  updatedAt: Date;
+}
 
 export function useHistory(initialData: HistoryItem[] = []) {
   const { data: session } = useSession();
@@ -51,7 +58,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  const saveToHistory = async (price: string, description: string, imageUrl: string, currency: string) => {
+  const saveToHistory = async (price: string, description: string, images: { id: string; url: string; isPrimary: boolean; }[], currency: string) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
     }
@@ -66,8 +73,8 @@ export function useHistory(initialData: HistoryItem[] = []) {
         body: JSON.stringify({
           price,
           description,
-          imageUrl,
-          currency, // Include currency here
+          images,
+          currency,
           userEmail: session.user.email,
         }),
       });
@@ -138,7 +145,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  const postHistoryToExplore = async (history: HistoryItem & { location?: { latitude: number; longitude: number } }) => {
+  const postHistoryToExplore = async (history: HistoryItem) => {
     if (!session?.user?.email) {
       throw new Error('User not authenticated');
     }
@@ -151,10 +158,46 @@ export function useHistory(initialData: HistoryItem[] = []) {
       throw new Error('Please wait 5 seconds before posting again');
     }
 
+    // Validate images
+    if (!history.images || history.images.length === 0) {
+      throw new Error('At least one image is required');
+    }
+
+    // Ensure there is a primary image
+    const hasPrimaryImage = history.images.some(img => img.isPrimary);
+    if (!hasPrimaryImage) {
+      throw new Error('A primary image must be selected');
+    }
+
     setCanPost(false);
     setIsSaving(true);
 
     try {
+      // If location is provided, try to get city and country using OpenCage API
+      let enrichedLocation = history.location;
+      if (history.location) {
+        try {
+          const apiKey = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
+          const response = await fetch(
+            `https://api.opencagedata.com/geocode/v1/json?q=${history.location.latitude}+${history.location.longitude}&key=${apiKey}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.results?.[0]?.components) {
+              const components = data.results[0].components;
+              enrichedLocation = {
+                ...history.location,
+                city: components.city || components.town || components.village || components.suburb,
+                country: components.country
+              };
+            }
+          }
+        } catch (error) {
+          console.error('Failed to enrich location data:', error);
+          // Continue with original location if enrichment fails
+        }
+      }
+
       const response = await fetch('/api/explore', {
         method: 'POST',
         headers: {
@@ -163,10 +206,10 @@ export function useHistory(initialData: HistoryItem[] = []) {
         body: JSON.stringify({
           price: history.price,
           description: history.description,
-          imageUrl: history.imageUrl,
+          images: history.images,
           userEmail: session.user.email,
           currency: history.currency,
-          location: history.location,
+          location: enrichedLocation,
           historyId: history._id,
         }),
       });

@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useHistory } from '@/lib/hooks/useHistory';
-import { HistoryItem } from '@/lib/types/history';
+import { HistoryItem, DealingItem } from '@/lib/types/history';
 import { useSession } from 'next-auth/react'; // To fetch user session data
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Switch } from '@headlessui/react';
 import Modal from '@/components/shared/Modal';
 import Toast from '@/components/shared/Toast';
@@ -16,6 +16,8 @@ import { CURRENCIES, Currency } from '@/components/main/App'; // Import types an
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
+import ItemDetailModal from '@/components/shared/ItemDetailModal';
+import { useRouter } from 'next/navigation';
 
 interface HistoryProps {
   histories: HistoryItem[];
@@ -68,6 +70,9 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     const isDealing = dealingHistories.some(deal => deal._id === history._id);
     return !isPosted && !isDealing;
   }).length;
+
+  const router = useRouter();
+  const currentUserId = session?.user?.id || '';
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -155,6 +160,12 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   };
 
   const [actionInProgress, setActionInProgress] = useState<{[key: string]: string}>({});
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [selectedHistory, setSelectedHistory] = useState<HistoryItem | null>(null);
+  const [showLocationOptionModal, setShowLocationOptionModal] = useState(false);
+  const [selectedCard, setSelectedCard] = useState<HistoryItem | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
 
   const handleDelete = async (historyId: string) => {
     try {
@@ -171,38 +182,6 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     }
   };
 
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [showLocationModal, setShowLocationModal] = useState(false);
-  const [selectedHistory, setSelectedHistory] = useState<HistoryItem | null>(null);
-  const [showLocationOptionModal, setShowLocationOptionModal] = useState(false);
-  
-  const handlePost = async (history: HistoryItem) => {
-    try {
-      setActionInProgress({...actionInProgress, [history._id]: 'posting'});
-      if (locationPermission === 'granted') {
-        await postHistoryToExplore(history);
-        showNewToast('Successfully posted to explore!', 'success');
-        return;
-      }
-
-      if (locationPermission === 'denied') {
-        await postHistoryToExplore(history);
-        showNewToast('Successfully posted to explore!', 'success');
-        return;
-      }
-
-      setSelectedHistory(history);
-      setShowLocationModal(true);
-    } catch (error) {
-      showNewToast(
-        error instanceof Error ? error.message : 'Failed to post history',
-        'error'
-      );
-    } finally {
-      setActionInProgress({...actionInProgress, [history._id]: ''});
-    }
-  };
-  
   const handlelocation = async (history: HistoryItem) => {
     setSelectedHistory(history); // Set the selected history
     setShowLocationOptionModal(true);
@@ -272,32 +251,30 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     }
   };
 
-  const [editingHistory, setEditingHistory] = useState<HistoryItem | null>(null);
-  const [editPrice, setEditPrice] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-
-  const handleEdit = (history: HistoryItem) => {
-    setEditingHistory(history);
-    setEditPrice(history.price || '');
-    setEditDescription(history.description || '');
-    setActiveDropdown(null);
-  };
-
-  const handleUpdate = async () => {
-    if (!editingHistory) return;
-
+  const handlePost = async (history: HistoryItem) => {
     try {
-      await updateHistory(editingHistory._id, {
-        price: editPrice,
-        description: editDescription,
-      });
-      setEditingHistory(null);
-      showNewToast('Successfully updated!', 'success');
+      setActionInProgress({...actionInProgress, [history._id]: 'posting'});
+      if (locationPermission === 'granted') {
+        await postHistoryToExplore(history);
+        showNewToast('Successfully posted to explore!', 'success');
+        return;
+      }
+
+      if (locationPermission === 'denied') {
+        await postHistoryToExplore(history);
+        showNewToast('Successfully posted to explore!', 'success');
+        return;
+      }
+
+      setSelectedHistory(history);
+      setShowLocationModal(true);
     } catch (error) {
       showNewToast(
-        error instanceof Error ? error.message : 'Failed to update history',
+        error instanceof Error ? error.message : 'Failed to post history',
         'error'
       );
+    } finally {
+      setActionInProgress({...actionInProgress, [history._id]: ''});
     }
   };
 
@@ -333,6 +310,76 @@ export default function History({ histories: initialHistories }: HistoryProps) {
       );
     }
   };
+
+  const handleOpenCard = useCallback((item: HistoryItem) => {
+    setSelectedCard({
+      ...item,
+      userProfile: {
+        _id: userId,
+        name: session?.user?.name || '',
+        avatarUrl: avatarUrl || ''
+      }
+    });
+    setCurrentImageIndex(0);
+  }, [userId, session?.user?.name, avatarUrl]);
+
+  const handlePrevImage = useCallback(() => {
+    if (!selectedCard?.images?.length) return;
+    const images = selectedCard.images;
+    setCurrentImageIndex((prev) => 
+      (prev - 1 + images.length) % images.length
+    );
+  }, [selectedCard]);
+
+  const handleNextImage = useCallback(() => {
+    if (!selectedCard?.images?.length) return;
+    const images = selectedCard.images;
+    setCurrentImageIndex((prev) => 
+      (prev + 1) % images.length
+    );
+  }, [selectedCard]);
+
+  const handleGetDirections = useCallback(
+    (lat: number, lng: number) => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            window.open(
+              `https://www.google.com/maps/dir/?api=1&origin=${pos.coords.latitude},${pos.coords.longitude}&destination=${lat},${lng}`,
+              '_blank'
+            );
+          },
+          (err) => {
+            console.error('Error fetching location:', err);
+            alert(dict.around.enableLocation);
+          }
+        );
+      } else {
+        alert(dict.around.geolocationNotSupported);
+      }
+    },
+    [dict.around]
+  );
+
+  const handleSendMessage = useCallback(
+    (userId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!userId) return;
+      if (currentUserId === userId) return;
+      router.push(`/chat/${userId}`);
+    },
+    [router, currentUserId]
+  );
+
+  const handleAvatarClick = useCallback(
+    (userId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!userId) return;
+      if (currentUserId === userId) return;
+      router.push(`/chat/${userId}`);
+    },
+    [router, currentUserId]
+  );
 
   if (error) {
     return <div className="text-center py-10 text-red-500">{dict.history.error}</div>;
@@ -420,17 +467,38 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                 .map((history) => (
                   <div
                     key={history._id}
-                    className="relative bg-white rounded-2xl shadow-lg overflow-hidden group w-60 h-80 mx-auto"
+                    className="relative bg-white rounded-2xl shadow-lg overflow-hidden group w-60 h-80 mx-auto cursor-pointer"
                     onMouseLeave={() => setActiveDropdown(null)}
+                    onClick={() => handleOpenCard(history)}
                   >
                     <div className="relative w-full h-full">
+                      {/* Primary Image */}
                       <Image
-                        src={history.imageUrl}
+                        src={
+                          history.images 
+                            ? (history.images.find(img => img.isPrimary)?.url || history.images[0]?.url || '/fallback.jpg')
+                            : history.imageUrl || '/fallback.jpg'
+                        }
                         alt={history.description || dict.history.noDescription}
                         fill
                         style={{ objectFit: "cover" }}
                         className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
                       />
+                      
+                      {/* Thumbnail Navigation */}
+                      {history.images && history.images.length > 1 && (
+                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
+                          {history.images.map((image, index) => (
+                            <div
+                              key={image.id}
+                              className={`w-2 h-2 rounded-full ${
+                                image.isPrimary ? 'bg-white' : 'bg-gray-400'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      )}
+
                       <div className="absolute top-2 right-2 flex items-center gap-2">
                         <div className="relative">
                           <button
@@ -453,17 +521,6 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                               >
                                 <i className="fas fa-share mr-2"></i>
                                 {actionInProgress[history._id] === 'posting' ? dict.history.actions.posting : dict.history.actions.post}
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit(history);
-                                }}
-                                className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
-                                disabled={!!actionInProgress[history._id]}
-                              >
-                                <i className="fas fa-edit mr-2"></i>
-                                {dict.history.actions.edit}
                               </button>
                               <button
                                 onClick={(e) => {
@@ -533,17 +590,38 @@ export default function History({ histories: initialHistories }: HistoryProps) {
               {postedHistories.map((history) => (
                 <div
                   key={history._id}
-                  className="relative bg-white rounded-2xl shadow-lg overflow-hidden group w-60 h-80 mx-auto"
+                  className="relative bg-white rounded-2xl shadow-lg overflow-hidden group w-60 h-80 mx-auto cursor-pointer"
                   onMouseLeave={() => setActiveDropdown(null)}
+                  onClick={() => handleOpenCard(history)}
                 >
                   <div className="relative w-full h-full">
+                    {/* Primary Image */}
                     <Image
-                      src={history.imageUrl}
+                      src={
+                        history.images 
+                          ? (history.images.find(img => img.isPrimary)?.url || history.images[0]?.url || '/fallback.jpg')
+                          : history.imageUrl || '/fallback.jpg'
+                      }
                       alt={history.description || dict.history.noDescription}
                       fill
                       style={{ objectFit: "cover" }}
                       className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
                     />
+                    
+                    {/* Thumbnail Navigation */}
+                    {history.images && history.images.length > 1 && (
+                      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
+                        {history.images.map((image, index) => (
+                          <div
+                            key={image.id}
+                            className={`w-2 h-2 rounded-full ${
+                              image.isPrimary ? 'bg-white' : 'bg-gray-400'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+
                     <div className="absolute top-2 right-2 flex items-center gap-2">
                       <div className="relative">
                         <button
@@ -636,7 +714,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                 >
                   <div className="relative w-full h-full">
                     <Image
-                      src={item.imageUrl}
+                      src={item.imageUrl || '/fallback.jpg'}
                       alt={item.description || dict.history.noDescription}
                       fill
                       style={{ objectFit: "cover" }}
@@ -726,16 +804,6 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           onClose={() => setShowLocationOptionModal(false)}
           onUseCurrentLocation={handleSetLocation}
         />
-        <EditModal
-          isOpen={!!editingHistory}
-          onClose={() => setEditingHistory(null)}
-          onSave={handleUpdate}
-          price={editPrice}
-          description={editDescription}
-          onPriceChange={setEditPrice}
-          onDescriptionChange={setEditDescription}
-        />
-
         <Toast 
           message={toastMessage}
           isVisible={showToast}
@@ -744,6 +812,39 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           duration={2000}
         />
       </div>
+
+      <AnimatePresence>
+        {selectedCard && (
+          <ItemDetailModal
+            item={selectedCard}
+            currentImageIndex={currentImageIndex}
+            onClose={() => setSelectedCard(null)}
+            onPrevImage={handlePrevImage}
+            onNextImage={handleNextImage}
+            onAvatarClick={handleAvatarClick}
+            onSendMessage={handleSendMessage}
+            onGetDirections={handleGetDirections}
+            currentUserId={currentUserId}
+            onUpdate={async (id, updates) => {
+              await updateHistory(id, updates);
+              // Update both histories and selectedCard
+              const updatedHistories = histories.map(h => 
+                h._id === id ? { ...h, ...updates } : h
+              );
+              setHistories(updatedHistories);
+              
+              // Update postedHistories immediately
+              const updatedPostedHistories = updatedHistories.filter(history => history.exploreId);
+              setPostedHistories(updatedPostedHistories);
+              
+              // Update the selectedCard to reflect changes immediately
+              setSelectedCard(prev => prev ? { ...prev, ...updates } : null);
+              
+              showNewToast('Successfully updated!', 'success');
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -33,18 +33,24 @@ export async function DELETE(
       return NextResponse.json({ error: 'History not found' }, { status: 404 });
     }
 
-    await deleteFromS3(history.imageUrl);
+    // 删除所有相关的图片
+    if (history.images && Array.isArray(history.images)) {
+      await Promise.all(
+        history.images.map(image => deleteFromS3(image.url))
+      );
+    }
 
     await db.collection("histories").deleteOne({
       _id: new ObjectId(historyId),
       userEmail: session.user.email
     });
 
-    // Also delete the corresponding explore item
-    await db.collection("explore").deleteOne({
-      imageUrl: history.imageUrl, // Match the image URL to ensure the correct card is deleted
-      userEmail: session.user.email,
-    });
+    // 同时删除对应的 explore 记录
+    if (history.exploreId) {
+      await db.collection("explore").deleteOne({
+        _id: new ObjectId(history.exploreId)
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

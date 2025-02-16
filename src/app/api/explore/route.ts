@@ -63,13 +63,13 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { price, description, imageUrl, location, historyId, currency } = body;
+    const { price, description, images, location, historyId, currency } = body;
 
     // 添加详细的验证
     const validationErrors = [];
     if (!price) validationErrors.push('Price is required');
     if (!description) validationErrors.push('Description is required');
-    if (!imageUrl) validationErrors.push('Image URL is required');
+    if (!images || !Array.isArray(images) || images.length === 0) validationErrors.push('At least one image is required');
     if (!historyId) validationErrors.push('History ID is required');
     if (!currency) validationErrors.push('Currency is required'); 
 
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ 
         message: 'Missing required fields', 
         errors: validationErrors,
-        receivedData: { price, description, imageUrl, historyId }
+        receivedData: { price, description, images, historyId }
       }, { status: 400 });
     }
 
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
     const newPublication = {
       price,
       description,
-      imageUrl,
+      images,
       userEmail: session.user.email,
       userProfile: userProfile ? {
         name: userProfile.name,
