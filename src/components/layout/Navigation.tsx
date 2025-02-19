@@ -6,8 +6,18 @@ import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import LogoImage from '/public/image/logo.png';
-import { FaSearch, FaGlobe } from 'react-icons/fa';
-import { Avatar, Menu, MenuItem } from '@mui/material';
+import {
+  FaSearch,
+  FaGlobe,
+  FaAlignJustify,
+  FaCompass,
+  FaEnvelopeOpenText,
+  FaPenFancy,
+  FaDesktop,
+  FaSignInAlt,
+  FaSignOutAlt,
+} from 'react-icons/fa';
+import { Menu, MenuItem } from '@mui/material';
 import { i18n } from '@/lib/i18n/i18n-config';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import { useLanguage } from '@/lib/context/LanguageContext';
@@ -19,32 +29,46 @@ interface NavItem {
 
 const Navigation: React.FC = () => {
   const { dict } = useLanguage();
-  const [isOpen, setIsOpen] = useState<boolean>(false);
   const { data: session } = useSession();
-  const pathname = usePathname();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
-  // 获取当前语言
+  // Current language from URL
   const currentLang = pathname?.split('/')[1] || 'en';
 
-  // 处理语言菜单
-  const handleLanguageClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
+  // For user avatar
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
 
+  // For toggling the mobile menu (hamburger)
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+
+  // For the top search bar on /explore
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Menu anchor for the language sub-menu
+  const [anchorElLanguage, setAnchorElLanguage] = useState<null | HTMLElement>(null);
+  const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElLanguage(event.currentTarget);
+  };
   const handleLanguageClose = () => {
-    setAnchorEl(null);
+    setAnchorElLanguage(null);
   };
-
   const handleLanguageSelect = (lang: string) => {
-    const newPathname = pathname.replace(`/${currentLang}`, `/${lang}`);
-    router.push(newPathname);
+    const newPath = pathname.replace(`/${currentLang}`, `/${lang}`);
+    router.push(newPath);
     handleLanguageClose();
   };
 
+  // Menu anchor for the three-line icon (desktop)
+  const [anchorElMore, setAnchorElMore] = useState<null | HTMLElement>(null);
+  const handleMoreClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorElMore(event.currentTarget);
+  };
+  const handleMoreClose = () => {
+    setAnchorElMore(null);
+  };
+
+  // Fetch user avatar if logged in
   useEffect(() => {
     const fetchUserAvatar = async () => {
       if (session?.user?.email) {
@@ -54,8 +78,9 @@ const Navigation: React.FC = () => {
             throw new Error(`Failed to fetch user profile: ${response.statusText}`);
           }
           const profiles = await response.json();
-          const userProfile = profiles.find((profile: { email: string }) => profile.email === session.user?.email);
-
+          const userProfile = profiles.find(
+            (profile: { email: string }) => profile.email === session.user?.email
+          );
           if (userProfile?.avatarUrl) {
             setCurrentAvatarUrl(userProfile.avatarUrl);
           } else {
@@ -67,53 +92,84 @@ const Navigation: React.FC = () => {
         }
       }
     };
-
     fetchUserAvatar();
   }, [session?.user?.email]);
 
   const emailInitial = session?.user?.email?.charAt(0).toUpperCase() || 'U';
 
+  // Main nav items
   const navItems: NavItem[] = session
     ? [
-        { label: dict.navigation.explore, href: `/${currentLang}/explore` },
-        { label: dict.navigation.app, href: `/${currentLang}/app` },
-        { label: dict.navigation.messages || 'Messages', href: `/${currentLang}/chathistory` },
-        { label: dict.navigation.createpost || 'Create Post', href: `/${currentLang}/createpost` },
-        { label: dict.navigation.signout, href: '/' },
-        { 
+        {
           label: (
-            <div className="relative w-10 h-10 rounded-full overflow-hidden">
-              <ImageWithFallback
-                src={currentAvatarUrl || ''}
-                alt={session?.user?.name || emailInitial}
-                fill
-                style={{ objectFit: "cover" }}
-                isAvatar={true}
-              />
+            <div className="flex items-center space-x-2">
+              <FaCompass />
+              <span>{dict.navigation.explore}</span>
             </div>
-          ), 
-          href: `/${currentLang}/history` 
+          ),
+          href: `/${currentLang}/explore`,
+        },
+        {
+          label: (
+            <div className="flex items-center space-x-2">
+              <FaEnvelopeOpenText />
+              <span>{dict.navigation.messages || 'Messages'}</span>
+            </div>
+          ),
+          href: `/${currentLang}/chathistory`,
+        },
+        {
+          label: (
+            <div className="flex items-center space-x-2">
+              <FaPenFancy />
+              <span>{dict.navigation.createpost || 'Create Post'}</span>
+            </div>
+          ),
+          href: `/${currentLang}/createpost`,
+        },
+        {
+          label: (
+            <div className="relative w-10 h-10 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-600">
+              {currentAvatarUrl ? (
+                <ImageWithFallback
+                  src={currentAvatarUrl}
+                  alt={session?.user?.name || emailInitial}
+                  layout="fill"
+                  objectFit="cover"
+                  isAvatar
+                />
+              ) : (
+                <div className="flex items-center justify-center w-full h-full bg-gray-500 text-white">
+                  {session?.user?.name ? session.user.name[0] : 'A'}
+                </div>
+              )}
+            </div>
+          ),
+          href: `/${currentLang}/history`,
         },
       ]
     : [
-        { label: dict.navigation.explore, href: `/${currentLang}/explore` },
-        { label: dict.navigation.signin, href: `/${currentLang}/signin` }
+        {
+          label: (
+            <div className="flex items-center space-x-2">
+              <FaCompass />
+              <span>{dict.navigation.explore}</span>
+            </div>
+          ),
+          href: `/${currentLang}/explore`,
+        },
       ];
 
-  const handleNavClick = async (item: NavItem) => {
-    if (item.label === dict.navigation.signout) {
-      await signOut();
-      window.location.href = '/';
-      return;
-    }
+  // For clicking nav items in mobile
+  const handleNavClick = (item: NavItem) => {
     setIsOpen(false);
+    router.push(item.href);
   };
 
+  // Searching on the /explore page
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-
-    // Update the URL dynamically if on the Explore page
     if (pathname === `/${currentLang}/explore`) {
       router.push(`/${currentLang}/explore?search=${encodeURIComponent(query)}`);
     }
@@ -123,24 +179,22 @@ const Navigation: React.FC = () => {
     <nav className="fixed top-0 left-0 w-full z-50 bg-black bg-opacity-50 backdrop-blur-lg">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo Section */}
+          {/* Logo */}
           <div className="flex items-center flex-shrink-0">
             <Link href={`/${currentLang}`} className="flex items-center space-x-2">
               <Image src={LogoImage} alt="Logo" width={50} height={50} />
-              <span className="text-2xl font-bold text-white">
-                PRICIO AI
-              </span>
+              <span className="text-2xl font-bold text-white">PRICIO AI</span>
             </Link>
           </div>
 
-          {/* Search Bar - Only on Explore Page */}
+          {/* Search Bar (only on /explore) */}
           {pathname.includes('/explore') && (
             <div className="flex-grow flex justify-center">
               <div className="relative w-full max-w-xs">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder={dict.navigation.search || "Search..."}
+                  placeholder={dict.navigation.search || 'Search...'}
                   value={searchQuery}
                   onChange={handleSearch}
                   className="pl-10 px-4 py-2 rounded-md border border-gray-300 bg-transparent focus:outline-none focus:border-gray-500 w-full text-white placeholder-gray-400"
@@ -154,23 +208,113 @@ const Navigation: React.FC = () => {
             </div>
           )}
 
-          {/* Desktop Navigation */}
+          {/* Desktop Nav */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-center space-x-4">
-              {/* Language Selector */}
-              <div
-                onClick={handleLanguageClick}
-                className="flex items-center space-x-1 text-white cursor-pointer hover:text-gray-300 transition-colors duration-200"
+              {/* Main nav items */}
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="text-white hover:text-gray-300 transition-colors duration-200"
+                >
+                  {item.label}
+                </Link>
+              ))}
+
+              {/* Three-line icon for extra menu */}
+              <button
+                onClick={handleMoreClick}
+                className="text-white hover:text-gray-300 transition-colors duration-200"
               >
-                <FaGlobe className="w-5 h-5" />
-                <span className="uppercase">{currentLang}</span>
-              </div>
+                <FaAlignJustify className="w-6 h-6" />
+              </button>
               <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
+                anchorEl={anchorElMore}
+                open={Boolean(anchorElMore)}
+                onClose={handleMoreClose}
+                // Add margin-top and smoother corners
+                PaperProps={{
+                  sx: {
+                    mt: 1, // shift menu a bit lower
+                    borderRadius: 2, // smoother corners (8px)
+                    backgroundColor: '#1a1a1a',
+                    color: 'white',
+                  },
+                }}
+              >
+                {session
+                  ? [
+                      <MenuItem
+                        key="app"
+                        onClick={() => {
+                          handleMoreClose();
+                          router.push(`/${currentLang}/app`);
+                        }}
+                        sx={{ '&:hover': { backgroundColor: '#333' } }}
+                      >
+                        <FaDesktop className="mr-2" />
+                        {dict.navigation.app}
+                      </MenuItem>,
+                      <MenuItem
+                        key="lang"
+                        onClick={(event) => {
+                          handleMoreClose();
+                          handleLanguageClick(event);
+                        }}
+                        sx={{ '&:hover': { backgroundColor: '#333' } }}
+                      >
+                        <FaGlobe className="mr-2" />
+                        {currentLang.toUpperCase()}
+                      </MenuItem>,
+                      <MenuItem
+                        key="signout"
+                        onClick={() => {
+                          handleMoreClose();
+                          signOut();
+                        }}
+                        sx={{ '&:hover': { backgroundColor: '#333' } }}
+                      >
+                        <FaSignOutAlt className="mr-2" />
+                        {dict.navigation.signout}
+                      </MenuItem>,
+                    ]
+                  : [
+                      <MenuItem
+                        key="signin"
+                        onClick={() => {
+                          handleMoreClose();
+                          router.push(`/${currentLang}/signin`);
+                        }}
+                        sx={{ '&:hover': { backgroundColor: '#333' } }}
+                      >
+                        <FaSignInAlt className="mr-2" />
+                        {dict.navigation.signin}
+                      </MenuItem>,
+                      <MenuItem
+                        key="lang"
+                        onClick={(event) => {
+                          handleMoreClose();
+                          handleLanguageClick(event);
+                        }}
+                        sx={{ '&:hover': { backgroundColor: '#333' } }}
+                      >
+                        <FaGlobe className="mr-2" />
+                        {currentLang.toUpperCase()}
+                      </MenuItem>,
+                    ]
+                }
+              </Menu>
+
+              {/* Second-level menu for language */}
+              <Menu
+                anchorEl={anchorElLanguage}
+                open={Boolean(anchorElLanguage)}
                 onClose={handleLanguageClose}
                 PaperProps={{
-                  style: {
+                  sx: {
+                    mt: 1, // shift menu a bit lower
+                    borderRadius: 2, // smoother corners
                     backgroundColor: '#1a1a1a',
                     color: 'white',
                   },
@@ -190,22 +334,12 @@ const Navigation: React.FC = () => {
                       },
                     }}
                   >
-                    {locale === 'en' ? dict.navigation.language.en : dict.navigation.language.zh}
+                    {locale === 'en'
+                      ? dict.navigation.language.en
+                      : dict.navigation.language.zh}
                   </MenuItem>
                 ))}
               </Menu>
-
-              {/* Regular Nav Items */}
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="text-white hover:text-gray-300 transition-colors duration-200"
-                  onClick={() => handleNavClick(item)}
-                >
-                  {item.label}
-                </Link>
-              ))}
             </div>
           </div>
 
@@ -215,6 +349,7 @@ const Navigation: React.FC = () => {
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-white hover:text-gray-300"
             >
+              {/* Hamburger / X icon */}
               <svg
                 className="block h-6 w-6"
                 xmlns="http://www.w3.org/2000/svg"
@@ -240,27 +375,104 @@ const Navigation: React.FC = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden">
+        <div className="md:hidden bg-black bg-opacity-80 backdrop-blur-lg">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {/* Language Selector for Mobile */}
-            <div
-              onClick={handleLanguageClick}
-              className="flex items-center space-x-2 px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200"
-            >
-              <FaGlobe className="w-5 h-5" />
-              <span>{dict.navigation.language.select} ({currentLang.toUpperCase()})</span>
-            </div>
-            {/* Regular Nav Items */}
             {navItems.map((item) => (
-              <Link
+              <div
                 key={item.href}
-                href={item.href}
-                className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200"
                 onClick={() => handleNavClick(item)}
+                className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
               >
                 {item.label}
-              </Link>
+              </div>
             ))}
+            <hr className="my-2 border-gray-700" />
+            {session ? (
+              <>
+                <div
+                  onClick={() => {
+                    setIsOpen(false);
+                    router.push(`/${currentLang}/app`);
+                  }}
+                  className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
+                >
+                  <FaDesktop className="inline mr-2" />
+                  {dict.navigation.app}
+                </div>
+                <div
+                  onClick={handleLanguageClick}
+                  className="flex items-center px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
+                >
+                  <FaGlobe className="mr-2" />
+                  {currentLang.toUpperCase()}
+                </div>
+                <div
+                  onClick={() => {
+                    setIsOpen(false);
+                    signOut();
+                  }}
+                  className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
+                >
+                  <FaSignOutAlt className="inline mr-2" />
+                  {dict.navigation.signout}
+                </div>
+              </>
+            ) : (
+              <>
+                <div
+                  onClick={() => {
+                    setIsOpen(false);
+                    router.push(`/${currentLang}/signin`);
+                  }}
+                  className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
+                >
+                  <FaSignInAlt className="inline mr-2" />
+                  {dict.navigation.signin}
+                </div>
+                <div
+                  onClick={handleLanguageClick}
+                  className="flex items-center px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
+                >
+                  <FaGlobe className="mr-2" />
+                  {currentLang.toUpperCase()}
+                </div>
+              </>
+            )}
+
+            {/* Second-level menu for language (mobile) */}
+            <Menu
+              anchorEl={anchorElLanguage}
+              open={Boolean(anchorElLanguage)}
+              onClose={handleLanguageClose}
+              PaperProps={{
+                sx: {
+                  mt: 1,
+                  borderRadius: 2,
+                  backgroundColor: '#1a1a1a',
+                  color: 'white',
+                },
+              }}
+            >
+              {i18n.locales.map((locale) => (
+                <MenuItem
+                  key={locale}
+                  onClick={() => handleLanguageSelect(locale)}
+                  selected={currentLang === locale}
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: '#333',
+                    },
+                    '&.Mui-selected': {
+                      backgroundColor: '#404040',
+                    },
+                  }}
+                >
+                  {locale === 'en'
+                    ? dict.navigation.language.en
+                    : dict.navigation.language.zh}
+                </MenuItem>
+              ))}
+            </Menu>
           </div>
         </div>
       )}
@@ -269,6 +481,9 @@ const Navigation: React.FC = () => {
 };
 
 export default Navigation;
+
+
+
 
 
 
