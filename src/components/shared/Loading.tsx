@@ -14,7 +14,7 @@ export default function Loading({ fullScreen = true, text, spinnerSize = 'md' }:
   };
 
   const containerClasses = fullScreen
-    ? 'fixed inset-0 bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center'
+    ? 'fixed inset-0 bg-black text-white flex items-center justify-center'
     : 'flex items-center justify-center';
 
   return (

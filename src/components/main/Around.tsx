@@ -671,8 +671,11 @@ const Around = () => {
                         {CURRENCIES.find((c) => c.value === selectedPost.currency)?.symbol}{' '}
                         {selectedPost.price}
                       </p>
-
-                      
+                      <p className="text-sm text-gray-500">
+                        Location: {selectedPost.location?.city && selectedPost.location?.country 
+                          ? `${selectedPost.location.city}, ${selectedPost.location.country}` 
+                          : 'No location available'}
+                      </p>
 
                       {/* [NEW CODE]: Display route info (distance & duration) */}
                       {routeInfo && (

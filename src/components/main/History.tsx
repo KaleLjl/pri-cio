@@ -144,7 +144,12 @@ export default function History({ histories: initialHistories }: HistoryProps) {
 
   const handleTabChange = (tab: 'saved' | 'posted' | 'dealing') => {
     if (tab !== activeTab) {
-      setTransitionDirection(tab === 'saved' ? 'left' : tab === 'posted' ? 'right' : 'right');
+      setTransitionDirection(
+        tab === 'saved' ? 'left' : 
+        tab === 'posted' ? (activeTab === 'dealing' ? 'left' : 'right') : 
+        tab === 'dealing' ? 'right' : 
+        'right'
+      );
       setActiveTab(tab);
     }
   };
@@ -568,10 +573,10 @@ export default function History({ histories: initialHistories }: HistoryProps) {
         <div
           ref={postedItemsRef}
           className={`absolute w-full transition-transform duration-300 ${
-            activeTab === "posted" ? "translate-x-0" : "translate-x-full"
+            activeTab === "posted" ? "translate-x-0" : activeTab === "saved" ? "translate-x-full" : "-translate-x-full"
           }`}
           style={{ 
-            transform: activeTab === "posted" ? "translateX(0)" : "translateX(100%)",
+            transform: activeTab === "posted" ? "translateX(0)" : activeTab === "saved" ? "translateX(100%)" : "translateX(-100%)",
             opacity: activeTab === "posted" ? 1 : 0,
             visibility: activeTab === "posted" ? "visible" : "hidden"
           }}
@@ -722,39 +727,50 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                     />
                     
                     {/* Status Badge */}
-                    <div className={`absolute top-2 left-2 px-3 py-1 rounded-full text-sm font-medium ${
-                      item.role === 'buying' ? 'bg-blue-500' : 'bg-green-500'
-                    } text-white shadow-lg`}>
+                    <div
+                      className={`absolute top-2 left-2 px-3 py-1 rounded-full text-sm font-medium ${
+                        item.role === 'buying' ? 'bg-blue-500' : 'bg-green-500'
+                      } text-white shadow-lg`}
+                    >
                       {item.role === 'buying' ? 'Buying' : 'Selling'}
                     </div>
 
                     {/* Deal Status */}
-                    <div className={`absolute top-2 right-2 px-3 py-1 rounded-full text-sm font-medium ${
-                      item.status === 'pending' ? 'bg-yellow-500' :
-                      item.status === 'completed' ? 'bg-green-500' : 'bg-red-500'
-                    } text-white shadow-lg`}>
+                    <div
+                      className={`absolute top-2 right-2 px-3 py-1 rounded-full text-sm font-medium ${
+                        item.status === 'pending'
+                          ? 'bg-yellow-500'
+                          : item.status === 'completed'
+                          ? 'bg-green-500'
+                          : 'bg-red-500'
+                      } text-white shadow-lg`}
+                    >
                       {item.status}
                     </div>
 
                     {/* Item Details */}
-                    <div 
+                    <div
                       className="absolute bottom-0 left-0 w-full text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                       style={{
-                        backgroundImage: 'linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0))',
+                        backgroundImage:
+                          'linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0))',
                         padding: '20px',
                       }}
                     >
                       <p className="text-lg font-semibold text-white mb-2">
-                        {CURRENCIES.find((c: Currency) => c.value === item.currency)?.symbol || item.currency} {item.price || 'N/A'}
+                        {CURRENCIES.find((c: Currency) => c.value === item.currency)?.symbol || item.currency}{' '}
+                        {item.price || 'N/A'}
                       </p>
-                      <p className="text-sm mb-2">{item.description || dict.history.noDescription}</p>
+                      <p className="text-sm mb-2">
+                        {item.description || dict.history.noDescription}
+                      </p>
                       <p className="text-xs text-gray-300 mb-3">
                         {item.createdAt
                           ? new Date(item.createdAt).toLocaleString()
                           : 'Date not available'}
                       </p>
-                      
-                      {/* Action Buttons */}
+
+                      {/* Action Buttons (only if status is pending) */}
                       {item.status === 'pending' && (
                         <div className="flex gap-2 mt-2">
                           <button
