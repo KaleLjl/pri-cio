@@ -11,6 +11,7 @@ import { useUploadUI } from '@/lib/hooks/upload/useUploadUI';
 import { useUploadActions } from '@/lib/hooks/upload/useUploadActions';
 import ChatAIModal from '@/components/shared/ChatAIModal';
 import { useState } from 'react';
+import { useUploadAIChat } from '@/lib/hooks/upload/useUploadAIChat';
 
 export type Currency = {
   value: string;
@@ -44,6 +45,7 @@ export default function ImageCapture() {
   const [metaState, metaActions] = useUploadMetaData();
   const [imageState, imageActions] = useUploadImageProcess();
   const [aiState, aiActions] = useUploadAI();
+  const [aiChatState, aiChatActions] = useUploadAIChat();
   const [uiState, uiActions] = useUploadUI();
   const { saveToHistory, isSaving } = useHistory();
   const { generateShareCard, handleShareCardGeneration, isGenerating } = useShareCard();
@@ -368,7 +370,7 @@ export default function ImageCapture() {
 
       <Modal 
         title={dict.app.errorTitle}
-        message={aiState.errorMessage}
+        message={aiState.errorMessage || ''}
         isOpen={aiState.showErrorModal}
         onClose={aiActions.closeErrorModal}
         onConfirm={aiActions.closeErrorModal}
@@ -378,11 +380,17 @@ export default function ImageCapture() {
 
       <ChatAIModal
         isOpen={showChatAI}
-        onClose={() => setShowChatAI(false)}
+        onClose={() => {
+          setShowChatAI(false);
+          aiChatActions.clearConversation();
+        }}
         onSuccess={handleChatAISuccess}
         imageUrl={imageState.primaryImage || ''}
-        isLoading={aiState.isLoading}
+        isLoading={aiChatState.isLoading}
         currency={metaState.currency}
+        conversation={aiChatState.conversation}
+        onSendMessage={aiChatActions.sendMessage}
+        onInitialAnalysis={aiChatActions.handleInitialAnalysis}
       />
     </>
   );

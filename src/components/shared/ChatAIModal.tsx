@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 
 interface ChatAIModalProps {
@@ -8,11 +8,21 @@ interface ChatAIModalProps {
   imageUrl: string;
   isLoading: boolean;
   currency: string;
-}
-
-interface Message {
-  role: string;
-  content: string;
+  conversation: Array<{ role: string; content: string }>;
+  onSendMessage: (message: string, imageUrl: string, currency: string) => Promise<{
+    reply?: string;
+    postData?: {
+      description: string;
+      price: string;
+    };
+  }>;
+  onInitialAnalysis: (imageUrl: string, currency: string) => Promise<{
+    detailedDescription?: string;
+    postData?: {
+      description: string;
+      price: string;
+    };
+  }>;
 }
 
 export default function ChatAIModal({
@@ -22,124 +32,66 @@ export default function ChatAIModal({
   imageUrl,
   isLoading,
   currency,
+  conversation,
+  onSendMessage,
+  onInitialAnalysis
 }: ChatAIModalProps) {
   const [messageInput, setMessageInput] = useState("");
-  const [conversation, setConversation] = useState<Message[]>([]);
-  const [localLoading, setLocalLoading] = useState(false);
   const [initialAnalysisDone, setInitialAnalysisDone] = useState(false);
+  const [isFirstMount, setIsFirstMount] = useState(true);
 
-  // 当模态框打开时进行初始分析
+  // 只在首次挂载时执行一次
   useEffect(() => {
-    if (isOpen && !initialAnalysisDone && imageUrl) {
-      handleInitialAnalysis();
+    setIsFirstMount(false);
+  }, []);
+
+  // 只在模态框打开且是首次挂载时执行分析
+  useEffect(() => {
+    const shouldAnalyze = isOpen && imageUrl && (isFirstMount || !initialAnalysisDone);
+    
+    if (shouldAnalyze) {
+      (async () => {
+        try {
+          const data = await onInitialAnalysis(imageUrl, currency);
+          if (data?.postData?.description && data?.postData?.price) {
+            onSuccess(data.postData.description, data.postData.price);
+            setTimeout(() => {
+              onClose();
+            }, 1500);
+          }
+          setInitialAnalysisDone(true);
+        } catch (error) {
+          console.error('Initial analysis error:', error);
+        }
+      })();
     }
-  }, [isOpen, imageUrl]);
+  }, [isOpen, imageUrl, isFirstMount]);
 
-  const handleInitialAnalysis = async () => {
-    setLocalLoading(true);
-    try {
-      const response = await fetch('/api/createpost', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          imageUrl,
-          currency,
-          isInitialAnalysis: true
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to analyze image');
-      }
-
-      const data = await response.json();
-
-      if (data.detailedDescription) {
-        setConversation([
-          { role: 'assistant', content: data.detailedDescription }
-        ]);
-      }
-
-      // If we have complete data from initial analysis, update and close
-      if (data.postData?.description && data.postData?.price) {
-        onSuccess(data.postData.description, data.postData.price);
-        // Add a small delay before closing to let the user see the final message
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      }
-
-      setInitialAnalysisDone(true);
-    } catch (error) {
-      console.error('Initial analysis error:', error);
-      setConversation([
-        { role: 'assistant', content: 'Sorry, I encountered an error analyzing the image. Please try asking me about it.' }
-      ]);
-    } finally {
-      setLocalLoading(false);
+  // 重置状态
+  useEffect(() => {
+    if (!isOpen) {
+      setInitialAnalysisDone(false);
     }
-  };
+  }, [isOpen]);
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || localLoading) return;
+    if (!messageInput.trim() || isLoading) return;
 
-    // Add user message to conversation
-    const updatedConversation = [...conversation, { role: 'user', content: messageInput }];
-    setConversation(updatedConversation);
     setMessageInput("");
-    setLocalLoading(true);
 
     try {
-      const response = await fetch('/api/createpost', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          conversation: updatedConversation,
-          imageUrl,
-          currency
-        }),
-      });
+      const data = await onSendMessage(messageInput, imageUrl, currency);
 
-      if (!response.ok) {
-        throw new Error('Failed to communicate with AI');
-      }
-
-      const data = await response.json();
-
-      // Add AI's response to conversation
-      setConversation(prev => [...prev, { role: 'assistant', content: data.reply }]);
-
-      // If we have structured data, pass it to the parent and close the modal
-      if (data.postData?.description && data.postData?.price) {
+      if (data?.postData?.description && data?.postData?.price) {
         onSuccess(data.postData.description, data.postData.price);
-        // Add a small delay before closing to let the user see the final message
         setTimeout(() => {
           onClose();
         }, 1500);
       }
     } catch (error) {
       console.error('Error in chat:', error);
-      setConversation(prev => [
-        ...prev,
-        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }
-      ]);
-    } finally {
-      setLocalLoading(false);
     }
   };
-
-  // Reset state when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setInitialAnalysisDone(false);
-      setConversation([]);
-      setMessageInput("");
-    }
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -185,8 +137,8 @@ export default function ChatAIModal({
           {/* Right side - Chat */}
           <div className="flex-1 flex flex-col">
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto mb-4 space-y-4 min-h-[300px] max-h-[400px] bg-gray-800 rounded-lg p-4">
-              {!initialAnalysisDone && (localLoading || isLoading) ? (
+            <div className="flex-1 overflow-y-auto mb-4 space-y-4 min-h-[400px] h-[400px] bg-gray-800 rounded-lg p-4">
+              {!initialAnalysisDone && (isLoading) ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="text-center">
                     <div className="flex space-x-2 mb-4">
@@ -198,7 +150,7 @@ export default function ChatAIModal({
                   </div>
                 </div>
               ) : (
-                <>
+                <div className="h-full">
                   {conversation.map((msg, idx) => (
                     <div
                       key={idx}
@@ -215,7 +167,7 @@ export default function ChatAIModal({
                       </div>
                     </div>
                   ))}
-                  {(isLoading || localLoading) && (
+                  {(isLoading) && (
                     <div className="flex justify-start">
                       <div className="bg-gray-700 text-white rounded-lg p-3">
                         <div className="flex space-x-2">
@@ -226,7 +178,7 @@ export default function ChatAIModal({
                       </div>
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
 
@@ -243,11 +195,11 @@ export default function ChatAIModal({
                 }}
                 placeholder="Ask about the item..."
                 className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                disabled={!initialAnalysisDone || isLoading || localLoading}
+                disabled={!initialAnalysisDone || isLoading}
               />
               <button
                 onClick={handleSendMessage}
-                disabled={!initialAnalysisDone || isLoading || localLoading || !messageInput.trim()}
+                disabled={!initialAnalysisDone || isLoading || !messageInput.trim()}
                 className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Send
@@ -258,4 +210,4 @@ export default function ChatAIModal({
       </motion.div>
     </motion.div>
   );
-} 
+}
