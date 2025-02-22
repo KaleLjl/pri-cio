@@ -1,3 +1,5 @@
+// 移动 gpt/route.ts 的内容到这里
+// 主要处理快速分析 
 import OpenAI from "openai"
 import { zodResponseFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";

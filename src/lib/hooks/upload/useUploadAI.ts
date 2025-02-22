@@ -1,9 +1,14 @@
 import { useState, useCallback } from 'react';
 
+interface Message {
+  role: string;
+  content: string;
+}
+
 export interface UploadAIState {
   isLoading: boolean;
   showErrorModal: boolean;
-  errorMessage: string;
+  errorMessage: string | null;
 }
 
 export interface UploadAIActions {
@@ -14,7 +19,7 @@ export interface UploadAIActions {
 export const useUploadAI = (): [UploadAIState, UploadAIActions] => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const analyzeImageWithAI = useCallback(async (
     imageUrl: string | null, 
@@ -27,7 +32,7 @@ export const useUploadAI = (): [UploadAIState, UploadAIActions] => {
         throw new Error('No image selected');
       }
 
-      const response = await fetch('/api/gpt', {
+      const response = await fetch('/api/ai/quick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ selectedImage: imageUrl, currency }),
@@ -52,7 +57,7 @@ export const useUploadAI = (): [UploadAIState, UploadAIActions] => {
 
   const closeErrorModal = useCallback(() => {
     setShowErrorModal(false);
-    setErrorMessage('');
+    setErrorMessage(null);
   }, []);
 
   return [

@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import { Readable } from 'stream';
 import dotenv from 'dotenv';
 import { IncomingMessage } from "http";
+import { auth } from '@/lib/auth';
 
 dotenv.config(); // Load environment variables
 
@@ -18,6 +19,11 @@ export const config = {
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const contentType = request.headers.get("content-type") || "";
 
     if (contentType.includes("multipart/form-data")) {
@@ -59,6 +65,9 @@ export async function POST(request: Request) {
       const body = await request.json();
       const { conversation, imageUrl, currency, isInitialAnalysis } = body;
 
+      // 添加日志来追踪调用
+      console.log('API called with:', { isInitialAnalysis, imageUrl: imageUrl.substring(0, 50) + '...' });
+
       if (isInitialAnalysis) {
         if (!imageUrl) {
           return NextResponse.json(
@@ -84,7 +93,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unsupported Content-Type" }, { status: 400 });
   } catch (error) {
     console.error("Error processing the request:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -218,11 +230,4 @@ You must always respond with a valid JSON object, structured as follows:
   }
   return parsed;
 };
-
-
-
-
-
-
-
 
