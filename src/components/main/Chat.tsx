@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { ExploreItem } from '@/lib/types/explore';
-import { CURRENCIES } from '@/components/main/App';
+import { CURRENCIES } from '@/components/main/CreatePost';
 import { useQueryClient } from '@tanstack/react-query';
 import ObjectDiscussion from '@/components/shared/ObjectDiscussion';
 import {

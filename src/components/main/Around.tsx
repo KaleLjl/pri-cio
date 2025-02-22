@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { CURRENCIES } from '@/components/main/App';
+import { CURRENCIES } from '@/components/main/CreatePost';
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import { useCurrentUser } from '@/lib/context/CurrentUserContext';

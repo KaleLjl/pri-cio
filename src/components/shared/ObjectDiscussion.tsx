@@ -1,7 +1,7 @@
 import React from 'react';
 import { ExploreItem } from '@/lib/types/explore';
 import ImageWithFallback from './ImageWithFallback';
-import { CURRENCIES } from '@/components/main/App';
+import { CURRENCIES } from '@/components/main/CreatePost';
 import { useLanguage } from '@/lib/context/LanguageContext';
 
 interface ObjectDiscussionProps {

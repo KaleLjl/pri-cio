@@ -23,8 +23,9 @@ import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import { useLanguage } from '@/lib/context/LanguageContext';
 
 interface NavItem {
-  label: string | JSX.Element;
+  label: JSX.Element;
   href: string;
+  onClick?: (event: React.MouseEvent<HTMLElement>) => void;
 }
 
 const Navigation: React.FC = () => {
@@ -60,16 +61,7 @@ const Navigation: React.FC = () => {
     handleLanguageClose();
   };
 
-  // Menu anchor for the three-line icon (desktop)
-  const [anchorElMore, setAnchorElMore] = useState<null | HTMLElement>(null);
-  const handleMoreClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorElMore(event.currentTarget);
-  };
-  const handleMoreClose = () => {
-    setAnchorElMore(null);
-  };
-
-  // Fetch user avatar and name if logged in
+  // Fetch user avatar if logged in
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (session?.user?.email) {
@@ -129,7 +121,7 @@ const Navigation: React.FC = () => {
           label: (
             <div className="flex items-center space-x-2">
               <FaEnvelopeOpenText />
-              <span>{dict.navigation.messages || 'Messages'}</span>
+              <span>{dict.navigation.messages}</span>
             </div>
           ),
           href: `/${currentLang}/chathistory`,
@@ -138,10 +130,30 @@ const Navigation: React.FC = () => {
           label: (
             <div className="flex items-center space-x-2">
               <FaPenFancy />
-              <span>{dict.navigation.createpost || 'Create Post'}</span>
+              <span>{dict.navigation.createpost}</span>
             </div>
           ),
           href: `/${currentLang}/createpost`,
+        },
+        {
+          label: (
+            <div className="flex items-center space-x-2">
+              <FaGlobe />
+              <span>{currentLang.toUpperCase()}</span>
+            </div>
+          ),
+          href: 'language-selector',
+          onClick: handleLanguageClick
+        },
+        {
+          label: (
+            <div className="flex items-center space-x-2">
+              <FaSignOutAlt />
+              <span>{dict.navigation.signout}</span>
+            </div>
+          ),
+          href: 'sign-out',
+          onClick: () => signOut()
         },
         {
           label: (
@@ -174,12 +186,35 @@ const Navigation: React.FC = () => {
           ),
           href: `/${currentLang}/explore`,
         },
+        {
+          label: (
+            <div className="flex items-center space-x-2">
+              <FaGlobe />
+              <span>{currentLang.toUpperCase()}</span>
+            </div>
+          ),
+          href: 'language-selector',
+          onClick: handleLanguageClick
+        },
+        {
+          label: (
+            <div className="flex items-center space-x-2">
+              <FaSignInAlt />
+              <span>{dict.navigation.signin}</span>
+            </div>
+          ),
+          href: `/${currentLang}/signin`,
+        },
       ];
 
   // For clicking nav items in mobile
-  const handleNavClick = (item: NavItem) => {
-    setIsOpen(false);
-    router.push(item.href);
+  const handleNavClick = (item: NavItem, event: React.MouseEvent<HTMLElement>) => {
+    if (item.onClick) {
+      item.onClick(event);
+    } else {
+      setIsOpen(false);
+      router.push(item.href);
+    }
   };
 
   // Searching on the /explore page
@@ -232,130 +267,17 @@ const Navigation: React.FC = () => {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={(e) => {
+                    if (item.onClick) {
+                      e.preventDefault();
+                      handleNavClick(item, e);
+                    }
+                  }}
                   className="text-white hover:text-gray-300 transition-colors duration-200"
                 >
                   {item.label}
                 </Link>
               ))}
-
-              {/* Three-line icon for extra menu */}
-              <button
-                onClick={handleMoreClick}
-                className="text-white hover:text-gray-300 transition-colors duration-200"
-              >
-                <FaAlignJustify className="w-6 h-6" />
-              </button>
-              <Menu
-                anchorEl={anchorElMore}
-                open={Boolean(anchorElMore)}
-                onClose={handleMoreClose}
-                // Add margin-top and smoother corners
-                PaperProps={{
-                  sx: {
-                    mt: 1, // shift menu a bit lower
-                    borderRadius: 2, // smoother corners (8px)
-                    backgroundColor: '#1a1a1a',
-                    color: 'white',
-                  },
-                }}
-              >
-                {session
-                  ? [
-                      <MenuItem
-                        key="app"
-                        onClick={() => {
-                          handleMoreClose();
-                          router.push(`/${currentLang}/app`);
-                        }}
-                        sx={{ '&:hover': { backgroundColor: '#333' } }}
-                      >
-                        <FaDesktop className="mr-2" />
-                        {dict.navigation.app}
-                      </MenuItem>,
-                      <MenuItem
-                        key="lang"
-                        onClick={(event) => {
-                          handleMoreClose();
-                          handleLanguageClick(event);
-                        }}
-                        sx={{ '&:hover': { backgroundColor: '#333' } }}
-                      >
-                        <FaGlobe className="mr-2" />
-                        {currentLang.toUpperCase()}
-                      </MenuItem>,
-                      <MenuItem
-                        key="signout"
-                        onClick={() => {
-                          handleMoreClose();
-                          signOut();
-                        }}
-                        sx={{ '&:hover': { backgroundColor: '#333' } }}
-                      >
-                        <FaSignOutAlt className="mr-2" />
-                        {dict.navigation.signout}
-                      </MenuItem>,
-                    ]
-                  : [
-                      <MenuItem
-                        key="signin"
-                        onClick={() => {
-                          handleMoreClose();
-                          router.push(`/${currentLang}/signin`);
-                        }}
-                        sx={{ '&:hover': { backgroundColor: '#333' } }}
-                      >
-                        <FaSignInAlt className="mr-2" />
-                        {dict.navigation.signin}
-                      </MenuItem>,
-                      <MenuItem
-                        key="lang"
-                        onClick={(event) => {
-                          handleMoreClose();
-                          handleLanguageClick(event);
-                        }}
-                        sx={{ '&:hover': { backgroundColor: '#333' } }}
-                      >
-                        <FaGlobe className="mr-2" />
-                        {currentLang.toUpperCase()}
-                      </MenuItem>,
-                    ]
-                }
-              </Menu>
-
-              {/* Second-level menu for language */}
-              <Menu
-                anchorEl={anchorElLanguage}
-                open={Boolean(anchorElLanguage)}
-                onClose={handleLanguageClose}
-                PaperProps={{
-                  sx: {
-                    mt: 1, // shift menu a bit lower
-                    borderRadius: 2, // smoother corners
-                    backgroundColor: '#1a1a1a',
-                    color: 'white',
-                  },
-                }}
-              >
-                {i18n.locales.map((locale) => (
-                  <MenuItem
-                    key={locale}
-                    onClick={() => handleLanguageSelect(locale)}
-                    selected={currentLang === locale}
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: '#333',
-                      },
-                      '&.Mui-selected': {
-                        backgroundColor: '#404040',
-                      },
-                    }}
-                  >
-                    {locale === 'en'
-                      ? dict.navigation.language.en
-                      : dict.navigation.language.zh}
-                  </MenuItem>
-                ))}
-              </Menu>
             </div>
           </div>
 
@@ -396,7 +318,12 @@ const Navigation: React.FC = () => {
             {navItems.map((item) => (
               <div
                 key={item.href}
-                onClick={() => handleNavClick(item)}
+                onClick={(e) => {
+                  if (item.onClick) {
+                    e.preventDefault();
+                    handleNavClick(item, e);
+                  }
+                }}
                 className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
               >
                 {item.label}
@@ -406,9 +333,17 @@ const Navigation: React.FC = () => {
             {session ? (
               <>
                 <div
-                  onClick={() => {
-                    setIsOpen(false);
-                    router.push(`/${currentLang}/app`);
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavClick({
+                      label: (
+                        <div className="flex items-center space-x-2">
+                          <FaDesktop />
+                          <span>{dict.navigation.app}</span>
+                        </div>
+                      ),
+                      href: `/${currentLang}/app`,
+                    }, e);
                   }}
                   className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
                 >
@@ -416,16 +351,37 @@ const Navigation: React.FC = () => {
                   {dict.navigation.app}
                 </div>
                 <div
-                  onClick={handleLanguageClick}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavClick({
+                      label: (
+                        <div className="flex items-center space-x-2">
+                          <FaGlobe />
+                          <span>{currentLang.toUpperCase()}</span>
+                        </div>
+                      ),
+                      href: 'language-selector',
+                      onClick: handleLanguageClick
+                    }, e);
+                  }}
                   className="flex items-center px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
                 >
                   <FaGlobe className="mr-2" />
                   {currentLang.toUpperCase()}
                 </div>
                 <div
-                  onClick={() => {
-                    setIsOpen(false);
-                    signOut();
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavClick({
+                      label: (
+                        <div className="flex items-center space-x-2">
+                          <FaSignOutAlt />
+                          <span>{dict.navigation.signout}</span>
+                        </div>
+                      ),
+                      href: 'sign-out',
+                      onClick: () => signOut()
+                    }, e);
                   }}
                   className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
                 >
@@ -436,9 +392,17 @@ const Navigation: React.FC = () => {
             ) : (
               <>
                 <div
-                  onClick={() => {
-                    setIsOpen(false);
-                    router.push(`/${currentLang}/signin`);
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavClick({
+                      label: (
+                        <div className="flex items-center space-x-2">
+                          <FaSignInAlt />
+                          <span>{dict.navigation.signin}</span>
+                        </div>
+                      ),
+                      href: `/${currentLang}/signin`,
+                    }, e);
                   }}
                   className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
                 >
@@ -446,7 +410,19 @@ const Navigation: React.FC = () => {
                   {dict.navigation.signin}
                 </div>
                 <div
-                  onClick={handleLanguageClick}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavClick({
+                      label: (
+                        <div className="flex items-center space-x-2">
+                          <FaGlobe />
+                          <span>{currentLang.toUpperCase()}</span>
+                        </div>
+                      ),
+                      href: 'language-selector',
+                      onClick: handleLanguageClick
+                    }, e);
+                  }}
                   className="flex items-center px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
                 >
                   <FaGlobe className="mr-2" />
