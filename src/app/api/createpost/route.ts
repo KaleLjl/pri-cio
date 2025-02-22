@@ -52,12 +52,23 @@ export async function POST(request: Request) {
       }
 
       const base64Image = await encodeImageToBase64(imageFile.filepath);
-      const detailedDescription = await analyzeImageWithOpenAI(base64Image);
+      const detailedDescription = await analyzeImageWithOpenAI(base64Image, 'USD');
 
       return NextResponse.json({ detailedDescription });
     } else if (contentType.includes("application/json")) {
       const body = await request.json();
-      const { conversation } = body;
+      const { conversation, imageUrl, currency, isInitialAnalysis } = body;
+
+      if (isInitialAnalysis) {
+        if (!imageUrl) {
+          return NextResponse.json(
+            { error: "Image URL is required for analysis" },
+            { status: 400 }
+          );
+        }
+        const detailedDescription = await analyzeImageWithOpenAI(imageUrl, currency);
+        return NextResponse.json({ detailedDescription });
+      }
 
       if (!Array.isArray(conversation)) {
         return NextResponse.json(
@@ -66,7 +77,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const reply = await getNextAssistantMessage(conversation);
+      const reply = await getNextAssistantMessage(conversation, currency);
       return NextResponse.json(reply);
     }
 
@@ -84,7 +95,14 @@ const encodeImageToBase64 = async (filepath: string): Promise<string> => {
 };
 
 // Function to analyze image using OpenAI's GPT-4 Vision API
-const analyzeImageWithOpenAI = async (base64Image: string): Promise<string> => {
+const analyzeImageWithOpenAI = async (imageInput: string, currency: string = 'USD'): Promise<string> => {
+  let imageUrl = imageInput;
+  
+  // If the input is a base64 string, convert it to a data URL
+  if (!imageInput.startsWith('http') && !imageInput.startsWith('data:')) {
+    imageUrl = `data:image/jpeg;base64,${imageInput}`;
+  }
+
   const payload = {
     model: 'gpt-4o-2024-08-06',
     messages: [
@@ -99,12 +117,12 @@ const analyzeImageWithOpenAI = async (base64Image: string): Promise<string> => {
               '2. Provide clear, specific feedback on the image (for example, what the item is and its model, if applicable). ' +
               '3. Ask for any critical missing details (such as size, condition, damage, or other relevant features) until you have sufficient information. ' +
               '4. Make sure to ask where is it located.'+
-              '5. Once enough information is available, generate a single recommended selling price (do not provide a price range) based on current market conditions. ' +
+              '5. Once enough information is available, generate a single recommended selling price in ' + currency + ' (do not provide a price range) based on current market conditions. ' +
               '6. Your tone should be straightforward and helpful.',
           },
           {
             type: 'image_url',
-            image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+            image_url: { url: imageUrl },
           },
         ],
       },
@@ -134,10 +152,10 @@ const analyzeImageWithOpenAI = async (base64Image: string): Promise<string> => {
 };
 
 // Function to get the next assistant message
-const getNextAssistantMessage = async (conversation: { role: string; content: string }[]) => {
+const getNextAssistantMessage = async (conversation: { role: string; content: string }[], currency: string = 'USD') => {
   const systemPrompt = {
     role: 'system',
-    content: `You are an AI assistant that helps users list their items for sale and determine a fair selling price. 
+    content: `You are an AI assistant that helps users list their items for sale and determine a fair selling price in ${currency}. 
 You must always respond with a valid JSON object, structured as follows:
 
 \`\`\`json
@@ -145,7 +163,7 @@ You must always respond with a valid JSON object, structured as follows:
   "reply": "Your conversational response to the user.",
   "postData": {
     "description": "A formatted post description for the listing (if enough details are available, otherwise null).",
-    "price": "A single recommended price with currency (if enough details are available, otherwise null)."
+    "price": "A numeric value without currency symbol (if enough details are available, otherwise null). The price should be in ${currency}."
   }
 }
 \`\`\`
@@ -154,7 +172,7 @@ You must always respond with a valid JSON object, structured as follows:
 1. **NEVER respond with plain text** – your response **must always be valid JSON**.
 2. If you need **more details**, set \`"postData": { "description": null, "price": null }\` and ask the user for the missing details in \`"reply"\`.
 3. If you have **enough details**, generate a **market-ready post description** and a **single price**.
-4. The **price must be a single value** (e.g., \`"$2,500,000"\`) with a currency symbol.
+4. The **price must be a numeric value only** (e.g., \`"2500000"\`) without any currency symbols or formatting. The price should be in ${currency}.
 5. **Do not include explanations or extra text – return only the JSON object.**`,
   };
 
