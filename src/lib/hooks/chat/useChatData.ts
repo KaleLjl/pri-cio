@@ -7,6 +7,12 @@ interface UseChatDataProps {
   otherUser?: ChatUser | null;
 }
 
+// 添加帮助函数
+const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
+  const primaryImage = images.find(img => img.isPrimary) || images[0];
+  return primaryImage?.url || '';
+};
+
 export function useChatData({ userId, conversationId, otherUser }: UseChatDataProps) {
   // Fetch current user data
   const {
@@ -98,16 +104,31 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     initialData: false,
   });
 
-  // Flatten messages from all pages
+  // 修改 uniqueMessages 的处理逻辑
   const messages = messagesData?.pages.flatMap(page => page.messages) ?? [];
   const uniqueMessages = Array.from(
     new Map(messages.map(msg => {
       if (typeof msg.content !== 'string' && msg.content.type === 'object_discussion') {
-        return [`${msg.content.postId}-${msg.createdAt}`, msg];
+        // 确保消息内容包含完整的图片数组
+        const updatedContent = {
+          ...msg.content,
+          images: msg.content.images || [], // 保持原有的图片数组
+          imageUrl: getPrimaryImage(msg.content.images || []), // 为了向后兼容
+        };
+        return [`${msg.content.postId}-${msg.createdAt}`, {
+          ...msg,
+          content: updatedContent,
+        }];
       }
       return [msg._id, msg];
     })).values()
   ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  // 确保 userPosts 数据也使用正确的图片格式
+  const formattedUserPosts = userPosts.map(post => ({
+    ...post,
+    imageUrl: getPrimaryImage(post.images),
+  }));
 
   return {
     // User data
@@ -125,7 +146,7 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     fetchNextPage: async () => { await fetchNextPage(); },
     
     // Posts data
-    userPosts,
+    userPosts: formattedUserPosts,
     isLoadingPosts,
     postsError: postsError?.message || null,
     

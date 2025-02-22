@@ -5,7 +5,22 @@ import { CURRENCIES } from '@/components/main/CreatePost';
 import { useLanguage } from '@/lib/context/LanguageContext';
 
 interface ObjectDiscussionProps {
-  post: ExploreItem;
+  post: {
+    _id: string;
+    images: Array<{
+      id: string;
+      url: string;
+      isPrimary: boolean;
+    }>;
+    description: string;
+    price: string;
+    currency: string;
+    historyId: string;
+    location?: {
+      city: string;
+      country: string;
+    };
+  };
   initialValues?: {
     price: string;
     location: string;
@@ -41,13 +56,18 @@ export default function ObjectDiscussion({
     });
   };
 
+  const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
+    const primaryImage = images.find(img => img.isPrimary) || images[0];
+    return primaryImage?.url || '';
+  };
+
   return (
     <div className="bg-gray-800/90 backdrop-blur-sm rounded-lg p-4 mb-4">
       <div className="flex items-start space-x-4">
         {/* Image */}
         <div className="relative w-24 h-24 flex-shrink-0">
           <ImageWithFallback
-            src={post.imageUrl}
+            src={getPrimaryImage(post.images)}
             alt={post.description}
             fill
             className="object-cover rounded-lg"

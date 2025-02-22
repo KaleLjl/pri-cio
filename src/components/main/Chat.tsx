@@ -19,6 +19,12 @@ import { format } from 'date-fns';
 import { useChatHistory } from '@/lib/hooks/useChatHistory';
 import { useEffect } from 'react';
 
+// 在文件顶部添加一个帮助函数
+const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
+  const primaryImage = images.find(img => img.isPrimary) || images[0];
+  return primaryImage?.url || '';
+};
+
 export default function Chat({ userId }: ChatProps) {
   const { dict, lang } = useLanguage();
   const router = useRouter();
@@ -258,7 +264,7 @@ export default function Chat({ userId }: ChatProps) {
                           )}
                           <div className="relative w-32 h-32">
                             <ImageWithFallback
-                              src={post.imageUrl}
+                              src={getPrimaryImage(post.images)}
                               alt={post.description}
                               fill
                               className="object-cover"
@@ -549,7 +555,7 @@ export default function Chat({ userId }: ChatProps) {
                                 )}
                                 <div className="relative w-16 h-16 flex-shrink-0">
                                   <ImageWithFallback
-                                    src={post.imageUrl}
+                                    src={getPrimaryImage(post.images)}
                                     alt={post.description}
                                     fill
                                     className="object-cover rounded-lg"
