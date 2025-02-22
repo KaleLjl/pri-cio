@@ -12,7 +12,7 @@ import EditModal from '@/components/shared/EditModal';
 import LocationOptionModal from '../shared/LocationOptionModal';
 import { Avatar } from '@mui/material';
 import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
-import { CURRENCIES, Currency } from '@/components/main/App'; // Import types and data
+import { CURRENCIES, Currency } from '@/components/main/CreatePost'; // Import types and data
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';

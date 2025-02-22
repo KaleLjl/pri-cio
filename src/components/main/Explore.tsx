@@ -8,7 +8,7 @@ import { Switch as HeadlessSwitch } from '@headlessui/react';
 import { Menu } from '@headlessui/react';
 import { motion } from 'framer-motion';
 import Modal from 'react-modal';
-import { CURRENCIES } from '@/components/main/App';
+import { CURRENCIES } from '@/components/main/CreatePost';
 import { useSession } from 'next-auth/react';
 import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
