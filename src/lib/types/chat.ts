@@ -9,16 +9,21 @@ export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'error';
 export interface ObjectDiscussionData {
   type: 'object_discussion';
   postId: string;
-  discussingId: string;
-  imageUrl: string;
+  images: Array<{
+    id: string;
+    url: string;
+    isPrimary: boolean;
+  }>;
+  imageUrl?: string;
   description: string;
-  originalPrice: string;
   suggestedPrice: string;
+  originalPrice: string;
   currency: string;
   location: string;
   meetingTime: string;
   status: 'discussing' | 'completed' | 'canceled';
-  historyId?: string;
+  historyId: string;
+  discussingId?: string;
 }
 
 export type MessageContent = string | ObjectDiscussionData;

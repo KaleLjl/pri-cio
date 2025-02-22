@@ -52,54 +52,27 @@ export function useObjectDiscussionUI({
     location: string;
     meetingTime: string;
   }) => {
-    // 防止重复发送
-    if (isSending) return;
+    if (!selectedPost) return;
+
+    const content: ObjectDiscussionData = {
+      type: 'object_discussion',
+      postId: selectedPost._id,
+      images: selectedPost.images, // 使用完整的图片数组
+      description: selectedPost.description,
+      suggestedPrice: data.price,
+      originalPrice: selectedPost.price,
+      currency: selectedPost.currency,
+      location: data.location,
+      meetingTime: data.meetingTime,
+      status: 'discussing',
+      historyId: selectedPost.historyId,
+    };
 
     try {
-      setIsSending(true);
-
-      if (editingContent) {
-        // 如果我们正在编辑现有讨论
-        const discussionData: ObjectDiscussionData = {
-          ...editingContent,
-          suggestedPrice: data.price,
-          location: data.location,
-          meetingTime: data.meetingTime,
-          status: 'discussing'
-        };
-
-        // 检查内容是否被修改
-        if (!isDiscussionModified(discussionData, messages)) {
-          alert(dict?.objectDiscussion?.noChangesMessage || "Please modify the price, location, or meeting time before sending a new proposal.");
-          return;
-        }
-
-        await sendMessage(discussionData);
-        setEditingContent(null);
-        setShowPosts(false);
-      } else if (selectedPost) {
-        // 如果我们正在创建新讨论
-        const discussionData: ObjectDiscussionData = {
-          type: 'object_discussion',
-          postId: selectedPost._id,
-          discussingId: `${selectedPost._id}_${Date.now()}`,
-          imageUrl: selectedPost.imageUrl,
-          description: selectedPost.description,
-          originalPrice: selectedPost.price,
-          suggestedPrice: data.price,
-          currency: selectedPost.currency,
-          location: data.location,
-          meetingTime: data.meetingTime,
-          status: 'discussing',
-          historyId: selectedPost.historyId,
-        };
-
-        await sendMessage(discussionData);
-        setSelectedPost(null);
-        setShowPosts(false);
-      }
-    } finally {
-      setIsSending(false);
+      await sendMessage(content);
+      setSelectedPost(null);
+    } catch (error) {
+      console.error('Failed to send object discussion:', error);
     }
   };
 

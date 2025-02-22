@@ -109,6 +109,12 @@ export function useMessageActions({
     }
   };
 
+  // 在发送对象讨论消息时
+  const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
+    const primaryImage = images.find(img => img.isPrimary) || images[0];
+    return primaryImage?.url || '';
+  };
+
   return {
     sendMessage: (content: MessageContent) => sendMessageMutation.mutateAsync(content),
     deleteMessages: () => deleteMessagesMutation.mutateAsync(),
