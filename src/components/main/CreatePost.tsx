@@ -10,8 +10,9 @@ import { useUploadAI } from '@/lib/hooks/upload/useUploadAI';
 import { useUploadUI } from '@/lib/hooks/upload/useUploadUI';
 import { useUploadActions } from '@/lib/hooks/upload/useUploadActions';
 import ChatAIModal from '@/components/shared/ChatAIModal';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUploadAIChat } from '@/lib/hooks/upload/useUploadAIChat';
+import Toast from '@/components/shared/Toast';
 
 export type Currency = {
   value: string;
@@ -50,13 +51,18 @@ export default function ImageCapture() {
   const { saveToHistory, isSaving } = useHistory();
   const { generateShareCard, handleShareCardGeneration, isGenerating } = useShareCard();
   const [showChatAI, setShowChatAI] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
   const { 
     handleToHistory, 
     handleAnalyzeImage, 
     handleClearAll,
     handlePriceChange,
-    handleDescriptionChange
+    handleDescriptionChange,
+    handleChatAISuccess,
+    toastState
   } = useUploadActions({
     metaState,
     metaActions,
@@ -68,10 +74,25 @@ export default function ImageCapture() {
     generateShareCard,
   });
 
-  const handleChatAISuccess = (description: string, price: string) => {
-    metaActions.setDescription(description);
-    metaActions.setPrice(price);
+  const { showToast: toastStateShowToast, toastMessage: toastStateToastMessage, toastType: toastStateToastType, setShowToast: toastStateSetShowToast } = toastState;
+
+  const showNewToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setShowToast(false);
+    setTimeout(() => {
+      setToastMessage(message);
+      setToastType(type);
+      setShowToast(true);
+    }, 100);
   };
+
+  useEffect(() => {
+    if (aiState.isLoading) {
+      showNewToast('AI is analyzing...', 'info');
+    }
+    if (aiState.errorMessage) {
+      showNewToast(aiState.errorMessage, 'error');
+    }
+  }, [aiState.isLoading, aiState.errorMessage]);
 
   return (
     <>
@@ -364,6 +385,14 @@ export default function ImageCapture() {
         conversation={aiChatState.conversation}
         onSendMessage={aiChatActions.sendMessage}
         onInitialAnalysis={aiChatActions.handleInitialAnalysis}
+      />
+
+      <Toast 
+        message={toastStateToastMessage}
+        isVisible={toastStateShowToast}
+        onClose={() => toastStateSetShowToast(false)}
+        type={toastStateToastType}
+        duration={2000}
       />
     </>
   );

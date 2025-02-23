@@ -23,8 +23,8 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
   },
   callbacks: {
     async redirect({ baseUrl }) {
-      // 登录成功后重定向到 /app
-      return `${baseUrl}/app`;
+      // 修改重定向到 /explore
+      return `${baseUrl}/explore`;
     },
   },
   adapter: MongoDBAdapter(clientPromise),

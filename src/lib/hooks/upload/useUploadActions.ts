@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { UploadMetaDataState, UploadMetaDataActions } from './useUploadMetaData';
 import { UploadImageProcessState, UploadImageProcessActions } from './useUploadImageProcess';
 import { UploadUIActions } from './useUploadUI';
@@ -21,6 +21,13 @@ export interface UploadActions {
   handleClearAll: () => void;
   handlePriceChange: (value: string) => void;
   handleDescriptionChange: (value: string) => void;
+  toastState: {
+    showToast: boolean;
+    toastMessage: string;
+    toastType: 'success' | 'error' | 'info';
+    setShowToast: React.Dispatch<React.SetStateAction<boolean>>;
+  };
+  handleChatAISuccess: (description: string, price: string) => void;
 }
 
 export const useUploadActions = ({
@@ -33,8 +40,22 @@ export const useUploadActions = ({
   saveToHistory,
   generateShareCard,
 }: UseUploadActionsParams): UploadActions => {
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+
+  const showNewToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setShowToast(false);
+    setTimeout(() => {
+      setToastMessage(message);
+      setToastType(type);
+      setShowToast(true);
+    }, 100);
+  };
+
   const handleToHistory = useCallback(async () => {
     try {
+      showNewToast('Uploading...', 'info');
       uiActions.stopEditing();
       if (!imageState.images.length) {
         throw new Error('No image selected');
@@ -59,12 +80,13 @@ export const useUploadActions = ({
         throw error;
       });
 
+      showNewToast('Successfully uploaded!', 'success');
+      handleClearAll();
     } catch (error) {
-      console.error('Save to history operation failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: new Date().toISOString()
-      });
+      showNewToast(
+        error instanceof Error ? error.message : 'Failed to upload',
+        'error'
+      );
     }
   }, [imageState.images, metaState.price, metaState.description, metaState.currency, saveToHistory, uiActions]);
 
@@ -97,11 +119,24 @@ export const useUploadActions = ({
     }
   }, [metaActions]);
 
+  const handleChatAISuccess = useCallback((description: string, price: string) => {
+    metaActions.setDescription(description);
+    metaActions.setPrice(price);
+    showNewToast('AI analysis completed successfully!', 'success');
+  }, [metaActions]);
+
   return {
     handleToHistory,
     handleAnalyzeImage,
     handleClearAll,
     handlePriceChange,
     handleDescriptionChange,
+    toastState: {
+      showToast,
+      toastMessage,
+      toastType,
+      setShowToast
+    },
+    handleChatAISuccess,
   };
 }; 

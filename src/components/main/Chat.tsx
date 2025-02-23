@@ -333,7 +333,7 @@ export default function Chat({ userId }: ChatProps) {
                             } hover:opacity-90 transition-opacity ${
                               isPostFinalized(
                                 (message.content as ObjectDiscussionData).postId,
-                                (message.content as ObjectDiscussionData).discussingId,
+                                (message.content as ObjectDiscussionData).discussingId || '',
                                 messages
                               ) ? 'opacity-50' : ''
                             }`}
@@ -365,7 +365,7 @@ export default function Chat({ userId }: ChatProps) {
                                   className={`object-cover rounded-lg ${
                                     isPostFinalized(
                                       (message.content as ObjectDiscussionData).postId,
-                                      (message.content as ObjectDiscussionData).discussingId,
+                                      (message.content as ObjectDiscussionData).discussingId || '',
                                       messages
                                     ) ? 'grayscale' : ''
                                   } ${
@@ -484,14 +484,24 @@ export default function Chat({ userId }: ChatProps) {
               {/* Object Discussion */}
               {(selectedPost || editingContent) && (
                 <ObjectDiscussion
-                  post={selectedPost || {
+                  post={selectedPost ? {
+                    ...selectedPost,
+                    location: selectedPost.location ? {
+                      city: selectedPost.location.city || '',
+                      country: selectedPost.location.country || ''
+                    } : undefined
+                  } : {
                     _id: editingContent!.postId,
-                    imageUrl: editingContent!.imageUrl,
+                    images: editingContent!.images || [],
                     description: editingContent!.description,
                     price: editingContent!.originalPrice,
                     currency: editingContent!.currency,
                     historyId: editingContent!.historyId,
-                  } as ExploreItem}
+                    location: editingContent!.location ? {
+                      city: editingContent!.location.split(',')[0].trim(),
+                      country: editingContent!.location.split(',')[1].trim()
+                    } : undefined
+                  }}
                   initialValues={editingContent ? {
                     price: editingContent.suggestedPrice,
                     location: editingContent.location,
