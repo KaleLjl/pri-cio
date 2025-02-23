@@ -65,23 +65,10 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     signOut: '/',
   },
   callbacks: {
-    async session({ session, token }) {
-      if (session?.user && token.sub) {
-        session.user.id = token.sub;
-      }
-      return session;
+    async redirect({ baseUrl }) {
+      // 修改重定向到 /explore
+      return `${baseUrl}/explore`;
     },
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-      }
-      return token;
-    },
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith(baseUrl)) return url;
-      if (url.startsWith('/')) return `${baseUrl}${url}`;
-      return baseUrl;
-    }
   },
   adapter: MongoDBAdapter(clientPromise),
   session: {

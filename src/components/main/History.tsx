@@ -9,7 +9,6 @@ import { Switch } from '@headlessui/react';
 import Modal from '@/components/shared/Modal';
 import Toast from '@/components/shared/Toast';
 import EditModal from '@/components/shared/EditModal';
-import LocationOptionModal from '../shared/LocationOptionModal';
 import { Avatar } from '@mui/material';
 import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
 import { CURRENCIES, Currency } from '@/components/main/CreatePost'; // Import types and data
@@ -18,6 +17,8 @@ import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import ItemDetailModal from '@/components/shared/ItemDetailModal';
 import { useRouter } from 'next/navigation';
+import ToExplore from '@/components/shared/ToExplore';
+import { useToExplore } from '@/lib/hooks/useToExplore';
 
 interface HistoryProps {
   histories: HistoryItem[];
@@ -29,17 +30,15 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     histories,
     setHistories,
     isLoading,
-    isSaving,
     error,
     formData,
     deleteHistory,
     updateHistory,
-    postHistoryToExplore,
-    unpublishHistory,
     locationPermission,
     handleLocationPermission,
-    canPost,
   } = useHistory(initialHistories);
+
+  const { unpublishFromExplore, isSaving: isUnpublishing } = useToExplore();
 
   // Toast state
   const [showToast, setShowToast] = useState(false);
@@ -190,9 +189,6 @@ export default function History({ histories: initialHistories }: HistoryProps) {
 
   const [actionInProgress, setActionInProgress] = useState<{[key: string]: string}>({});
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [showLocationModal, setShowLocationModal] = useState(false);
-  const [selectedHistory, setSelectedHistory] = useState<HistoryItem | null>(null);
-  const [showLocationOptionModal, setShowLocationOptionModal] = useState(false);
   const [selectedCard, setSelectedCard] = useState<HistoryItem | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
 
@@ -208,135 +204,6 @@ export default function History({ histories: initialHistories }: HistoryProps) {
       );
     } finally {
       setActionInProgress({...actionInProgress, [historyId]: ''});
-    }
-  };
-
-  const handlelocation = async (history: HistoryItem) => {
-    setSelectedHistory(history); // Set the selected history
-    setShowLocationOptionModal(true);
-  }
-
-  const handleSetLocation = async (location: { lat: number; lng: number }) => {
-    if (!selectedHistory) return;
-
-    try {
-      setActionInProgress({ ...actionInProgress, [selectedHistory._id]: 'posting' });
-
-      const locationData = {
-        latitude: location.lat,
-        longitude: location.lng,
-      };
-
-      await postHistoryToExplore({ ...selectedHistory, location: locationData });
-
-      showNewToast('Successfully posted!', 'success');
-      setShowLocationOptionModal(false);
-    } catch (error) {
-      showNewToast(
-        error instanceof Error ? error.message : 'Failed to post history',
-        'error'
-      );
-    } finally {
-      setActionInProgress({ ...actionInProgress, [selectedHistory._id]: '' });
-    }
-  };
-
-  const handlePostWithLocation = async () => {
-    if (!selectedHistory) return;
-
-    try {
-      handleLocationPermission('granted');
-      await postHistoryToExplore(selectedHistory);
-      setShowLocationModal(false);
-    } catch (error) {
-      console.error('Failed to post with location:', error);
-    }
-  };
-
-  const handlePostWithoutLocation = async () => {
-    if (!selectedHistory) return;
-
-    try {
-      handleLocationPermission('denied');
-      await postHistoryToExplore(selectedHistory);
-      setShowLocationModal(false);
-    } catch (error) {
-      console.error('Failed to post without location:', error);
-    }
-  };
-
-  const handleUnpublish = async (historyId: string, exploreId: string) => {
-    try {
-      setActionInProgress({...actionInProgress, [historyId]: 'unpublishing'});
-      await unpublishHistory(historyId, exploreId);
-      showNewToast('Successfully unpublished!', 'success');
-    } catch (error) {
-      showNewToast(
-        error instanceof Error ? error.message : 'Failed to unpublish',
-        'error'
-      );
-    } finally {
-      setActionInProgress({...actionInProgress, [historyId]: ''});
-    }
-  };
-
-  const handlePost = async (history: HistoryItem) => {
-    try {
-      setActionInProgress({...actionInProgress, [history._id]: 'posting'});
-      if (locationPermission === 'granted') {
-        await postHistoryToExplore(history);
-        showNewToast('Successfully posted to explore!', 'success');
-        return;
-      }
-
-      if (locationPermission === 'denied') {
-        await postHistoryToExplore(history);
-        showNewToast('Successfully posted to explore!', 'success');
-        return;
-      }
-
-      setSelectedHistory(history);
-      setShowLocationModal(true);
-    } catch (error) {
-      showNewToast(
-        error instanceof Error ? error.message : 'Failed to post history',
-        'error'
-      );
-    } finally {
-      setActionInProgress({...actionInProgress, [history._id]: ''});
-    }
-  };
-
-  const handleUpdateDealingStatus = async (dealingId: string, status: 'completed' | 'cancelled') => {
-    try {
-      const response = await fetch(`/api/chat/deal/${dealingId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update dealing status');
-      }
-
-      const updatedDealing = await response.json();
-      setDealingHistories(prev => 
-        prev.map(item => 
-          item.dealingId === dealingId ? { ...item, status } : item
-        )
-      );
-
-      showNewToast(
-        `Successfully ${status} the deal!`,
-        'success'
-      );
-    } catch (error) {
-      showNewToast(
-        error instanceof Error ? error.message : 'Failed to update dealing status',
-        'error'
-      );
     }
   };
 
@@ -409,6 +276,64 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     },
     [router, currentUserId]
   );
+
+  const handleUnpublish = async (historyId: string, exploreId: string) => {
+    try {
+      setActionInProgress({...actionInProgress, [historyId]: 'unpublishing'});
+      await unpublishFromExplore(historyId, exploreId);
+      
+      // 更新本地状态
+      setHistories(prev =>
+        prev.map(h =>
+          h._id === historyId
+            ? { ...h, exploreId: undefined }
+            : h
+        )
+      );
+      
+      showNewToast('Successfully unpublished!', 'success');
+    } catch (error) {
+      showNewToast(
+        error instanceof Error ? error.message : 'Failed to unpublish',
+        'error'
+      );
+    } finally {
+      setActionInProgress({...actionInProgress, [historyId]: ''});
+    }
+  };
+
+  const handleUpdateDealingStatus = async (dealingId: string, status: 'completed' | 'cancelled') => {
+    try {
+      const response = await fetch(`/api/chat/deal/${dealingId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update dealing status');
+      }
+
+      // 更新本地状态
+      setDealingHistories(prev => 
+        prev.map(item => 
+          item.dealingId === dealingId ? { ...item, status } : item
+        )
+      );
+
+      showNewToast(
+        `Successfully ${status} the deal!`,
+        'success'
+      );
+    } catch (error) {
+      showNewToast(
+        error instanceof Error ? error.message : 'Failed to update dealing status',
+        'error'
+      );
+    }
+  };
 
   if (error) {
     return <div className="text-center py-10 text-red-500">{dict.history.error}</div>;
@@ -547,16 +472,36 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                           </button>
                           {activeDropdown === history._id && (
                             <div className="absolute right-0 top-full mt-1 w-30 bg-black shadow-lg rounded-lg z-50">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlelocation(history);
+                              <ToExplore
+                                history={history}
+                                locationPermission={locationPermission}
+                                onLocationPermissionChange={handleLocationPermission}
+                                onSuccess={(result) => {
+                                  setHistories(prev => 
+                                    prev.map(h => 
+                                      h._id === history._id 
+                                        ? { ...h, exploreId: result.data._id.toString() } 
+                                        : h
+                                    )
+                                  );
+                                  setActiveDropdown(null);
+                                  showNewToast('Successfully posted to explore!', 'success');
                                 }}
-                                className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
                               >
-                                <i className="fas fa-share mr-2"></i>
-                                {actionInProgress[history._id] === 'posting' ? dict.history.actions.posting : dict.history.actions.post}
-                              </button>
+                                {({ handlePost, isPosting }) => (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePost();
+                                    }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
+                                    disabled={isPosting}
+                                  >
+                                    <i className="fas fa-share mr-2"></i>
+                                    {isPosting ? dict.history.actions.posting : dict.history.actions.post}
+                                  </button>
+                                )}
+                              </ToExplore>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -564,7 +509,6 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                                   setActiveDropdown(null);
                                 }}
                                 className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
-                                disabled={!!actionInProgress[history._id]}
                               >
                                 <i className="fas fa-trash mr-2"></i>
                                 {actionInProgress[history._id] === 'deleting' ? dict.history.actions.deleting : dict.history.actions.delete}
@@ -833,23 +777,6 @@ export default function History({ histories: initialHistories }: HistoryProps) {
       </div>
 
       <div>
-        <Modal 
-          title={dict.history.locationModal.title}
-          message={dict.history.locationModal.message}
-          isOpen={showLocationModal}
-          onClose={() => {
-            setShowLocationModal(false);
-            handlePostWithoutLocation();
-          }}
-          onConfirm={handlePostWithLocation}
-          confirmText={dict.history.locationModal.allow}
-          cancelText={dict.history.locationModal.deny}
-        />
-        <LocationOptionModal
-          isOpen={showLocationOptionModal}
-          onClose={() => setShowLocationOptionModal(false)}
-          onUseCurrentLocation={handleSetLocation}
-        />
         <Toast 
           message={toastMessage}
           isVisible={showToast}

@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { ChatUser, MessagesResponse } from '@/lib/types/chat';
+import { ExploreItem } from '@/lib/types/explore';
 
 interface UseChatDataProps {
   userId: string;
@@ -125,7 +126,7 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
   ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   // 确保 userPosts 数据也使用正确的图片格式
-  const formattedUserPosts = userPosts.map(post => ({
+  const formattedUserPosts = userPosts.map((post: ExploreItem) => ({
     ...post,
     imageUrl: getPrimaryImage(post.images),
   }));
