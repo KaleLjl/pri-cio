@@ -12,14 +12,15 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const isAuthPage = pathname?.includes('/signin');
   const isAroundPage = pathname?.includes('/around'); 
+  const isSignupPage = pathname?.includes('/signup');
 
   return (
     <>
-      {!isAuthPage && <Navigation />}
+      {!isAuthPage && !isSignupPage && <Navigation />}
       <main className="min-h-screen">
         {children}
       </main>
-      {!isAuthPage && !isAroundPage && <Footer />}
+      {!isAuthPage && !isAroundPage && !isSignupPage && <Footer />}
     </>
   );
 } 
