@@ -86,7 +86,7 @@ export default function Chat({ userId }: ChatProps) {
     sendMessage,
     deleteMessages,
     handleSubmit,
-    isSending,
+    isSending: isSendingMessage,
     isDeleting,
   } = useMessageActions({
     conversationId,
@@ -110,6 +110,7 @@ export default function Chat({ userId }: ChatProps) {
     setEditingContent,
     isPostInDiscussion,
     isPostFinalized,
+    isSending
   } = useObjectDiscussionUI({
     currentUserId: currentUserId || '',
     messages,
@@ -418,13 +419,24 @@ export default function Chat({ userId }: ChatProps) {
                                           const currentContent = message.content as ObjectDiscussionData;
                                           handleDealComplete(currentContent, message.senderId);
                                         }}
+                                        disabled={isSending}
                                         className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
                                           isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) 
                                             ? 'bg-blue-500 hover:bg-blue-400' 
                                             : 'bg-orange-500 hover:bg-orange-400'
-                                        }`}
+                                        } ${isSending ? 'opacity-50 cursor-wait' : ''}`}
                                       >
-                                        {dict.objectDiscussion?.complete}
+                                        {isSending ? (
+                                          <span className="flex items-center">
+                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            {dict.chat?.status?.sending || 'Processing...'}
+                                          </span>
+                                        ) : (
+                                          dict.objectDiscussion?.complete || 'Complete'
+                                        )}
                                       </button>
                                     )}
                                     
@@ -436,9 +448,22 @@ export default function Chat({ userId }: ChatProps) {
                                         const currentContent = message.content as ObjectDiscussionData;
                                         handleCancelDiscussion(currentContent, message.senderId);
                                       }}
-                                      className="px-3 py-1 text-sm text-white bg-red-500 hover:bg-red-400 rounded-lg transition-colors"
+                                      disabled={isSending}
+                                      className={`px-3 py-1 text-sm text-white bg-red-500 hover:bg-red-400 rounded-lg transition-colors ${
+                                        isSending ? 'opacity-50 cursor-wait' : ''
+                                      }`}
                                     >
-                                      {dict.objectDiscussion?.cancel}
+                                      {isSending ? (
+                                        <span className="flex items-center">
+                                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                          </svg>
+                                          {dict.chat?.status?.sending || 'Processing...'}
+                                        </span>
+                                      ) : (
+                                        dict.objectDiscussion?.cancel || 'Cancel'
+                                      )}
                                     </button>
                                   </div>
                                 )}
@@ -588,10 +613,10 @@ export default function Chat({ userId }: ChatProps) {
                   </div>
                   <button
                     type="submit"
-                    disabled={!inputMessage.trim() || isSending}
+                    disabled={!inputMessage.trim() || isSendingMessage}
                     className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium"
                   >
-                    {isSending ? (
+                    {isSendingMessage ? (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     ) : (
                       dict.chat.actions.send

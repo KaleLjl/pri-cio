@@ -23,6 +23,36 @@ export const useObjectDiscussion = ({
   const [selectedPost, setSelectedPost] = useState<ExploreItem | null>(null);
   const [editingContent, setEditingContent] = useState<ObjectDiscussionData | null>(null);
 
+  // Validation functions for meeting details
+  const isValidMeetingTime = (meetingTime: string): boolean => {
+    // Check if meeting time is set
+    if (!meetingTime) return false;
+    
+    // Check if meeting time is in the future
+    const meetingDate = new Date(meetingTime);
+    const now = new Date();
+    return meetingDate > now;
+  };
+
+  const isValidLocation = (location: string): boolean => {
+    // Check if location is set and not empty
+    return Boolean(location && location.trim().length > 0);
+  };
+
+  const validateDiscussionDetails = (content: ObjectDiscussionData): { isValid: boolean; errorMessage?: string } => {
+    // Check meeting time
+    if (!isValidMeetingTime(content.meetingTime)) {
+      return { isValid: false, errorMessage: 'Meeting time must be set and in the future' };
+    }
+
+    // Check location
+    if (!isValidLocation(content.location)) {
+      return { isValid: false, errorMessage: 'Meeting location must be specified' };
+    }
+
+    return { isValid: true };
+  };
+
   // Check if the discussion data has been modified
   const isDiscussionModified = (
     currentContent: ObjectDiscussionData,
@@ -164,6 +194,15 @@ export const useObjectDiscussion = ({
     location: string;
     meetingTime: string;
   }) => {
+    // Validate input data
+    if (!isValidLocation(data.location)) {
+      throw new Error('Meeting location must be specified');
+    }
+    
+    if (!isValidMeetingTime(data.meetingTime)) {
+      throw new Error('Meeting time must be set and in the future');
+    }
+
     if (editingContent) {
       const discussionData: ObjectDiscussionData = {
         ...editingContent,
@@ -180,6 +219,7 @@ export const useObjectDiscussion = ({
       const discussionData: ObjectDiscussionData = {
         type: 'object_discussion',
         postId: selectedPost._id,
+        images: selectedPost.images || [],
         imageUrl: selectedPost.imageUrl,
         description: selectedPost.description,
         originalPrice: selectedPost.price,
@@ -218,6 +258,12 @@ export const useObjectDiscussion = ({
   ) => {
     if (currentContent.status !== 'discussing') return;
 
+    // Validate meeting details before completing the deal
+    const validation = validateDiscussionDetails(currentContent);
+    if (!validation.isValid) {
+      throw new Error(validation.errorMessage);
+    }
+
     try {
       if (currentContent.postId && currentContent.historyId) {
         const response = await fetch(`/api/chat/deal`, {
@@ -228,11 +274,15 @@ export const useObjectDiscussion = ({
             exploreId: currentContent.postId,
             buyerId: senderId === currentUserId ? currentUserId : messages[0].senderId,
             sellerId: senderId === currentUserId ? messages[0].senderId : currentUserId,
+            // Send meeting details for server-side validation
+            meetingTime: currentContent.meetingTime,
+            location: currentContent.location
           }),
         });
 
         if (!response.ok) {
-          throw new Error('Failed to complete deal');
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to complete deal');
         }
       }
 
@@ -271,5 +321,9 @@ export const useObjectDiscussion = ({
     handleObjectDiscussionClick,
     handleDealComplete,
     handleCancelDiscussion,
+    // Export validation functions for use in UI
+    validateDiscussionDetails,
+    isValidMeetingTime,
+    isValidLocation
   };
 }; 
