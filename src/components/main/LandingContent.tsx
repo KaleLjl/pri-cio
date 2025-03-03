@@ -220,8 +220,8 @@ export default function LandingContent() {
         </div>
       </div>
 
-      <div ref={descriptionSectionRef} className="min-h-screen bg-black text-white flex flex-col justify-center items-center px-8 pt-40 pb-24">
-        <div className="max-w-4xl text-center mb-32 animate-on-scroll">
+      <div ref={descriptionSectionRef} className="min-h-screen bg-black text-white flex flex-col justify-center items-center px-8 pt-48 pb-32">
+        <div className="max-w-4xl text-center mb-40 animate-on-scroll">
           <h2 className="text-4xl font-bold mb-8">How We Simplify Buying and Selling</h2>
           <p className="text-gray-300 text-lg">
             Our company leverages advanced AI technology to simplify buying and selling. We generate accurate pricing
@@ -230,7 +230,7 @@ export default function LandingContent() {
         </div>
 
         {/* Local Connections Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full max-w-6xl mb-48">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full max-w-6xl mb-56">
           <div className="animate-on-scroll">
             <div>
               <h3 className="text-2xl font-semibold mb-4">Tailored Groups for Local Connections</h3>
@@ -257,7 +257,7 @@ export default function LandingContent() {
         </div>
 
         {/* Location-Specific Selling Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full max-w-6xl mb-48">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full max-w-6xl mb-56">
           <div className="relative animate-on-scroll w-full overflow-hidden lg:order-1">
             <div className="relative w-full h-[400px] overflow-hidden">
               <img
@@ -285,7 +285,7 @@ export default function LandingContent() {
         </div>
 
         {/* AI-Powered Pricing Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full max-w-6xl mb-48">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full max-w-6xl mb-56">
           <div className="animate-on-scroll">
             <div>
               <h3 className="text-2xl font-semibold mb-4">AI-Powered Pricing</h3>
@@ -312,7 +312,7 @@ export default function LandingContent() {
         </div>
 
         {/* 24/7 Availability Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full max-w-6xl mb-32">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full max-w-6xl mb-40">
           <div className="relative animate-on-scroll w-[115vw] -ml-[75vw] overflow-hidden lg:order-1">
             <div className="relative w-full h-[400px] overflow-hidden">
               <img
@@ -342,22 +342,82 @@ export default function LandingContent() {
       </div>
 
       {/* Network Animation Section */}
-      <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center px-8 py-24 relative" style={{ backgroundColor: '#000000' }}>
-        <svg className="w-full max-w-4xl" viewBox="0 0 800 400" style={{ backgroundColor: '#000000' }}>
+      <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center px-8 py-32 relative">
+        <svg className="w-full max-w-4xl" viewBox="0 0 800 400">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
           <g className="network-animation">
             {/* First bubble */}
-            <circle cx="200" cy="200" r="40" className="fill-purple-500 animate-pulse" />
-            
+            <circle 
+              cx="200" 
+              cy="200" 
+              r="40" 
+              className="fill-purple-500" 
+              style={{
+                filter: 'url(#glow)',
+                animation: 'pulse 2s ease-in-out infinite'
+              }} 
+            />
+
             {/* Second bubble with connection */}
-            <g className="opacity-0 animate-[fadeInSlide_1s_ease-out_0.5s_forwards]">
-              <circle cx="400" cy="200" r="40" className="fill-purple-400" />
-              <line x1="240" y1="200" x2="360" y2="200" className="stroke-purple-400 stroke-2 animate-[drawLine_1s_ease-out_0.5s_forwards]" />
+            <g>
+              <line 
+                x1="240" 
+                y1="200" 
+                x2="360" 
+                y2="200" 
+                className="stroke-purple-400" 
+                strokeWidth="2"
+                style={{
+                  animation: 'flowLine 4s linear infinite, drawLine 2s ease-out forwards',
+                  strokeDasharray: '12,8',
+                  strokeLinecap: 'round'
+                }}
+              />
+              <circle 
+                cx="400" 
+                cy="200" 
+                r="40" 
+                className="fill-purple-400"
+                style={{
+                  filter: 'url(#glow)',
+                  animation: 'pulse 2s ease-in-out infinite 0.5s'
+                }}
+              />
             </g>
-            
+
             {/* Third bubble with connection */}
-            <g className="opacity-0 animate-[fadeInSlide_1s_ease-out_1.5s_forwards]">
-              <circle cx="600" cy="200" r="40" className="fill-purple-400" />
-              <line x1="440" y1="200" x2="560" y2="200" className="stroke-purple-400 stroke-2 animate-[drawLine_1s_ease-out_1.5s_forwards]" />
+            <g>
+              <line 
+                x1="440" 
+                y1="200" 
+                x2="560" 
+                y2="200" 
+                className="stroke-purple-400" 
+                strokeWidth="2"
+                style={{
+                  animation: 'flowLine 4s linear infinite, drawLine 2s ease-out forwards 1s',
+                  strokeDasharray: '12,8',
+                  strokeLinecap: 'round'
+                }}
+              />
+              <circle 
+                cx="600" 
+                cy="200" 
+                r="40" 
+                className="fill-purple-400"
+                style={{
+                  filter: 'url(#glow)',
+                  animation: 'pulse 2s ease-in-out infinite 1s'
+                }}
+              />
             </g>
           </g>
         </svg>
@@ -374,7 +434,7 @@ export default function LandingContent() {
       </div>
 
       {/* FAQ Section */}
-      <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center px-8 py-24 relative z-20">
+      <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center px-8 py-32 relative z-20">
         <div className="max-w-4xl w-full bg-black bg-opacity-80 p-8 rounded-lg">
           <h2 className="text-4xl font-bold mb-8 text-center animate-on-scroll">Pricio AI FAQs</h2>
           
@@ -415,6 +475,17 @@ export default function LandingContent() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Call to Action Section */}
+        <div className="my-80 text-center">
+          <h2 className="text-6xl font-light mb-4">Pricio. Pricio? Pricio!</h2>
+          <button
+            className="px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition"
+            onClick={() => handleNavigation('/app')}
+          >
+            Let's Go!
+          </button>
         </div>
       </div>
     </>
