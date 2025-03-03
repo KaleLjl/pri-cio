@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { ChatMessage, ObjectDiscussionData } from '@/lib/types/chat';
+import { ChatMessage } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
 import { SocketContext } from '@/lib/context/SocketContext';
 

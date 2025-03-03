@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { auth } from '@/lib/auth';
 import { ObjectId } from 'mongodb';
+import { priceValidation, meetingValidation } from '@/lib/utils/ObjectDiscussionValidation';
 
 export async function GET(req: Request) {
   try {
@@ -111,31 +112,24 @@ export async function POST(request: Request) {
       buyerId, 
       sellerId, 
       meetingTime, 
-      location 
+      location,
+      suggestedPrice,
     } = await request.json();
 
-    // Server-side validation of meeting details
-    if (!meetingTime) {
+    // Validate price
+    const priceValidationResult = priceValidation.validate(suggestedPrice);
+    if (!priceValidationResult.isValid) {
       return NextResponse.json(
-        { message: 'Meeting time is required' },
+        { message: priceValidationResult.error },
         { status: 400 }
       );
     }
 
-    // Validate that meeting time is in the future
-    const meetingDate = new Date(meetingTime);
-    const now = new Date();
-    if (meetingDate <= now) {
+    // Validate meeting details
+    const meetingValidationResult = meetingValidation.validate({ meetingTime, location });
+    if (!meetingValidationResult.isValid) {
       return NextResponse.json(
-        { message: 'Meeting time must be in the future' },
-        { status: 400 }
-      );
-    }
-
-    // Validate that location is provided
-    if (!location || location.trim().length === 0) {
-      return NextResponse.json(
-        { message: 'Location is required' },
+        { message: meetingValidationResult.error },
         { status: 400 }
       );
     }

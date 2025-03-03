@@ -13,7 +13,7 @@ import {
   useChatData,
   useMessageActions,
   useChatUI,
-  useObjectDiscussionUI,
+  useObjectDiscussion,
 } from '@/lib/hooks/chat';
 import { format } from 'date-fns';
 import { useChatHistory } from '@/lib/hooks/useChatHistory';
@@ -95,7 +95,7 @@ export default function Chat({ userId }: ChatProps) {
     handleMessageSubmit,
   });
 
-  // Use the object discussion UI hook
+  // Use the object discussion hook
   const {
     selectedPost,
     editingContent,
@@ -111,7 +111,7 @@ export default function Chat({ userId }: ChatProps) {
     isPostInDiscussion,
     isPostFinalized,
     isSending
-  } = useObjectDiscussionUI({
+  } = useObjectDiscussion({
     currentUserId: currentUserId || '',
     messages,
     sendMessage,
