@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import ImageWithFallback from './ImageWithFallback';
+import ImageWithFallback from '../../../shared/ImageWithFallback';
 import { CURRENCIES } from '@/components/main/CreatePost';
 import { useLanguage } from '@/lib/context/LanguageContext';
 import { useObjectDiscussion } from '@/lib/hooks/chat/useObjectDiscussion';

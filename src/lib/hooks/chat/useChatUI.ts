@@ -48,7 +48,8 @@ export function useChatUI({
   };
 
   // Handle scroll
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = (e?: React.UIEvent<HTMLDivElement>) => {
+    if (!e) return;
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
     setShouldScrollToBottom(isNearBottom);
@@ -161,14 +162,10 @@ export function useChatUI({
   };
 
   // Handle message submit
-  const handleMessageSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const message = inputMessage.trim();
+  const handleMessageSubmit = (message: string) => {
     if (!message) return;
-
     handleTyping(false);
     setInputMessage("");
-    return message;
   };
 
   return {

@@ -8,7 +8,7 @@ interface UseMessageActionsProps {
   conversationId?: string;
   currentUserId?: string;
   otherUserId?: string;
-  handleMessageSubmit: (e: React.FormEvent) => Promise<string | undefined>;
+  handleMessageSubmit: (message: string) => void;
 }
 
 export function useMessageActions({ 
@@ -103,8 +103,12 @@ export function useMessageActions({
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
-    const message = await handleMessageSubmit(e);
+    e.preventDefault();
+    const input = (e.currentTarget as HTMLFormElement).querySelector('input[type="text"]') as HTMLInputElement;
+    const message = input?.value.trim();
+    
     if (message) {
+      handleMessageSubmit(message);
       await sendMessageMutation.mutateAsync(message);
     }
   };
