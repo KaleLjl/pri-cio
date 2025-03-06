@@ -1,15 +1,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, MessageContent } from '@/lib/types/chat';
-import { useContext } from 'react';
-import { SocketContext } from '@/context/SocketContext';
 import { messageApiService } from '@/lib/services/api/chat/messageService';
+import { socketService } from '@/lib/services/socket/socketService';
+import { chatCacheService } from '@/lib/services/cache/chatCacheService';
+import { useSocket } from '@/context/SocketContext';
 
 interface UseMessageActionsProps {
   conversationId?: string;
   currentUserId?: string;
   otherUserId?: string;
   handleMessageSubmit: (message: string) => void;
+}
+
+interface MutationContext {
+  optimisticMessage: ChatMessage;
 }
 
 export function useMessageActions({ 
@@ -19,20 +24,19 @@ export function useMessageActions({
   handleMessageSubmit,
 }: UseMessageActionsProps) {
   const queryClient = useQueryClient();
-  const socket = useContext(SocketContext);
+  const { isConnected } = useSocket();
+
+  // Initialize cache service
+  chatCacheService.initialize(queryClient);
+
+  
 
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (content: MessageContent) => {
-      if (!conversationId || !otherUserId) {
+      if (!conversationId || !otherUserId || !currentUserId) {
         throw new Error('Missing required data');
       }
-
-      return messageApiService.sendMessage(conversationId, content, otherUserId);
-    },
-    onMutate: async (content: MessageContent) => {
-      if (!conversationId || !currentUserId || !otherUserId) return;
-
       const optimisticMessage: ChatMessage = {
         _id: uuidv4(),
         conversationId,
@@ -43,34 +47,35 @@ export function useMessageActions({
         status: 'sending',
       };
 
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['chat-messages', conversationId] });
+      // Step 1: Handle optimistic update in cache
+      await chatCacheService.handleOptimisticMessage(optimisticMessage);
 
-      // Snapshot the previous value
-      const previousMessages = queryClient.getQueryData(['chat-messages', conversationId]);
-
-      // Optimistically update to the new value
-      queryClient.setQueryData(['chat-messages', conversationId], (old: any) => ({
-        pages: old?.pages?.map((page: any, index: number) => ({
-          ...page,
-          messages: index === 0 ? [...page.messages, optimisticMessage] : page.messages,
-        })) || [],
-        pageParams: old?.pageParams || [],
-      }));
-
-      // Return a context object with the snapshotted value
-      return { previousMessages };
-    },
-    onError: (err, newMessage, context) => {
-      if (context?.previousMessages && conversationId) {
-        queryClient.setQueryData(['chat-messages', conversationId], context.previousMessages);
+      // Step 2: Send via socket if connected
+      if (isConnected) {
+        socketService.sendMessage(optimisticMessage);
       }
+
+      // Step 3: Send via API
+      const sentMessage = await messageApiService.sendMessage(conversationId, content, otherUserId);
+
+      // Step 4: Update message status in cache
+      await chatCacheService.updateMessageStatus(optimisticMessage._id, 'sent', sentMessage);
+
+      return { sentMessage, optimisticMessage };
     },
-    onSettled: () => {
+    onError: async (error, content, context: MutationContext | undefined) => {
+      console.error('Failed to send message:', error);
+      
+      if (context?.optimisticMessage) {
+        // Update message status to failed in cache
+        await chatCacheService.updateMessageStatus(context.optimisticMessage._id, 'failed');
+      }
+
+      // Invalidate queries to refresh the UI
       if (conversationId) {
         queryClient.invalidateQueries({ queryKey: ['chat-messages', conversationId] });
       }
-    },
+    }
   });
 
   // Delete messages mutation
@@ -79,11 +84,18 @@ export function useMessageActions({
       if (!conversationId) {
         throw new Error('No conversation ID');
       }
-      return messageApiService.deleteMessages(conversationId);
-    },
-    onSuccess: () => {
+
+      // Step 1: Delete via API
+      await messageApiService.deleteMessages(conversationId);
+
+      // Step 2: Clear cache
       queryClient.removeQueries({ queryKey: ['chat-messages', conversationId] });
-    },
+
+      // Step 3: Notify via socket if connected
+      if (isConnected) {
+        socketService.leaveRoom(conversationId);
+      }
+    }
   });
 
   // Handle form submission
@@ -95,6 +107,7 @@ export function useMessageActions({
     if (message) {
       handleMessageSubmit(message);
       await sendMessageMutation.mutateAsync(message);
+      input.value = '';
     }
   };
 

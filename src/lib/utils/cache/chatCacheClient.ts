@@ -330,4 +330,13 @@ export class ChatCacheClient implements ChatCacheClientInterface {
       console.error("Error handling optimistic message:", error);
     }
   }
+
+  /**
+   * Get messages query key for a conversation
+   */
+  getMessages(conversationId: string) {
+    return {
+      queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId]
+    };
+  }
 } 

@@ -4,35 +4,33 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useCurrentUser } from "@/context/CurrentUserContext";
-import {  MessageContent } from "@/lib/types/chat";
+import { MessageContent } from "@/lib/types/chat";
 import { useLanguage } from '@/context/LanguageContext';
+import { SocketProvider } from '@/context/SocketContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { useQueryClient } from '@tanstack/react-query';
-import { useContext, useEffect } from 'react';
-import { SocketContext } from '@/context/SocketContext';
+import { useEffect } from 'react';
 
-export default function ChatHistoryClient() {
+// Inner component that uses the context
+const ChatHistoryContent = () => {
   const { dict } = useLanguage();
   const { currentUser, loadingUser } = useCurrentUser();
   const { chats, loading, error, deleteMessages, markAsRead } = useChatHistory();
   const queryClient = useQueryClient();
-  const socket = useContext(SocketContext);
 
-  // 添加实时更新支持
+  // Add real-time update support
   useEffect(() => {
-    // 当组件挂载时，确保聊天历史是最新的
     queryClient.invalidateQueries({ queryKey: ["chat-history"] });
 
-    // 可选：定期刷新以确保同步
     const interval = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: ["chat-history"] });
-    }, 30000); // 每30秒刷新一次
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [queryClient]);
 
-  // 格式化日期
+  // Format date function
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -43,13 +41,12 @@ export default function ChatHistoryClient() {
     }
   };
 
-  // 格式化消息内容
+  // Format message content
   const formatMessageContent = (content: MessageContent): string => {
     if (typeof content === 'string') {
       return content;
     }
     if (content.type === 'object_discussion') {
-      // 返回更有意义的消息预览
       return `[${content.description.slice(0, 20)}${content.description.length > 20 ? '...' : ''} - ${dict.objectDiscussion.price}: ${content.suggestedPrice}]`;
     }
     return '';
@@ -145,11 +142,10 @@ export default function ChatHistoryClient() {
                       )}
                       <button
                         onClick={async (e) => {
-                          e.preventDefault(); // 阻止链接跳转
+                          e.preventDefault();
                           if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
                             try {
                               await deleteMessages(chat._id);
-                              // 清除该对话的消息缓存
                               queryClient.removeQueries({ queryKey: ["chat-messages", chat._id] });
                               alert(dict.chatHistory.toast.deleteSuccess);
                             } catch (error) {
@@ -182,5 +178,24 @@ export default function ChatHistoryClient() {
         })}
       </div>
     </div>
+  );
+};
+
+// Main ChatHistory component that provides the context
+export default function ChatHistory() {
+  const { currentUser, loadingUser } = useCurrentUser();
+
+  if (loadingUser) {
+    return <Loading />;
+  }
+
+  if (!currentUser) {
+    return null;
+  }
+
+  return (
+    <SocketProvider userId={currentUser._id}>
+      <ChatHistoryContent />
+    </SocketProvider>
   );
 }

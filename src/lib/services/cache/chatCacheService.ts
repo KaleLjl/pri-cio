@@ -1,6 +1,9 @@
 import { ChatCacheClient } from '@/lib/utils/cache/chatCacheClient';
 import { ChatMessage } from '@/lib/utils/socket/types';
+import { MessagesResponse } from '@/lib/utils/cache/types';
 import { QueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { CacheKeys } from '@/lib/utils/cache/types';
 
 /**
  * Chat Cache Service
@@ -17,6 +20,15 @@ export const chatCacheService = {
    */
   initialize: (queryClient: QueryClient): void => {
     chatCacheService.client = new ChatCacheClient(queryClient);
+  },
+
+  /**
+   * Message Fetching
+   */
+  getMessages: (conversationId: string) => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    const client = chatCacheService.client;
+    return client.getMessages(conversationId);
   },
 
   /**

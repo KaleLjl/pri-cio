@@ -2,6 +2,9 @@
 import React from 'react';
 import { ChatProps } from '@/lib/types/chat';
 import { ChatProvider, useChat } from '@/context/ChatContext';
+import { SocketProvider } from '@/context/SocketContext';
+import { useCurrentUser } from '@/context/CurrentUserContext';
+import { useMessageReception } from '@/hooks/chat/useMessageReception';
 import Loading from '@/components/shared/Loading';
 import ObjectDiscussion from '@/components/main/Chat/Chat-Component/ObjectDiscussion_Edit';
 import ChatHeader from './Chat/ChatHeader';
@@ -14,7 +17,9 @@ const ChatContent: React.FC = () => {
   const { 
     error, 
     isInitializing, 
-    otherUser, 
+    otherUser,
+    currentUserId,
+    conversationId,
     router,
     selectedPost, 
     editingContent, 
@@ -23,6 +28,12 @@ const ChatContent: React.FC = () => {
     handleDiscussionSubmit,
     dict
   } = useChat();
+
+  // Set up real-time message reception
+  const { sendTypingStatus } = useMessageReception({
+    conversationId: conversationId!,
+    currentUserId: currentUserId!,
+  });
 
   if (error) {
     return (
@@ -112,9 +123,21 @@ const ChatContent: React.FC = () => {
 
 // Main Chat component that provides the context
 export default function Chat({ userId }: ChatProps) {
+  const { currentUser, loadingUser } = useCurrentUser();
+
+  if (loadingUser) {
+    return <Loading />;
+  }
+
+  if (!currentUser) {
+    return null;
+  }
+
   return (
-    <ChatProvider userId={userId}>
-      <ChatContent />
-    </ChatProvider>
+    <SocketProvider userId={currentUser._id}>
+      <ChatProvider userId={userId}>
+        <ChatContent />
+      </ChatProvider>
+    </SocketProvider>
   );
 } 
