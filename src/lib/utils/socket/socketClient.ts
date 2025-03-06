@@ -309,6 +309,15 @@ export class SocketClient {
   getActiveRooms(): string[] {
     return Array.from(this.activeRooms);
   }
+
+  /**
+   * Emit a socket event
+   */
+  emit(event: string, data: any): boolean {
+    if (!this.socket?.connected) return false;
+    this.socket.emit(event, data);
+    return true;
+  }
 }
 
 // Export singleton instance

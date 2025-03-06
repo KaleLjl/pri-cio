@@ -112,7 +112,7 @@ export class SocketEvents {
   static emitExplorePostsUpdate(userId: string): boolean {
     if (!socketClient.isConnected()) return false;
     
-    socketClient.on(SocketEvent.EXPLORE_POSTS_UPDATE, { userId });
+    socketClient.emit(SocketEvent.EXPLORE_POSTS_UPDATE, { userId });
     return true;
   }
 } 

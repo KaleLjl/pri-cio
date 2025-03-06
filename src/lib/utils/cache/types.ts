@@ -1,14 +1,9 @@
-import { InfiniteData } from "@tanstack/react-query";
-import { 
-  ChatMessage, 
-  ChatRecord, 
-  MessagesResponse 
-} from "@/lib/services/socket/types";
+import { ChatMessage } from "../socket/types";
 
 /**
  * Cache service interface for chat data
  */
-export interface ChatCacheServiceInterface {
+export interface ChatCacheClientInterface {
   // Message handling
   handleNewMessage: (message: ChatMessage) => Promise<void>;
   handleOptimisticMessage: (message: ChatMessage) => Promise<void>;
@@ -31,10 +26,27 @@ export interface ChatCacheServiceInterface {
 export enum CacheKeys {
   CHAT_HISTORY = "chat-history",
   CONVERSATION_MESSAGES = "conversation-messages",
-  USER_PROFILE = "user-profile",
+  USER_PROFILE = "user-profile"
 }
 
-/**
- * React Query message response type for infinite queries
- */
-export type InfiniteMessagesData = InfiniteData<MessagesResponse>; 
+export interface ChatRecord {
+  _id: string;
+  participants: string[];
+  lastMessage?: ChatMessage;
+  unreadCount?: number;
+  updatedAt: string;
+}
+
+export interface MessagesResponse {
+  messages: ChatMessage[];
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
+export interface InfiniteMessagesData {
+  pages: {
+    messages: ChatMessage[];
+    nextCursor?: string;
+  }[];
+  pageParams: any[];
+} 

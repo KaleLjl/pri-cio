@@ -62,8 +62,8 @@ type ChatContextType = {
   setSelectedPost: (post: ExploreItem | null) => void;
   handleDiscussionSubmit: (data: any) => Promise<void>;
   handleObjectDiscussionClick: (currentContent: ObjectDiscussionData, senderId: string) => void;
-  handleDealComplete: (content: ObjectDiscussionData, senderId: string) => Promise<void>;
-  handleCancelDiscussion: (content: ObjectDiscussionData) => Promise<void>;
+  handleDealComplete: (content: ObjectDiscussionData, senderId: string) => Promise<boolean>;
+  handleCancelDiscussion: (content: ObjectDiscussionData) => Promise<boolean>;
   isCurrentUserSeller: (postId: string, myPosts: ExploreItem[], userPosts: ExploreItem[]) => boolean;
   isPostCompleted: (postId: string, messages: any[]) => boolean;
   isLastDiscussionMessage: (message: any, messages: any[]) => boolean;
@@ -158,17 +158,21 @@ export const ChatProvider = ({ children, userId }: { children: ReactNode; userId
 
   // Message actions
   const {
-    sendMessage,
+    sendMessage: originalSendMessage,
     deleteMessages,
     handleSubmit,
-    isSending: isSendingMessage,
     isDeleting,
+    isLoading: isSendingMessage,
   } = useMessageActions({
     conversationId,
     currentUserId: currentUserId ?? undefined,
     otherUserId: otherUser?._id ?? undefined,
     handleMessageSubmit,
   });
+
+  const sendMessage = async (content: string | ObjectDiscussionData): Promise<void> => {
+    await originalSendMessage(content as any);
+  };
 
   // Object discussion integration
   const objectDiscussionState = useObjectDiscussion({

@@ -1,2 +1,1 @@
-export { ChatCacheService } from './chatCacheService';
-export * from './types'; 
+export { chatCacheService } from './chatCacheService'; 

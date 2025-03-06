@@ -1,154 +1,125 @@
-import { socketClient } from './socketClient';
-import { SocketEvents } from './socketEvents';
-import { ChatMessage, SocketEvent, MessageStatus } from './types';
+import { SocketService } from '@/lib/utils/socket/socketService';
+import { ChatMessage } from '../../utils/socket/types';
 
 /**
- * SocketService
+ * Socket API Service
  * 
- * Focused service that handles socket-specific concerns.
- * No longer handles cache integration - that will be managed at the hook level.
+ * A wrapper around SocketService that provides a clean API interface
+ * for socket operations. This follows the same pattern as other API services
+ * in the application.
  */
-export class SocketService {
-  private static instance: SocketService;
-  private activeRooms = new Set<string>();
+export const socketApiService = {
+  /**
+   * Connection Management
+   */
+  connect: (userId: string): void => {
+    const socketService = SocketService.getInstance();
+    socketService.connect(userId);
+  },
 
-  private constructor() {}
+  disconnect: (): void => {
+    const socketService = SocketService.getInstance();
+    socketService.disconnect();
+  },
+
+  isConnected: (): boolean => {
+    const socketService = SocketService.getInstance();
+    return socketService.isConnected();
+  },
 
   /**
-   * Get the singleton instance of SocketService
+   * Room Management
    */
-  static getInstance(): SocketService {
-    if (!SocketService.instance) {
-      SocketService.instance = new SocketService();
-    }
-    return SocketService.instance;
-  }
+  joinRoom: (roomId: string): void => {
+    const socketService = SocketService.getInstance();
+    socketService.joinRoom(roomId);
+  },
+
+  leaveRoom: (roomId: string): void => {
+    const socketService = SocketService.getInstance();
+    socketService.leaveRoom(roomId);
+  },
+
+  getActiveRooms: (): string[] => {
+    const socketService = SocketService.getInstance();
+    return socketService.getActiveRooms();
+  },
 
   /**
-   * Connect to the socket server
+   * Message Operations
    */
-  connect(userId: string) {
-    socketClient.connect(userId);
-  }
+  sendMessage: (message: ChatMessage): boolean => {
+    const socketService = SocketService.getInstance();
+    return socketService.sendMessage(message);
+  },
+
+  sendTyping: (data: { conversationId: string; userId: string; typing: boolean }): boolean => {
+    const socketService = SocketService.getInstance();
+    return socketService.sendTyping(data);
+  },
 
   /**
-   * Disconnect from the socket server
+   * Message Status Operations
    */
-  disconnect() {
-    socketClient.disconnect();
-  }
+  sendMessageDelivered: (messageId: string): boolean => {
+    const socketService = SocketService.getInstance();
+    return socketService.sendMessageDelivered(messageId);
+  },
+
+  sendMessageRead: (messageId: string): boolean => {
+    const socketService = SocketService.getInstance();
+    return socketService.sendMessageRead(messageId);
+  },
 
   /**
-   * Check if socket is connected
+   * Event Listeners
    */
-  isConnected(): boolean {
-    return socketClient.isConnected();
-  }
+  onNewMessage: (callback: (message: ChatMessage) => void): (() => void) => {
+    const socketService = SocketService.getInstance();
+    return socketService.onNewMessage(callback);
+  },
+
+  onMessageDelivered: (callback: (messageId: string) => void): (() => void) => {
+    const socketService = SocketService.getInstance();
+    return socketService.onMessageDelivered(callback);
+  },
+
+  onMessageRead: (callback: (messageId: string) => void): (() => void) => {
+    const socketService = SocketService.getInstance();
+    return socketService.onMessageRead(callback);
+  },
+
+  onNewConversation: (
+    callback: (data: { conversationId: string; message: ChatMessage }) => void
+  ): (() => void) => {
+    const socketService = SocketService.getInstance();
+    return socketService.onNewConversation(callback);
+  },
+
+  onConversationRead: (
+    callback: (data: { conversationId: string }) => void
+  ): (() => void) => {
+    const socketService = SocketService.getInstance();
+    return socketService.onConversationRead(callback);
+  },
+
+  onUserTyping: (
+    callback: (data: { userId: string; typing: boolean }) => void
+  ): (() => void) => {
+    const socketService = SocketService.getInstance();
+    return socketService.onUserTyping(callback);
+  },
 
   /**
-   * Join a chat room
+   * Connection Event Listeners
    */
-  joinRoom(roomId: string) {
-    this.activeRooms.add(roomId);
-    socketClient.joinRoom(roomId);
-  }
+  onConnect: (callback: () => void): (() => void) => {
+    const socketService = SocketService.getInstance();
+    return socketService.onConnect(callback);
+  },
 
-  /**
-   * Leave a chat room
-   */
-  leaveRoom(roomId: string) {
-    this.activeRooms.delete(roomId);
-    socketClient.leaveRoom(roomId);
+  onDisconnect: (callback: (reason: string) => void): (() => void) => {
+    const socketService = SocketService.getInstance();
+    return socketService.onDisconnect(callback);
   }
-
-  /**
-   * Send a message
-   */
-  sendMessage(message: ChatMessage) {
-    return SocketEvents.sendMessage(message);
-  }
-
-  /**
-   * Send typing status
-   */
-  sendTyping(data: { conversationId: string; userId: string; typing: boolean }) {
-    return SocketEvents.sendTyping(data);
-  }
-
-  /**
-   * Send message delivered confirmation
-   */
-  sendMessageDelivered(messageId: string) {
-    return SocketEvents.sendMessageDelivered(messageId);
-  }
-
-  /**
-   * Send message read confirmation
-   */
-  sendMessageRead(messageId: string) {
-    return SocketEvents.sendMessageRead(messageId);
-  }
-
-  /**
-   * Register event listeners for new messages
-   */
-  onNewMessage(callback: (message: ChatMessage) => void) {
-    return SocketEvents.onNewMessage(callback);
-  }
-
-  /**
-   * Register event listeners for message delivered events
-   */
-  onMessageDelivered(callback: (messageId: string) => void) {
-    return SocketEvents.onMessageDelivered(callback);
-  }
-
-  /**
-   * Register event listeners for message read events
-   */
-  onMessageRead(callback: (messageId: string) => void) {
-    return SocketEvents.onMessageRead(callback);
-  }
-
-  /**
-   * Register event listeners for new conversations
-   */
-  onNewConversation(callback: (data: { conversationId: string; message: ChatMessage }) => void) {
-    return SocketEvents.onNewConversation(callback);
-  }
-
-  /**
-   * Register event listeners for conversation read events
-   */
-  onConversationRead(callback: (data: { conversationId: string }) => void) {
-    return SocketEvents.onConversationRead(callback);
-  }
-
-  /**
-   * Register event listeners for typing status
-   */
-  onUserTyping(callback: (data: { userId: string; typing: boolean }) => void) {
-    return SocketEvents.onUserTyping(callback);
-  }
-
-  /**
-   * Register connect event listener
-   */
-  onConnect(callback: () => void) {
-    return SocketEvents.onConnect(callback);
-  }
-
-  /**
-   * Register disconnect event listener
-   */
-  onDisconnect(callback: (reason: string) => void) {
-    return SocketEvents.onDisconnect(callback);
-  }
-
-  /**
-   * Get active rooms
-   */
-  getActiveRooms(): string[] {
-    return Array.from(this.activeRooms);
-  }
-} 
+}; 
