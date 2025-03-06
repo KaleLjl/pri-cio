@@ -1,8 +1,8 @@
 // pages/api/chat/messages/route.ts
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+import clientPromise from "@/lib/utils/mongodb";
 import { ObjectId } from "mongodb";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/utils/auth";
 
 export const revalidate = 30; 
 

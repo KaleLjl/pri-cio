@@ -1,11 +1,11 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { CurrentUserProvider } from "@/lib/context/CurrentUserContext";
-import { QueryProvider } from "@/lib/context/QueryContext";
-import { LanguageProvider } from "@/lib/context/LanguageContext";
-import type { Dictionary } from '@/lib/i18n/types';
-import type { Locale } from '@/lib/i18n/i18n-config';
+import { CurrentUserProvider } from "@/context/CurrentUserContext";
+import { QueryProvider } from "@/context/QueryContext";
+import { LanguageProvider } from "@/context/LanguageContext";
+import type { Dictionary } from '@/lib/utils/International-i18/types';
+import type { Locale } from '@/lib/utils/International-i18/i18n-config';
 
 interface RootContextProps {
   children: React.ReactNode;

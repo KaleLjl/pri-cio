@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { i18n, type Locale } from '@/lib/i18n/i18n-config';
+import { i18n, type Locale } from '@/lib/utils/International-i18/i18n-config';
 import { match as matchLocale } from '@formatjs/intl-localematcher';
 import Negotiator from 'negotiator';
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, ReactNode } from 'react';
-import type { Dictionary } from '@/lib/i18n/types';
-import type { Locale } from '@/lib/i18n/i18n-config';
+import type { Dictionary } from '@/lib/utils/International-i18/types';
+import type { Locale } from '@/lib/utils/International-i18/i18n-config';
 
 interface LanguageContextType {
   lang: Locale;

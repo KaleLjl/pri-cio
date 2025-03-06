@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useExplore } from '@/lib/hooks/useExplore';
+import { useExplore } from '@/hooks/useExplore';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { CURRENCIES } from '@/components/main/CreatePost';
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
-import { useCurrentUser } from '@/lib/context/CurrentUserContext';
+import { useCurrentUser } from '@/context/CurrentUserContext';
 import Loading from '@/components/shared/Loading';
 
 // Keys for external APIs

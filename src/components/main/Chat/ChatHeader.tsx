@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
-import { useChat } from '@/lib/context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 
 const ChatHeader: React.FC = () => {
   const { 

@@ -3,7 +3,7 @@
 import OpenAI from "openai"
 import { zodResponseFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth"
+import { auth } from "@/lib/utils/auth"
 import { 
   InitialAnalysis, 
   PriceDescription,
@@ -15,7 +15,7 @@ import {
   getNonTradablePrompt,
   getBasePricePrompt,
   getMarketPricePrompt
-} from '@/lib/prompts';
+} from '@/lib/utils/prompts';
 
 export const maxDuration = 20; // This function can run for a maximum of 20 seconds
 const openai = new OpenAI();

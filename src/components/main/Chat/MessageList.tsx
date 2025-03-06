@@ -1,5 +1,5 @@
 import React from 'react';
-import { useChat } from '@/lib/context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 import MessageItem from './MessageItem';
 
 const MessageList: React.FC = () => {

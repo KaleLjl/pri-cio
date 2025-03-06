@@ -1,5 +1,5 @@
 import React from 'react';
-import { useToExplore } from '@/lib/hooks/useToExplore';
+import { useToExplore } from '@/hooks/useToExplore';
 import { HistoryItem } from '@/lib/types/history';
 import { Switch as HeadlessSwitch } from "@headlessui/react";
 

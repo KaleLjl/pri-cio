@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
-import { deleteFromS3 } from '@/lib/s3';
-import { auth } from '@/lib/auth';
+import clientPromise from '@/lib/utils/mongodb';
+import { deleteFromS3 } from '@/lib/utils/s3';
+import { auth } from '@/lib/utils/auth';
 import { ObjectId } from 'mongodb';
 
 export async function DELETE(

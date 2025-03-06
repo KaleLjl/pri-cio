@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import { Readable } from 'stream';
 import dotenv from 'dotenv';
 import { IncomingMessage } from "http";
-import { auth } from '@/lib/auth';
+import { auth } from '@/lib/utils/auth';
 
 dotenv.config(); // Load environment variables
 

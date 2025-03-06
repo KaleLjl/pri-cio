@@ -1,7 +1,7 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { ChatUser, MessagesResponse } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
-import { getPrimaryImage } from '@/lib/context/ChatContext';
+import { getPrimaryImage } from '@/context/ChatContext';
 import { userApiService } from '@/lib/services/api/users/userService';
 import { exploreApiService } from '@/lib/services/api/explore/exploreService';
 import { messageApiService } from '@/lib/services/api/chat/messageService';

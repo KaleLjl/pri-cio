@@ -1,7 +1,7 @@
 // pages/api/chat/conversations/route.ts
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import clientPromise from "@/lib/mongodb";
+import { auth } from "@/lib/utils/auth";
+import clientPromise from "@/lib/utils/mongodb";
 
 export async function GET() {
   try {

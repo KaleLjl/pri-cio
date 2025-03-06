@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import ImageWithFallback from './ImageWithFallback';
 import { CURRENCIES } from '@/components/main/CreatePost';
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface ItemDetailModalProps {
   item: {

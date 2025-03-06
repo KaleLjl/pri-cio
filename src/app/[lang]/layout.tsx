@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { RootProvider } from "@/lib/context/RootContext";
+import { RootProvider } from "@/context/RootContext";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import "./globals.css";
-import { i18n, type Locale } from '@/lib/i18n/i18n-config';
-import { getDictionary } from '@/lib/i18n/get-dictionary';
+import { i18n, type Locale } from '@/lib/utils/International-i18/i18n-config';
+import { getDictionary } from '@/lib/utils/International-i18/get-dictionary';
 
 export async function generateStaticParams() {
   return i18n.locales.map((locale) => ({ lang: locale }));

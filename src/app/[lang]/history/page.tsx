@@ -1,6 +1,6 @@
-import { auth } from '@/lib/auth'
+import { auth } from '@/lib/utils/auth'
 import { redirect } from 'next/navigation'
-import clientPromise from '@/lib/mongodb'
+import clientPromise from '@/lib/utils/mongodb'
 import DisplayHistory from '@/components/main/History'
 
 async function getHistoryData(email: string) {

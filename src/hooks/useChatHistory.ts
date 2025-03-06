@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useContext } from "react";
 import { ChatRecord } from "@/lib/types/chat";
-import { SocketContext } from "@/lib/context/SocketContext";
+import { SocketContext } from "@/context/SocketContext";
 import { conversationApiService } from "@/lib/services/api/chat/conversationService";
 import { messageApiService } from "@/lib/services/api/chat/messageService";
 

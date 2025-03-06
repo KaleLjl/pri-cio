@@ -1,17 +1,17 @@
 'use client'
-import { useHistory } from '@/lib/hooks/useHistory';
+import { useHistory } from '@/hooks/useHistory';
 import Image from 'next/image';
-import { useShareCard } from '@/lib/hooks/useShareCard';
+import { useShareCard } from '@/hooks/useShareCard';
 import Modal from '@/components/shared/Modal';
-import { useLanguage } from '@/lib/context/LanguageContext';
-import { useUploadMetaData } from '@/lib/hooks/upload/useUploadMetaData';
-import { useUploadImageProcess } from '@/lib/hooks/upload/useUploadImageProcess';
-import { useUploadAI } from '@/lib/hooks/upload/useUploadAI';
-import { useUploadUI } from '@/lib/hooks/upload/useUploadUI';
-import { useUploadActions } from '@/lib/hooks/upload/useUploadActions';
+import { useLanguage } from '@/context/LanguageContext';
+import { useUploadMetaData } from '@/hooks/upload/useUploadMetaData';
+import { useUploadImageProcess } from '@/hooks/upload/useUploadImageProcess';
+import { useUploadAI } from '@/hooks/upload/useUploadAI';
+import { useUploadUI } from '@/hooks/upload/useUploadUI';
+import { useUploadActions } from '@/hooks/upload/useUploadActions';
 import ChatAIModal from '@/components/shared/ChatAIModal';
 import { useState, useEffect } from 'react';
-import { useUploadAIChat } from '@/lib/hooks/upload/useUploadAIChat';
+import { useUploadAIChat } from '@/hooks/upload/useUploadAIChat';
 import Toast from '@/components/shared/Toast';
 
 export type Currency = {

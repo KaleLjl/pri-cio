@@ -1,3 +1,3 @@
 export const runtime = 'nodejs' ;
-import { handlers } from '@/lib/auth';
+import { handlers } from '@/lib/utils/auth';
 export const { GET, POST } = handlers;

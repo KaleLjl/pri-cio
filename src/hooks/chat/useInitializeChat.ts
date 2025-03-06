@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ChatUser } from '@/lib/types/chat';
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { conversationApiService } from '@/lib/services/api/chat/conversationService';
 import { messageApiService } from '@/lib/services/api/chat/messageService';

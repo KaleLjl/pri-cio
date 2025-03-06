@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import ImageWithFallback from '../../../shared/ImageWithFallback';
 import { CURRENCIES } from '@/components/main/CreatePost';
-import { useLanguage } from '@/lib/context/LanguageContext';
-import { useObjectDiscussion } from '@/lib/hooks/chat/useObjectDiscussion';
+import { useLanguage } from '@/context/LanguageContext';
+import { useObjectDiscussion } from '@/hooks/chat/useObjectDiscussion';
 import { ObjectDiscussionProps } from '@/lib/types/objectDiscussion';
 
 export default function ObjectDiscussion({ 

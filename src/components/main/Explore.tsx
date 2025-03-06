@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useExplore } from '@/lib/hooks/useExplore';
+import { useExplore } from '@/hooks/useExplore';
 import { ExploreItem } from '@/lib/types/explore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Switch as HeadlessSwitch } from '@headlessui/react';
@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 import Modal from 'react-modal';
 import { CURRENCIES } from '@/components/main/CreatePost';
 import { useSession } from 'next-auth/react';
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import ItemDetailModal from '@/components/shared/ItemDetailModal';

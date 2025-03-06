@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
-import { auth } from '@/lib/auth';
+import clientPromise from '@/lib/utils/mongodb';
+import { auth } from '@/lib/utils/auth';
 import { ObjectId } from 'mongodb';
 import { priceValidation, meetingValidation } from '@/lib/utils/ObjectDiscussionValidation';
 

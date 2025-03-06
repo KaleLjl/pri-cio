@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useHistory } from '@/lib/hooks/useHistory';
+import { useHistory } from '@/hooks/useHistory';
 import { HistoryItem, DealingItem } from '@/lib/types/history';
 import { useSession } from 'next-auth/react'; // To fetch user session data
 import Image from 'next/image';
@@ -10,15 +10,15 @@ import Modal from '@/components/shared/Modal';
 import Toast from '@/components/shared/Toast';
 import EditModal from '@/components/shared/EditModal';
 import { Avatar } from '@mui/material';
-import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
+import { useProfilePage } from '@/hooks/useProfilePage'; // Import the custom hook
 import { CURRENCIES, Currency } from '@/components/main/CreatePost'; // Import types and data
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import ItemDetailModal from '@/components/shared/ItemDetailModal';
 import { useRouter } from 'next/navigation';
 import ToExplore from '@/components/shared/ToExplore';
-import { useToExplore } from '@/lib/hooks/useToExplore';
+import { useToExplore } from '@/hooks/useToExplore';
 
 interface HistoryProps {
   histories: HistoryItem[];

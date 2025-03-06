@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, MessageContent } from '@/lib/types/chat';
 import { useContext } from 'react';
-import { SocketContext } from '@/lib/context/SocketContext';
+import { SocketContext } from '@/context/SocketContext';
 import { messageApiService } from '@/lib/services/api/chat/messageService';
 
 interface UseMessageActionsProps {

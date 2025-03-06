@@ -9,9 +9,9 @@ import {
   Typography,
   Box,
 } from "@mui/material";
-import { useProfilePage } from "@/lib/hooks/useProfilePage";
+import { useProfilePage } from "@/hooks/useProfilePage";
 import { useSession } from 'next-auth/react'; // Import useSession to get user data
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 
 const ProfilePage = () => {

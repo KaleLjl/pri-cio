@@ -18,9 +18,9 @@ import {
   FaSignOutAlt,
 } from 'react-icons/fa';
 import { Menu, MenuItem } from '@mui/material';
-import { i18n } from '@/lib/i18n/i18n-config';
+import { i18n } from '@/lib/utils/International-i18/i18n-config';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface NavItem {
   label: JSX.Element;

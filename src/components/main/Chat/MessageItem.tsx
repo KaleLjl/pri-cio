@@ -1,6 +1,6 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { useChat } from '@/lib/context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 import ObjectDiscussion_Displayed from '@/components/main/Chat/Chat-Component/ObjectDiscussion_Displayed';
 import { ObjectDiscussionData } from '@/lib/types/chat';
 

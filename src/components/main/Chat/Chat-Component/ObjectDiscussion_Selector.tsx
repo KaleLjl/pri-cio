@@ -1,7 +1,7 @@
 import React from 'react';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import { CURRENCIES } from '@/components/main/CreatePost';
-import { useChat } from '@/lib/context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 import { ExploreItem } from '@/lib/types/explore';
 
 const PostSelector: React.FC = () => {

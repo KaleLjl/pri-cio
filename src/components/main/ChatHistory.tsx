@@ -2,15 +2,15 @@
 "use client";
 import Link from "next/link";
 import { format } from "date-fns";
-import { useChatHistory } from "@/lib/hooks/useChatHistory";
-import { useCurrentUser } from "@/lib/context/CurrentUserContext";
+import { useChatHistory } from "@/hooks/useChatHistory";
+import { useCurrentUser } from "@/context/CurrentUserContext";
 import {  MessageContent } from "@/lib/types/chat";
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { useQueryClient } from '@tanstack/react-query';
 import { useContext, useEffect } from 'react';
-import { SocketContext } from '@/lib/context/SocketContext';
+import { SocketContext } from '@/context/SocketContext';
 
 export default function ChatHistoryClient() {
   const { dict } = useLanguage();

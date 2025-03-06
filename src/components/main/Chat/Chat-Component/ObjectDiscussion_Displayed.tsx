@@ -2,7 +2,7 @@ import React from 'react';
 import { ObjectDiscussionData } from '@/lib/types/chat';
 import ImageWithFallback from '../../../shared/ImageWithFallback';
 import { CURRENCIES } from '@/components/main/CreatePost';
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { ExploreItem } from '@/lib/types/explore';
 
 interface ObjectDiscussionDisplayedProps {

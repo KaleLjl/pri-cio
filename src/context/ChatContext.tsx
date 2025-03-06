@@ -1,8 +1,8 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useLanguage } from '@/lib/context/LanguageContext';
-import { useChatHistory } from '@/lib/hooks/useChatHistory';
+import { useLanguage } from '@/context/LanguageContext';
+import { useChatHistory } from '@/hooks/useChatHistory';
 import { ObjectDiscussionData } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
 import {
@@ -10,8 +10,8 @@ import {
   useChatData,
   useMessageActions,
   useChatUI,
-} from '@/lib/hooks/chat';
-import { useObjectDiscussion } from '@/lib/hooks/chat/useObjectDiscussion';
+} from '@/hooks/chat';
+import { useObjectDiscussion } from '@/hooks/chat/useObjectDiscussion';
 
 // Define the ChatContext type
 type ChatContextType = {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useChat } from '@/lib/context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import { CURRENCIES } from '@/components/main/CreatePost';
 import { ExploreItem } from '@/lib/types/explore';
