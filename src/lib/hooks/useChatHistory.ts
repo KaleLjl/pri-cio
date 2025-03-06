@@ -4,6 +4,8 @@ import { useSession } from "next-auth/react";
 import { useContext } from "react";
 import { ChatRecord } from "@/lib/types/chat";
 import { SocketContext } from "@/lib/context/SocketContext";
+import { conversationApiService } from "@/lib/services/api/chat/conversationService";
+import { messageApiService } from "@/lib/services/api/chat/messageService";
 
 interface UseChatHistoryReturn {
   chats: ChatRecord[];
@@ -28,11 +30,7 @@ export function useChatHistory(): UseChatHistoryReturn {
   } = useQuery({
     queryKey: ["chat-history"],
     queryFn: async () => {
-      const response = await fetch("/api/chat/conversations/list");
-      if (!response.ok) {
-        throw new Error("Failed to fetch chat history");
-      }
-      return response.json();
+      return conversationApiService.getConversations();
     },
     enabled: !!session,
   });
@@ -45,20 +43,8 @@ export function useChatHistory(): UseChatHistoryReturn {
   // 删除消息
   const deleteMessages = async (conversationId: string) => {
     try {
-      const response = await fetch("/api/chat/messages", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ conversationId }),
-      });
-
-      const data = await response.json();
+      await messageApiService.deleteMessages(conversationId);
       
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to delete messages");
-      }
-
       // 离开房间
       socket.leaveRoom(conversationId);
       
@@ -89,18 +75,8 @@ export function useChatHistory(): UseChatHistoryReturn {
         socket.sendMessageRead(messageId);
       }
 
-      // 3. 通过 HTTP API 更新服务器 - 使用 PATCH 方法
-      const response = await fetch("/api/chat/messages", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ conversationId }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to mark messages as read");
-      }
+      // 3. 通过 API 服务更新服务器
+      await messageApiService.markAsRead(conversationId);
 
       // 4. 重新获取聊天列表以确保同步
       await refetch();

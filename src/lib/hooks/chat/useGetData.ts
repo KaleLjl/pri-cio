@@ -1,18 +1,16 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { ChatUser, MessagesResponse } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
+import { getPrimaryImage } from '@/lib/context/ChatContext';
+import { userApiService } from '@/lib/services/api/users/userService';
+import { exploreApiService } from '@/lib/services/api/explore/exploreService';
+import { messageApiService } from '@/lib/services/api/chat/messageService';
 
 interface UseChatDataProps {
   userId: string;
   conversationId?: string;
   otherUser?: ChatUser | null;
 }
-
-// 添加帮助函数
-const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
-  const primaryImage = images.find(img => img.isPrimary) || images[0];
-  return primaryImage?.url || '';
-};
 
 export function useChatData({ userId, conversationId, otherUser }: UseChatDataProps) {
   // Fetch current user data
@@ -23,9 +21,7 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
   } = useQuery({
     queryKey: ['current-user'],
     queryFn: async () => {
-      const response = await fetch('/api/users/me');
-      if (!response.ok) throw new Error('Failed to fetch current user');
-      return response.json();
+      return userApiService.getCurrentUser();
     },
     enabled: !!userId,
   });
@@ -38,9 +34,7 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
   } = useQuery({
     queryKey: ['user', userId],
     queryFn: async () => {
-      const response = await fetch(`/api/users/${userId}`);
-      if (!response.ok) throw new Error('Failed to fetch user');
-      return response.json();
+      return userApiService.getUserById(userId);
     },
     enabled: !!userId,
   });
@@ -57,17 +51,7 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     queryKey: ['chat-messages', conversationId],
     queryFn: async ({ pageParam = undefined }) => {
       if (!conversationId) throw new Error('No conversation ID');
-      
-      const url = new URL('/api/chat/messages', window.location.origin);
-      url.searchParams.append('conversationId', conversationId);
-      if (pageParam) {
-        url.searchParams.append('before', pageParam as string);
-      }
-
-      const response = await fetch(url.toString());
-      if (!response.ok) throw new Error('Failed to fetch messages');
-
-      return response.json();
+      return messageApiService.getMessages(conversationId, pageParam as string | undefined);
     },
     initialPageParam: undefined,
     getNextPageParam: (lastPage: MessagesResponse) => {
@@ -92,9 +76,7 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     queryKey: ['explore-posts', otherUser?._id],
     queryFn: async () => {
       if (!otherUser?._id) throw new Error('No other user ID');
-      const response = await fetch(`/api/explore?userId=${otherUser._id}`);
-      if (!response.ok) throw new Error('Failed to fetch user posts');
-      return response.json();
+      return exploreApiService.getUserPosts(otherUser._id);
     },
     enabled: !!otherUser?._id,
   });

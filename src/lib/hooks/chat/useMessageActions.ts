@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, MessageContent } from '@/lib/types/chat';
 import { useContext } from 'react';
 import { SocketContext } from '@/lib/context/SocketContext';
+import { messageApiService } from '@/lib/services/api/chat/messageService';
 
 interface UseMessageActionsProps {
   conversationId?: string;
@@ -27,21 +28,7 @@ export function useMessageActions({
         throw new Error('Missing required data');
       }
 
-      const response = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId,
-          content,
-          receiverId: otherUserId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
-
-      return response.json();
+      return messageApiService.sendMessage(conversationId, content, otherUserId);
     },
     onMutate: async (content: MessageContent) => {
       if (!conversationId || !currentUserId || !otherUserId) return;
@@ -49,32 +36,40 @@ export function useMessageActions({
       const optimisticMessage: ChatMessage = {
         _id: uuidv4(),
         conversationId,
-        content,
         senderId: currentUserId,
         receiverId: otherUserId,
+        content,
         createdAt: new Date().toISOString(),
         status: 'sending',
       };
 
-      // 发送消息（SocketContext 会处理缓存更新）
-      socket.sendMessage(optimisticMessage);
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['chat-messages', conversationId] });
 
-      return { optimisticMessage };
-    },
-    onSuccess: (newMessage, _, context) => {
-      if (!context?.optimisticMessage) return;
-      
-      // 更新状态为已发送
-      socket.updateMessageStatus(context.optimisticMessage._id, 'sent');
-      
-      // 不需要再次发送消息，因为服务器已经确认
-    },
-    onError: (error, _, context) => {
-      if (!context?.optimisticMessage) return;
+      // Snapshot the previous value
+      const previousMessages = queryClient.getQueryData(['chat-messages', conversationId]);
 
-      // 更新错误状态
-      socket.updateMessageStatus(context.optimisticMessage._id, 'error');
-      console.error('Error sending message:', error);
+      // Optimistically update to the new value
+      queryClient.setQueryData(['chat-messages', conversationId], (old: any) => ({
+        pages: old?.pages?.map((page: any, index: number) => ({
+          ...page,
+          messages: index === 0 ? [...page.messages, optimisticMessage] : page.messages,
+        })) || [],
+        pageParams: old?.pageParams || [],
+      }));
+
+      // Return a context object with the snapshotted value
+      return { previousMessages };
+    },
+    onError: (err, newMessage, context) => {
+      if (context?.previousMessages && conversationId) {
+        queryClient.setQueryData(['chat-messages', conversationId], context.previousMessages);
+      }
+    },
+    onSettled: () => {
+      if (conversationId) {
+        queryClient.invalidateQueries({ queryKey: ['chat-messages', conversationId] });
+      }
     },
   });
 
@@ -84,17 +79,7 @@ export function useMessageActions({
       if (!conversationId) {
         throw new Error('No conversation ID');
       }
-
-      const response = await fetch('/api/chat/messages', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to delete messages');
-      }
+      return messageApiService.deleteMessages(conversationId);
     },
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['chat-messages', conversationId] });
@@ -113,19 +98,13 @@ export function useMessageActions({
     }
   };
 
-  // 在发送对象讨论消息时
-  const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
-    const primaryImage = images.find(img => img.isPrimary) || images[0];
-    return primaryImage?.url || '';
-  };
-
   return {
     sendMessage: (content: MessageContent) => sendMessageMutation.mutateAsync(content),
     deleteMessages: () => deleteMessagesMutation.mutateAsync(),
     handleSubmit,
-    isSending: sendMessageMutation.isPending,
+    isLoading: sendMessageMutation.isPending,
     isDeleting: deleteMessagesMutation.isPending,
-    sendError: sendMessageMutation.error,
+    error: sendMessageMutation.error,
     deleteError: deleteMessagesMutation.error,
   };
 } 

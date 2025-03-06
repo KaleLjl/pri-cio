@@ -4,6 +4,8 @@ import { useSession } from 'next-auth/react';
 import { ChatUser } from '@/lib/types/chat';
 import { useLanguage } from '@/lib/context/LanguageContext';
 import { useQueryClient } from '@tanstack/react-query';
+import { conversationApiService } from '@/lib/services/api/chat/conversationService';
+import { messageApiService } from '@/lib/services/api/chat/messageService';
 
 interface UseInitializeChatProps {
   userId: string;
@@ -29,7 +31,7 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
   const [error, setError] = useState<string | null>(null);
   const hasInitialized = useRef(false);
 
-  // 身份验证检查
+  // Authentication check
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/signin');
@@ -48,72 +50,39 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
         setError(null);
         hasInitialized.current = true;
 
-        // Create or get conversation
-        const response = await fetch('/api/chat/conversations/initialize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ participantId: userId }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || dict.chat.error.fetch);
-        }
-
-        const data = await response.json();
+        // Initialize conversation
+        const result = await conversationApiService.initializeConversation(userId);
+        console.log('Initialization result:', result);
         
-        // Set conversation data
-        setConversationId(data._id);
+        if (!result?.conversationId) {
+          console.error('Missing conversationId in response:', result);
+          throw new Error('Failed to get conversation ID');
+        }
+
+        setConversationId(result.conversationId);
+        setCurrentUserId(result.currentUserId);
+        setOtherUser(result.otherUser);
         
-        // Find and set current user and other user from participants
-        const currentUserData = data.participants.find(
-          (p: ChatUser) => p.name === session?.user?.name
-        );
-        const otherUserData = data.participants.find(
-          (p: ChatUser) => p.name !== session?.user?.name
-        );
-
-        if (currentUserData) {
-          setCurrentUserId(currentUserData._id);
+        // Only prefetch messages if we have a valid conversationId
+        if (result.conversationId) {
+          await queryClient.prefetchInfiniteQuery({
+            queryKey: ['chat-messages', result.conversationId],
+            queryFn: () => messageApiService.getMessages(result.conversationId),
+            initialPageParam: undefined
+          });
         }
 
-        if (otherUserData) {
-          setOtherUser(otherUserData);
-        }
-
-        // 更新chat history缓存
-        queryClient.setQueryData(['chat-history'], (oldChats: any[] = []) => {
-          // 检查聊天是否已存在
-          const chatExists = oldChats.some(chat => chat._id === data._id);
-          if (chatExists) {
-            return oldChats;
-          }
-
-          // 添加新的聊天
-          const newChat = {
-            _id: data._id,
-            participants: data.participants,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-            unreadCount: 0
-          };
-
-          return [newChat, ...oldChats];
-        });
-
-      } catch (error) {
-        console.error('Error initializing chat:', error);
-        setError(error instanceof Error ? error.message : dict.chat.error.fetch);
-        hasInitialized.current = false;  // Reset if there was an error
+      } catch (err) {
+        console.error('Error initializing chat:', err);
+        setError(err instanceof Error ? err.message : 'Failed to initialize chat');
+        hasInitialized.current = false; // Reset if there was an error
       } finally {
         setIsInitializing(false);
       }
     };
 
-    if (userId) {
-      initializeChat();
-    }
-  }, [userId, status, session?.user?.name, dict.chat.error.fetch, queryClient]);
+    initializeChat();
+  }, [status, userId, queryClient]);
 
   return {
     currentUserId,

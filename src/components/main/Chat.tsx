@@ -5,7 +5,7 @@ import { ChatProvider, useChat } from '@/lib/context/ChatContext';
 import Loading from '@/components/shared/Loading';
 import ObjectDiscussion from '@/components/main/Chat/Chat-Component/ObjectDiscussion_Edit';
 import ChatHeader from './Chat/ChatHeader';
-import PostSelector from './Chat/PostSelector';
+import PostSelector from './Chat/Chat-Component/ObjectDiscussion_Selector';
 import MessageList from './Chat/MessageList';
 import MessageInput from './Chat/MessageInput';
 

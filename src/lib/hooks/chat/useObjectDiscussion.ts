@@ -4,6 +4,7 @@ import { ExploreItem } from '@/lib/types/explore';
 import { v4 as uuidv4 } from 'uuid';
 import { priceValidation, meetingValidation, dealingValidation } from '@/lib/utils/ObjectDiscussionValidation';
 import { UseObjectDiscussionProps, ObjectDiscussionFormData } from '@/lib/types/objectDiscussion';
+import { objectDiscussionApiService } from '@/lib/services/api/chat/objectDiscussionService';
 
 export const useObjectDiscussion = ({
   currentUserId,
@@ -241,75 +242,63 @@ export const useObjectDiscussion = ({
     setEditingContent(currentContent);
   };
 
-  const handleDealComplete = async (
-    currentContent: ObjectDiscussionData,
-    senderId: string,
-  ) => {
-    if (currentContent.status !== 'discussing') return;
-
-    const validation = dealingValidation(currentContent);
-    if (!validation.isValid) {
-      const errorMessage = validation.errorMessage || dict?.objectDiscussion?.validationError;
-      if (typeof window !== 'undefined') alert(errorMessage);
-      throw new Error(errorMessage);
-    }
-
+  const handleDealComplete = async (currentContent: ObjectDiscussionData, senderId: string) => {
     try {
-      setIsSending(true);
+      // Complete the deal using the service
+      await objectDiscussionApiService.completeDeal(currentContent);
       
-      if (currentContent.postId && currentContent.historyId) {
-        const response = await fetch(`/api/chat/deal`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            historyId: currentContent.historyId,
-            exploreId: currentContent.postId,
-            buyerId: senderId === currentUserId ? currentUserId : messages[0].senderId,
-            sellerId: senderId === currentUserId ? messages[0].senderId : currentUserId,
-            meetingTime: currentContent.meetingTime,
-            location: currentContent.location
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to complete deal');
-        }
-      }
-
-      await sendMessage({
-        ...currentContent,
-        status: 'completed' as const
-      });
+      // Send a message about the completed deal
+      const completedMessage: ObjectDiscussionData = {
+        type: 'object_discussion',
+        postId: currentContent.postId,
+        status: 'completed',
+        suggestedPrice: currentContent.suggestedPrice,
+        originalPrice: currentContent.originalPrice,
+        currency: currentContent.currency,
+        location: currentContent.location,
+        meetingTime: currentContent.meetingTime,
+        images: currentContent.images,
+        description: currentContent.description,
+        historyId: currentContent.historyId,
+        discussingId: currentContent.discussingId
+      };
+      
+      await sendMessage(completedMessage);
+      
+      return true;
     } catch (error) {
       console.error('Error completing deal:', error);
-      const DEFAULT_ERROR = 'Failed to complete deal. Please try again.';
-      const errorMessage = error instanceof Error ? error.message : dict?.objectDiscussion?.dealError ?? DEFAULT_ERROR;
-      if (typeof window !== 'undefined') alert(errorMessage);
-      throw error;
-    } finally {
-      setIsSending(false);
+      throw new Error(dict?.objectDiscussion?.dealError || 'Failed to complete deal');
     }
   };
 
-  const handleCancelDiscussion = async (
-    currentContent: ObjectDiscussionData,
-    senderId?: string,
-  ) => {
+  const handleCancelDiscussion = async (currentContent: ObjectDiscussionData, senderId?: string) => {
     try {
-      setIsSending(true);
-      await sendMessage({
-        ...currentContent,
-        status: 'canceled' as const
-      });
+      // Cancel the discussion using the service
+      await objectDiscussionApiService.cancelDiscussion(currentContent.postId);
+      
+      // Send a cancellation message
+      const cancelMessage: ObjectDiscussionData = {
+        type: 'object_discussion',
+        postId: currentContent.postId,
+        status: 'canceled',
+        suggestedPrice: currentContent.suggestedPrice,
+        originalPrice: currentContent.originalPrice,
+        currency: currentContent.currency,
+        location: currentContent.location,
+        meetingTime: currentContent.meetingTime,
+        images: currentContent.images,
+        description: currentContent.description,
+        historyId: currentContent.historyId,
+        discussingId: currentContent.discussingId
+      };
+      
+      await sendMessage(cancelMessage);
+      
+      return true;
     } catch (error) {
-      console.error('Error canceling discussion:', error);
-      const DEFAULT_ERROR = 'Failed to cancel deal. Please try again.';
-      const errorMessage = dict?.objectDiscussion?.dealError ?? DEFAULT_ERROR;
-      if (typeof window !== 'undefined') alert(errorMessage);
-      throw error;
-    } finally {
-      setIsSending(false);
+      console.error('Error cancelling discussion:', error);
+      throw new Error('Failed to cancel discussion');
     }
   };
 

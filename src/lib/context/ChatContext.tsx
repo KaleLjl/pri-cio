@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/lib/context/LanguageContext';
 import { useChatHistory } from '@/lib/hooks/useChatHistory';
-import { ObjectDiscussionData, ChatProps } from '@/lib/types/chat';
+import { ObjectDiscussionData } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
 import {
   useInitializeChat,
@@ -94,7 +94,7 @@ export const useChat = () => {
 };
 
 // Utility function for getting primary image
-const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
+export const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
   const primaryImage = images.find(img => img.isPrimary) || images[0];
   return primaryImage?.url || '';
 };
