@@ -79,7 +79,7 @@ export default function Chat({ userId }: ChatProps) {
     );
   }
   
-  // Show message if conversationId is not available
+  // Show message if conversationId is not available`````
   if (!conversationId) {
     return (
       <div className="flex items-center justify-center h-screen">

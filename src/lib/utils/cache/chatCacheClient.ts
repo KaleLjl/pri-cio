@@ -380,8 +380,8 @@ export class ChatCacheClient implements ChatCacheClientInterface {
       initialPageParam: undefined,
       getNextPageParam: (lastPage: MessagesResponse) => {
         if (!lastPage.hasMore) return undefined;
-        const firstMessage = lastPage.messages[0];
-        return firstMessage?._id;
+        const lastMessage = lastPage.messages[lastPage.messages.length - 1];
+        return lastMessage?._id;
       }
     };
   }

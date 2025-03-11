@@ -30,7 +30,10 @@ export const messageApiService = {
     url.searchParams.append('conversationId', conversationId);
     
     if (before) {
+      console.log(`Fetching messages before: ${before}`);
       url.searchParams.append('before', before);
+    } else {
+      console.log('Fetching initial messages');
     }
 
     const response = await fetch(url.toString());
@@ -39,7 +42,9 @@ export const messageApiService = {
       throw new Error('Failed to fetch messages');
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log(`Fetched ${data.messages.length} messages, hasMore: ${data.hasMore}`);
+    return data;
   },
 
   // Delete a message

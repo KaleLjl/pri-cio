@@ -63,8 +63,19 @@ const MessageList: React.FC<MessageListProps> = ({ userId, conversationId }) => 
   // Handle infinite scroll
   useEffect(() => {
     if (inView && hasNextPage && !loadingMore) {
+      console.log('Loading more messages triggered by scroll');
       setLoadingMore(true);
-      fetchNextPage().finally(() => setLoadingMore(false));
+      fetchNextPage()
+        .then(result => {
+          console.log('Fetch next page result:', result);
+          if (result.data?.pages) {
+            console.log(`Added ${result.data.pages[result.data.pages.length - 1].messages.length} new messages`);
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching more messages:', error);
+        })
+        .finally(() => setLoadingMore(false));
     }
   }, [inView, hasNextPage, fetchNextPage, loadingMore]);
 

@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const conversationId = searchParams.get("conversationId");
-    const page = parseInt(searchParams.get("page") || "1");
+    const before = searchParams.get("before");
     const limit = parseInt(searchParams.get("limit") || "20");
 
     if (!conversationId || !ObjectId.isValid(conversationId)) {
@@ -36,18 +36,24 @@ export async function GET(req: Request) {
 
     await db.collection("messages").createIndex({ conversationId: 1, createdAt: -1 });
 
-    const skip = (page - 1) * limit;
+    // 构建查询条件
+    const query: any = { 
+      conversationId: new ObjectId(conversationId),
+      $or: [
+        { deletedBy: { $exists: false } },
+        { deletedBy: { $ne: userId } }
+      ]
+    };
+
+    // 如果提供了 before 参数，添加 _id 条件
+    if (before && ObjectId.isValid(before)) {
+      query._id = { $lt: new ObjectId(before) };
+    }
+
     const messages = await db
       .collection("messages")
-      .find({ 
-        conversationId: new ObjectId(conversationId),
-        $or: [
-          { deletedBy: { $exists: false } },
-          { deletedBy: { $ne: userId } }
-        ]
-      })
+      .find(query)
       .sort({ createdAt: -1 })
-      .skip(skip)
       .limit(limit)
       .toArray();
 
@@ -70,12 +76,28 @@ export async function GET(req: Request) {
       status: msg.status || "sent",
     }));
 
+    // 检查是否还有更多消息
+    let hasMore = false;
+    if (messages.length > 0) {
+      const oldestMessageId = messages[messages.length - 1]._id;
+      const olderMessagesCount = await db
+        .collection("messages")
+        .countDocuments({
+          conversationId: new ObjectId(conversationId),
+          _id: { $lt: oldestMessageId },
+          $or: [
+            { deletedBy: { $exists: false } },
+            { deletedBy: { $ne: userId } }
+          ]
+        });
+      hasMore = olderMessagesCount > 0;
+    }
+
     return NextResponse.json({
       messages: formattedMessages.reverse(), 
       total,
-      page,
       limit,
-      hasMore: total > skip + limit,
+      hasMore,
     });
   } catch (error) {
     console.error("Error fetching messages:", error);

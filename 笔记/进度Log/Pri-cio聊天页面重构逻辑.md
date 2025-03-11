@@ -11,8 +11,8 @@
 - 对聊天/聊天历史页面相关的hook按照整体重构的逻辑进行重构
 - 测试+Debug:现在可以发送信息.
 - 测试+Debug:聊天背景颜色不显示,scoll bar消失
-### TODO
 - 测试+Debug:Fetching不了之前的聊天信息
+### TODO
 - 测试+Debug:发送的消息不在自己这一侧而是在对方这一侧
 - 把ChatUI的部分转移到ChatContext之中
 - 测试组件对新的hook的实现
