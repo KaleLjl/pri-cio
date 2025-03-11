@@ -1,36 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { io } from 'socket.io-client';
 import { socketService } from '@/lib/services/socket/socketService';
 
-export const useSocketConnection = (userId?: string) => {
-  const [isConnected, setIsConnected] = useState(false);
+interface UseSocketConnectionProps {
+  userId?: string;
+  enabled?: boolean;
+}
 
+export function useSocketConnection({ userId, enabled = true }: UseSocketConnectionProps) {
   useEffect(() => {
-    if (!userId) {
-      console.log('No userId provided, skipping socket connection');
-      return;
-    }
+    if (!enabled || !userId) return;
 
-    console.log(`Initializing socket connection for user: ${userId}`);
-    socketService.connect(userId);
+    // Initialize socket connection
+    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || '', {
+      query: { userId },
+      transports: ['websocket'],
+      autoConnect: false
+    });
 
-    const handleConnect = () => {
-      console.log('Socket connected successfully');
-      setIsConnected(true);
-    };
+    // Initialize socket service
+    socketService.initialize(socket);
 
-    const handleDisconnect = (reason: string) => {
-      console.log(`Socket disconnected: ${reason}`);
-      setIsConnected(false);
-    };
+    // Connect to socket
+    socket.connect();
 
-    socketService.onConnect(handleConnect);
-    socketService.onDisconnect(handleDisconnect);
-
+    // Cleanup on unmount
     return () => {
-      console.log('Cleaning up socket connection');
-      socketService.disconnect();
+      socketService.cleanup();
     };
-  }, [userId]);
+  }, [userId, enabled]);
 
-  return { isConnected };
-}; 
+  return {
+    isConnected: socketService.isConnected(),
+    connect: socketService.connect,
+    disconnect: socketService.disconnect,
+    joinRoom: socketService.joinRoom,
+    leaveRoom: socketService.leaveRoom,
+    getActiveRooms: socketService.getActiveRooms,
+    sendMessage: socketService.sendMessage,
+    onNewMessage: socketService.onNewMessage,
+    onUserTyping: socketService.onUserTyping,
+    onMessageDelivered: socketService.onMessageDelivered,
+    onMessageRead: socketService.onMessageRead
+  };
+} 

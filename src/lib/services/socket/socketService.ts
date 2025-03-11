@@ -1,5 +1,5 @@
+import { Socket } from 'socket.io-client';
 import { ChatMessage, NewConversationData, ConversationReadData, TypingData } from '../../utils/socket/types';
-import { socketClient } from '../../utils/socket/socketClient';
 import { SocketEvents } from '../../utils/socket/socketEvents';
 
 /**
@@ -10,56 +10,82 @@ import { SocketEvents } from '../../utils/socket/socketEvents';
  * in the application.
  */
 export const socketService = {
+  socket: null as Socket | null,
+  typingTimeout: null as NodeJS.Timeout | null,
+  activeRooms: new Set<string>(),
+
+  /**
+   * Initialize socket service
+   */
+  initialize(socket: Socket): void {
+    socketService.socket = socket;
+  },
+
   /**
    * Connection Management
    */
   connect: (userId: string): void => {
-    socketClient.connect(userId);
+    socketService.socket?.connect();
   },
 
   disconnect: (): void => {
-    socketClient.disconnect();
+    socketService.socket?.disconnect();
   },
 
   isConnected: (): boolean => {
-    return socketClient.isConnected();
+    return !!socketService.socket?.connected;
   },
 
   /**
    * Room Management
    */
-  joinRoom: (roomId: string): void => {
-    socketClient.joinRoom(roomId);
+  joinRoom: (conversationId: string): void => {
+    socketService.socket?.emit('join_room', { conversationId });
+    socketService.activeRooms.add(conversationId);
   },
 
-  leaveRoom: (roomId: string): void => {
-    socketClient.leaveRoom(roomId);
+  leaveRoom: (conversationId: string): void => {
+    socketService.socket?.emit('leave_room', { conversationId });
+    socketService.activeRooms.delete(conversationId);
   },
 
   getActiveRooms: (): string[] => {
-    return socketClient.getActiveRooms();
+    return Array.from(socketService.activeRooms);
   },
 
   /**
    * Message Operations
    */
-  sendMessage: (message: ChatMessage): boolean => {
-    return SocketEvents.sendMessage(message);
+  sendMessage: (message: ChatMessage): void => {
+    socketService.socket?.emit('message', message);
   },
 
-  sendTyping: (data: { conversationId: string; userId: string; typing: boolean }): boolean => {
-    return SocketEvents.sendTyping(data);
+  /**
+   * Typing Status Operations
+   */
+  handleTypingStatus: (data: TypingData): void => {
+    if (socketService.typingTimeout) {
+      clearTimeout(socketService.typingTimeout);
+    }
+
+    socketService.socket?.emit('typing', data);
+
+    if (data.typing) {
+      socketService.typingTimeout = setTimeout(() => {
+        socketService.socket?.emit('typing', { ...data, typing: false });
+      }, 3000);
+    }
   },
 
   /**
    * Message Status Operations
    */
-  sendMessageDelivered: (messageId: string): boolean => {
-    return SocketEvents.sendMessageDelivered(messageId);
+  sendMessageDelivered: (messageId: string): void => {
+    socketService.socket?.emit('message_delivered', { messageId });
   },
 
-  sendMessageRead: (messageId: string): boolean => {
-    return SocketEvents.sendMessageRead(messageId);
+  sendMessageRead: (messageId: string): void => {
+    socketService.socket?.emit('message_read', { messageId });
   },
 
   /**
@@ -111,5 +137,16 @@ export const socketService = {
    */
   emitExplorePostsUpdate: (userId: string): boolean => {
     return SocketEvents.emitExplorePostsUpdate(userId);
+  },
+
+  /**
+   * Cleanup
+   */
+  cleanup(): void {
+    if (socketService.typingTimeout) {
+      clearTimeout(socketService.typingTimeout);
+    }
+    socketService.socket?.disconnect();
+    socketService.socket = null;
   }
 }; 

@@ -1,9 +1,9 @@
 // components/useChatHistory.ts
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { useContext } from "react";
 import { ChatRecord } from "@/lib/types/chat";
-import { SocketContext } from "@/context/SocketContext";
+import { socketService } from "@/lib/services/socket/socketService";
+import { chatCacheService } from "@/lib/services/cache/chatCacheService";
 import { conversationApiService } from "@/lib/services/api/chat/conversationService";
 import { messageApiService } from "@/lib/services/api/chat/messageService";
 
@@ -18,10 +18,8 @@ interface UseChatHistoryReturn {
 
 export function useChatHistory(): UseChatHistoryReturn {
   const { data: session } = useSession();
-  const queryClient = useQueryClient();
-  const socket = useContext(SocketContext);
-
-  // 获取聊天历史
+  
+  // Initialize cache service with the query client
   const {
     data: chats = [],
     isLoading: loading,
@@ -35,21 +33,24 @@ export function useChatHistory(): UseChatHistoryReturn {
     enabled: !!session,
   });
 
-  // 包装 refetch 函数以返回 void
+  // Wrap refetch function to return void
   const refetch = async () => {
     await queryRefetch();
   };
 
-  // 删除消息
+  // Delete messages
   const deleteMessages = async (conversationId: string) => {
     try {
+      // Step 1: Delete messages via API
       await messageApiService.deleteMessages(conversationId);
       
-      // 离开房间
-      socket.leaveRoom(conversationId);
+      // Step 2: Leave room via socket
+      socketService.leaveRoom(conversationId);
       
-      // 清除缓存
-      queryClient.removeQueries({ queryKey: ["chat-messages", conversationId] });
+      // Step 3: Clear cache
+      await chatCacheService.clearConversationMessages(conversationId);
+      
+      // Step 4: Refetch chat history
       await refetch();
     } catch (error) {
       console.error("Error deleting messages:", error);
@@ -57,32 +58,25 @@ export function useChatHistory(): UseChatHistoryReturn {
     }
   };
 
-  // 修改标记已读方法
+  // Mark messages as read
   const markAsRead = async (conversationId: string, messageId?: string) => {
     try {
-      // 1. 立即更新本地缓存以提供即时反馈
-      queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
-        if (!oldChats) return oldChats;
-        return oldChats.map(chat => 
-          chat._id === conversationId 
-            ? { ...chat, unreadCount: 0 }
-            : chat
-        );
-      });
+      // Step 1: Update local cache optimistically
+      await chatCacheService.markConversationAsRead(conversationId);
 
-      // 2. 通过 Socket Context 发送消息已读状态
+      // Step 2: Send read status via socket if messageId is provided
       if (messageId) {
-        socket.sendMessageRead(messageId);
+        socketService.sendMessageRead(messageId);
       }
 
-      // 3. 通过 API 服务更新服务器
+      // Step 3: Update server via API
       await messageApiService.markAsRead(conversationId);
 
-      // 4. 重新获取聊天列表以确保同步
+      // Step 4: Refetch to ensure sync
       await refetch();
     } catch (error) {
       console.error("Error marking messages as read:", error);
-      // 如果失败，回滚本地缓存
+      // Revert cache on error
       await refetch();
       throw error;
     }

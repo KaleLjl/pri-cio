@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { useSocket } from '@/context/SocketContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { chatCacheService } from '@/lib/services/cache/chatCacheService';
 import { socketService } from '@/lib/services/socket/socketService';
@@ -9,33 +8,27 @@ import { ChatMessage } from '@/lib/types/chat';
 interface UseMessageReceptionProps {
   conversationId: string;
   currentUserId: string;
+  enabled?: boolean;
 }
 
-export function useMessageReception({ conversationId, currentUserId }: UseMessageReceptionProps) {
-  const { onNewMessage, onMessageDelivered, onMessageRead, onUserTyping } = useSocket();
+export function useMessageReception({ 
+  conversationId, 
+  currentUserId,
+  enabled = true 
+}: UseMessageReceptionProps) {
   const queryClient = useQueryClient();
 
   // Initialize cache service
   chatCacheService.initialize(queryClient);
 
   useEffect(() => {
-    // Helper function to mark messages as read
-    const markMessagesAsRead = () => {
-      messageApiService.markAsRead(conversationId).catch(error => {
-        console.error('Failed to mark messages as read:', error);
-      });
-    };
+    if (!enabled || !conversationId || !currentUserId) return;
 
-    // Handle messages and their status
-    const handleMessageStatus = (messageId: string, status: 'delivered' | 'read') => {
-      chatCacheService.updateMessageStatus(messageId, status);
-      if (status === 'read') {
-        markMessagesAsRead();
-      }
-    };
+    // Join the conversation room
+    socketService.joinRoom(conversationId);
 
-    // Handle new incoming messages and read status
-    const messageCleanup = onNewMessage((message: ChatMessage) => {
+    // Handle new incoming messages
+    const messageCleanup = socketService.onNewMessage((message: ChatMessage) => {
       if (message.conversationId === conversationId) {
         // Update cache with new message
         chatCacheService.handleNewMessage(message);
@@ -43,42 +36,47 @@ export function useMessageReception({ conversationId, currentUserId }: UseMessag
         // If we're receiving the message, mark it as delivered and read
         if (message.senderId !== currentUserId) {
           socketService.sendMessageDelivered(message._id);
-          handleMessageStatus(message._id, 'delivered');
-          handleMessageStatus(message._id, 'read');
+          chatCacheService.handleMessageStatusSequence(message._id, ['delivered', 'read']);
+          
+          // Also mark as read on the server
+          messageApiService.markAsRead(conversationId).catch(error => {
+            console.error('Failed to mark messages as read:', error);
+          });
         }
       }
     });
 
     // Handle message read status updates
-    const readCleanup = onMessageRead((messageId: string) => {
-      handleMessageStatus(messageId, 'read');
+    const readCleanup = socketService.onMessageRead((messageId: string) => {
+      chatCacheService.updateMessageStatus(messageId, 'read');
     });
 
     // Handle typing status updates
-    const typingCleanup = onUserTyping((data) => {
+    const typingCleanup = socketService.onUserTyping((data) => {
       if (data.userId !== currentUserId) {
         chatCacheService.updateTypingStatus(data.userId, data.typing);
       }
     });
 
     // Mark conversation as read when component mounts
-    if (conversationId) {
-      markMessagesAsRead();
-    }
+    messageApiService.markAsRead(conversationId).catch(error => {
+      console.error('Failed to mark messages as read:', error);
+    });
 
     // Cleanup all listeners when component unmounts
     return () => {
       messageCleanup();
       readCleanup();
       typingCleanup();
+      socketService.leaveRoom(conversationId);
     };
-  }, [conversationId, currentUserId, onNewMessage, onMessageDelivered, onMessageRead, onUserTyping]);
+  }, [conversationId, currentUserId, enabled, queryClient]);
 
   // Return typing status update function
   return {
     sendTypingStatus: (isTyping: boolean) => {
       if (conversationId && currentUserId) {
-        socketService.sendTyping({
+        socketService.handleTypingStatus({
           conversationId,
           userId: currentUserId,
           typing: isTyping

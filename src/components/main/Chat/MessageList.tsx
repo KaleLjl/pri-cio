@@ -1,25 +1,38 @@
 import React from 'react';
-import { useChat } from '@/context/ChatContext';
 import MessageItem from './MessageItem';
+import { useChatData } from '@/hooks/chat/useGetData';
+import { useChatUI } from '@/hooks/chat/useChatUI';
 
-const MessageList: React.FC = () => {
+interface MessageListProps {
+  userId: string;
+  conversationId: string;
+}
+
+const MessageList: React.FC<MessageListProps> = ({ userId, conversationId }) => {
+  // Get chat data
   const { 
     messages, 
-    isFetchingNextPage
-  } = useChat();
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage
+  } = useChatData({ 
+    userId, 
+    conversationId 
+  });
   
-  // Create local refs to avoid context type issues
-  const messagesContainerRef = React.useRef<HTMLDivElement>(null);
-  const loadMoreRef = React.useRef<HTMLDivElement>(null);
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  
-  // Get the handleScroll function from context but handle potential type issues
-  const chatContext = useChat();
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (chatContext.handleScroll) {
-      chatContext.handleScroll(e);
-    }
-  };
+  // Get UI state
+  const { 
+    messagesContainerRef,
+    loadMoreRef,
+    messagesEndRef,
+    handleScroll
+  } = useChatUI({
+    messages,
+    currentUserId: userId,
+    conversationId,
+    fetchNextPage,
+    hasNextPage
+  });
 
   return (
     <div 
@@ -38,7 +51,12 @@ const MessageList: React.FC = () => {
       {/* Messages List */}
       <div className="space-y-6">
         {messages.map((message) => (
-          <MessageItem key={message._id} message={message} />
+          <MessageItem 
+            key={message._id} 
+            message={message} 
+            userId={userId}
+            conversationId={conversationId}
+          />
         ))}
       </div>
       <div ref={messagesEndRef} />

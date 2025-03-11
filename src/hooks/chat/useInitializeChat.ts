@@ -5,10 +5,11 @@ import { ChatUser } from '@/lib/types/chat';
 import { useLanguage } from '@/context/LanguageContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { conversationApiService } from '@/lib/services/api/chat/conversationService';
-import { messageApiService } from '@/lib/services/api/chat/messageService';
+import { chatCacheService } from '@/lib/services/cache/chatCacheService';
 
-interface UseInitializeChatProps {
+export interface UseInitializeChatProps {
   userId: string;
+  conversationId?: string;
 }
 
 interface UseInitializeChatResult {
@@ -19,25 +20,25 @@ interface UseInitializeChatResult {
   error: string | null;
 }
 
-export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitializeChatResult {
+export function useInitializeChat({ userId, conversationId }: UseInitializeChatProps): UseInitializeChatResult {
   const { dict } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [conversationId, setConversationId] = useState<string>('');
+  const [currentConversationId, setCurrentConversationId] = useState<string>(conversationId || '');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [otherUser, setOtherUser] = useState<ChatUser | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasInitialized = useRef(false);
-
+  
   // Authentication check
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/signin');
     }
   }, [status, router]);
-
+  
   // Initialize chat
   useEffect(() => {
     const initializeChat = async () => {
@@ -49,7 +50,7 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
         setIsInitializing(true);
         setError(null);
         hasInitialized.current = true;
-
+        
         // Initialize conversation
         const result = await conversationApiService.initializeConversation(userId);
         console.log('Initialization result:', result);
@@ -59,17 +60,14 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
           throw new Error('Failed to get conversation ID');
         }
 
-        setConversationId(result.conversationId);
+        // Use provided conversationId if available
+        setCurrentConversationId(conversationId || result.conversationId);
         setCurrentUserId(result.currentUserId);
         setOtherUser(result.otherUser);
         
-        // Only prefetch messages if we have a valid conversationId
+        // Prefetch messages using cache service
         if (result.conversationId) {
-          await queryClient.prefetchInfiniteQuery({
-            queryKey: ['chat-messages', result.conversationId],
-            queryFn: () => messageApiService.getMessages(result.conversationId),
-            initialPageParam: undefined
-          });
+          await chatCacheService.prefetchMessages(result.conversationId);
         }
 
       } catch (err) {
@@ -80,14 +78,14 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
         setIsInitializing(false);
       }
     };
-
+    
     initializeChat();
-  }, [status, userId, queryClient]);
-
+  }, [status, userId, conversationId, queryClient]);
+  
   return {
     currentUserId,
     otherUser,
-    conversationId,
+    conversationId: currentConversationId,
     isInitializing,
     error,
   };

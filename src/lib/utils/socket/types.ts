@@ -15,6 +15,7 @@ export interface NewConversationData {
 }
 
 export interface TypingData {
+  conversationId: string;
   userId: string;
   typing: boolean;
 }

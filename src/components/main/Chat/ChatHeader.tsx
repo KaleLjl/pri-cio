@@ -1,22 +1,45 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
-import { useChat } from '@/context/ChatContext';
+import { useInitializeChat } from '@/hooks/chat/useInitializeChat';
+import { useChatData } from '@/hooks/chat/useGetData';
+import { useChatUI } from '@/hooks/chat/useChatUI';
+import { useMessageActions } from '@/hooks/chat/useMessageActions';
+import { useLanguage } from '@/context/LanguageContext';
 
-const ChatHeader: React.FC = () => {
-  const { 
-    otherUser, 
-    isTyping, 
-    userPosts, 
-    isLoadingPosts, 
-    showPosts, 
-    handleTogglePosts, 
-    deleteMessages,
-    dict,
-    lang
-  } = useChat();
-  
+const ChatHeader: React.FC<{ userId: string; conversationId: string }> = ({ userId, conversationId }) => {
+  const { dict, lang } = useLanguage();
   const router = useRouter();
+  
+  // Get chat initialization data
+  const { otherUser } = useInitializeChat({ 
+    userId, 
+    conversationId 
+  });
+  
+  // Get chat data
+  const { userPosts, isLoadingPosts, isTyping } = useChatData({ 
+    userId, 
+    conversationId, 
+    otherUser 
+  });
+  
+  // Get UI state
+  const { showPosts, handleTogglePosts } = useChatUI({
+    messages: [],
+    currentUserId: userId,
+    conversationId,
+    fetchNextPage: async () => {},
+    hasNextPage: false,
+    userPosts
+  });
+  
+  // Get message actions
+  const { deleteMessages } = useMessageActions({
+    conversationId,
+    currentUserId: userId,
+    otherUserId: otherUser?._id
+  });
 
   return (
     <div className="absolute top-16 left-0 right-0 z-20">

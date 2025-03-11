@@ -1,10 +1,12 @@
 import { QueryClient } from "@tanstack/react-query";
 import { ChatMessage } from "../socket/types";
+import { messageApiService } from '@/lib/services/api/chat/messageService';
 import { 
   ChatRecord,
   ChatCacheClientInterface, 
   CacheKeys, 
   InfiniteMessagesData,
+  MessagesResponse,
 } from "./types";
 
 /**
@@ -168,13 +170,10 @@ export class ChatCacheClient implements ChatCacheClientInterface {
   }
 
   /**
-   * Update message status in cache
+   * Update message status
+   * Note: This method updates the message status in both messages cache and chat history
    */
-  async updateMessageStatus(
-    messageId: string, 
-    status: string, 
-    newMessage?: ChatMessage
-  ): Promise<void> {
+  async updateMessageStatus(messageId: string, status: string, newMessage?: ChatMessage): Promise<void> {
     try {
       // Find message in cache
       const allConversationQueries = this.queryClient.getQueriesData<InfiniteMessagesData>({
@@ -217,12 +216,25 @@ export class ChatCacheClient implements ChatCacheClientInterface {
 
           // Update last message in chat history if this is the last message
           if (messageConversationId) {
-            this.updateLastMessageStatusInChatHistory(messageConversationId, messageId, status);
+            await this.updateLastMessageStatusInChatHistory(messageConversationId, messageId, status);
           }
         }
       }
     } catch (error) {
       console.error("Error updating message status:", error);
+    }
+  }
+
+  /**
+   * Handle sequential message status updates (e.g., delivered -> read)
+   */
+  async handleMessageStatusSequence(messageId: string, statuses: string[]): Promise<void> {
+    try {
+      for (const status of statuses) {
+        await this.updateMessageStatus(messageId, status);
+      }
+    } catch (error) {
+      console.error("Error handling message status sequence:", error);
     }
   }
 
@@ -338,5 +350,110 @@ export class ChatCacheClient implements ChatCacheClientInterface {
     return {
       queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId]
     };
+  }
+
+  // Message related query configurations
+  getMessagesQuery(conversationId: string) {
+    return {
+      queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId],
+      initialPageParam: undefined,
+      getNextPageParam: (lastPage: MessagesResponse) => {
+        if (!lastPage.hasMore) return undefined;
+        const firstMessage = lastPage.messages[0];
+        return firstMessage?._id;
+      }
+    };
+  }
+
+  /**
+   * Prefetch messages for a conversation
+   */
+  async prefetchMessages(conversationId: string): Promise<void> {
+    if (!conversationId) return;
+    
+    await this.queryClient.prefetchInfiniteQuery({
+      ...this.getMessagesQuery(conversationId),
+      queryFn: () => messageApiService.getMessages(conversationId)
+    });
+  }
+
+  // User related query configurations
+  getCurrentUserQuery() {
+    return {
+      queryKey: ['current-user']
+    };
+  }
+
+  getUserByIdQuery(userId: string) {
+    return {
+      queryKey: ['user', userId]
+    };
+  }
+
+  // Posts related query configurations
+  getUserPostsQuery(userId: string) {
+    return {
+      queryKey: ['explore-posts', userId]
+    };
+  }
+
+  // Typing status query configurations
+  getTypingStatusQuery(userId: string) {
+    return {
+      queryKey: ['chat-typing-status', userId],
+      initialData: false
+    };
+  }
+
+  /**
+   * Message Cache Operations
+   */
+
+  /**
+   * Clear conversation messages from cache
+   */
+  async clearConversationMessages(conversationId: string): Promise<void> {
+    this.queryClient.removeQueries({ queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId] });
+  }
+
+  /**
+   * Handle message submission with optimistic update
+   */
+  async handleMessageSubmission(message: ChatMessage): Promise<void> {
+    try {
+      // Add message to cache optimistically
+      await this.handleOptimisticMessage(message);
+      
+      // Update conversation in cache
+      await this.handleNewConversation(message.conversationId);
+      
+    } catch (error) {
+      console.error("Error handling message submission:", error);
+      // Revert optimistic update if needed
+      await this.updateMessageStatus(message._id, 'failed');
+    }
+  }
+
+  /**
+   * Update message and conversation status after successful send
+   */
+  async handleMessageSendSuccess(optimisticMessage: ChatMessage, sentMessage: ChatMessage): Promise<void> {
+    try {
+      await this.updateMessageStatus(optimisticMessage._id, 'sent', sentMessage);
+      await this.updateChatHistoryCache(sentMessage);
+    } catch (error) {
+      console.error("Error handling message send success:", error);
+    }
+  }
+
+  /**
+   * Handle message send failure
+   */
+  async handleMessageSendFailure(messageId: string): Promise<void> {
+    try {
+      await this.updateMessageStatus(messageId, 'failed');
+    } catch (error) {
+      console.error("Error handling message send failure:", error);
+    }
   }
 } 

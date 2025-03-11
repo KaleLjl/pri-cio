@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useContext } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { ChatMessage } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
-import { SocketContext } from '@/context/SocketContext';
+import { socketService } from '@/lib/services/socket/socketService';
 
 interface UseChatUIProps {
   messages: ChatMessage[];
@@ -10,6 +10,8 @@ interface UseChatUIProps {
   conversationId?: string;
   fetchNextPage: () => Promise<void>;
   hasNextPage?: boolean;
+  userPosts?: ExploreItem[];
+  onTyping?: (typing: boolean) => void;
 }
 
 export function useChatUI({
@@ -18,8 +20,9 @@ export function useChatUI({
   conversationId,
   fetchNextPage,
   hasNextPage,
+  userPosts = [],
+  onTyping,
 }: UseChatUIProps) {
-  const socket = useContext(SocketContext);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Refs
@@ -31,8 +34,6 @@ export function useChatUI({
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [showMyPosts, setShowMyPosts] = useState(false);
-  const [myPosts, setMyPosts] = useState<ExploreItem[]>([]);
-  const [isLoadingMyPosts, setIsLoadingMyPosts] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showPosts, setShowPosts] = useState(true);
   const [inputMessage, setInputMessage] = useState("");
@@ -67,27 +68,21 @@ export function useChatUI({
       if (shouldScrollToBottom || lastMessage.senderId === currentUserId) {
         scrollToBottom();
       }
-
-      // Mark messages as read
-      if (conversationId && currentUserId && lastMessage.senderId !== currentUserId) {
-        fetch('/api/chat/messages', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ conversationId }),
-        }).catch(console.error);
-      }
     }
-  }, [messages, currentUserId, shouldScrollToBottom, conversationId]);
+  }, [messages, currentUserId, shouldScrollToBottom]);
 
-  // Load more messages when scrolling up
+  // Handle infinite scroll
   useEffect(() => {
-    if (inView && !loadingMore && hasNextPage) {
+    if (inView && hasNextPage && !loadingMore) {
       setLoadingMore(true);
       fetchNextPage().finally(() => setLoadingMore(false));
     }
-  }, [inView, hasNextPage, fetchNextPage]);
+  }, [inView, hasNextPage, fetchNextPage, loadingMore]);
+
+  // Initial scroll to bottom
+  useEffect(() => {
+    scrollToBottom();
+  }, []);
 
   // Save scroll position before toggling posts
   const handleTogglePosts = () => {
@@ -110,61 +105,17 @@ export function useChatUI({
     return post;
   };
 
-  // Fetch current user's posts
-  useEffect(() => {
-    const fetchMyPosts = async () => {
-      if (!currentUserId) return;
-      setIsLoadingMyPosts(true);
-      try {
-        const response = await fetch('/api/explore');
-        if (!response.ok) throw new Error('Failed to fetch posts');
-        const allPosts = await response.json();
-        setMyPosts(allPosts.filter((post: ExploreItem) => post.userProfile?._id === currentUserId));
-      } catch (error) {
-        console.error('Error fetching my posts:', error);
-      } finally {
-        setIsLoadingMyPosts(false);
-      }
-    };
-
-    fetchMyPosts();
-  }, [currentUserId]);
-
-  // Handle typing
-  const handleTyping = (typing: boolean) => {
-    if (!conversationId || !currentUserId) return;
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    socket.sendTyping({
-      conversationId,
-      userId: currentUserId,
-      typing,
-    });
-
-    if (typing) {
-      typingTimeoutRef.current = setTimeout(() => {
-        socket.sendTyping({
-          conversationId,
-          userId: currentUserId,
-          typing: false,
-        });
-      }, 3000);
-    }
-  };
 
   // Handle message input
   const handleMessageInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputMessage(e.target.value);
-    handleTyping(true);
+    onTyping?.(true);
   };
 
   // Handle message submit
   const handleMessageSubmit = (message: string) => {
     if (!message) return;
-    handleTyping(false);
+    onTyping?.(false);
     setInputMessage("");
   };
 
@@ -178,8 +129,7 @@ export function useChatUI({
     inputMessage,
     showPosts,
     showMyPosts,
-    myPosts,
-    isLoadingMyPosts,
+    userPosts,
     loadingMore,
     scrollPosition,
 

@@ -1,13 +1,11 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { ChatUser, ChatMessage } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
-import { getPrimaryImage } from '@/context/ChatContext';
 import { userApiService } from '@/lib/services/api/users/userService';
 import { exploreApiService } from '@/lib/services/api/explore/exploreService';
 import { messageApiService } from '@/lib/services/api/chat/messageService';
 import { chatCacheService } from '@/lib/services/cache/chatCacheService';
 import { MessagesResponse } from '@/lib/utils/cache/types';
-import { CacheKeys } from '@/lib/utils/cache/types';
 
 interface UseChatDataProps {
   userId: string;
@@ -15,78 +13,16 @@ interface UseChatDataProps {
   otherUser?: ChatUser | null;
 }
 
-export function useChatData({ userId, conversationId, otherUser }: UseChatDataProps) {
-  // Fetch current user data
-  const {
-    data: currentUser,
-    isLoading: isLoadingCurrentUser,
-    error: currentUserError
-  } = useQuery({
-    queryKey: ['current-user'],
-    queryFn: async () => {
-      return userApiService.getCurrentUser();
-    },
-    enabled: !!userId,
-  });
+// Helper function to get primary image
+export const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
+  const primaryImage = images.find(img => img.isPrimary);
+  return primaryImage ? primaryImage.url : (images[0]?.url || '');
+};
 
-  // Fetch other user data
-  const {
-    data: otherUserData,
-    isLoading: isLoadingOtherUser,
-    error: otherUserError
-  } = useQuery({
-    queryKey: ['user', userId],
-    queryFn: async () => {
-      return userApiService.getUserById(userId);
-    },
-    enabled: !!userId,
-  });
-
-  // Fetch messages using cache service
-  const {
-    data: messagesData,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading: isLoadingMessages,
-    error: messagesError,
-  } = useInfiniteQuery({
-    queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId],
-    queryFn: async ({ pageParam = undefined }) => {
-      return messageApiService.getMessages(conversationId!, pageParam);
-    },
-    initialPageParam: undefined,
-    getNextPageParam: (lastPage: MessagesResponse) => {
-      if (!lastPage.hasMore) return undefined;
-      const firstMessage = lastPage.messages[0];
-      return firstMessage?._id;
-    },
-    enabled: !!conversationId,
-  });
-
-  // Fetch user posts
-  const {
-    data: userPosts = [],
-    isLoading: isLoadingPosts,
-    error: postsError
-  } = useQuery({
-    queryKey: ['explore-posts', otherUser?._id],
-    queryFn: async () => {
-      if (!otherUser?._id) throw new Error('No other user ID');
-      return exploreApiService.getUserPosts(otherUser._id);
-    },
-    enabled: !!otherUser?._id,
-  });
-
-  // Get typing status from cache
-  const { data: isTyping = false } = useQuery({
-    queryKey: ['chat-typing-status', otherUser?._id],
-    initialData: false,
-  });
-
-  // Process messages with proper image handling
+// Helper function to process messages
+function processMessages(messagesData: any) {
   const messages = messagesData?.pages.flatMap((page: MessagesResponse) => page.messages) ?? [];
-  const uniqueMessages = messages
+  return messages
     .map((msg: ChatMessage) => {
       if (typeof msg.content !== 'string' && msg.content.type === 'object_discussion') {
         return {
@@ -99,13 +35,75 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
       }
       return msg;
     })
-    .sort((a: ChatMessage, b: ChatMessage) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    .sort((a: ChatMessage, b: ChatMessage) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+}
 
-  // Format user posts with proper image handling
-  const formattedUserPosts = userPosts.map((post: ExploreItem) => ({
+// Helper function to format user posts
+function formatUserPosts(posts: ExploreItem[]) {
+  return posts.map(post => ({
     ...post,
     imageUrl: getPrimaryImage(post.images),
   }));
+}
+
+export function useChatData({ userId, conversationId, otherUser }: UseChatDataProps) {
+  // Get current user data
+  const {
+    data: currentUser,
+    isLoading: isLoadingCurrentUser,
+    error: currentUserError
+  } = useQuery({
+    ...chatCacheService.getCurrentUserQuery(),
+    queryFn: () => userApiService.getCurrentUser(),
+    enabled: !!userId,
+  });
+
+  // Get other user data
+  const {
+    data: otherUserData,
+    isLoading: isLoadingOtherUser,
+    error: otherUserError
+  } = useQuery({
+    ...chatCacheService.getUserByIdQuery(userId),
+    queryFn: () => userApiService.getUserById(userId),
+    enabled: !!userId,
+  });
+
+  // Get messages data
+  const {
+    data: messagesData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isLoadingMessages,
+    error: messagesError,
+  } = useInfiniteQuery({
+    ...chatCacheService.getMessagesQuery(conversationId!),
+    queryFn: ({ pageParam }) => messageApiService.getMessages(conversationId!, pageParam),
+    enabled: !!conversationId,
+  });
+
+  // Get user posts
+  const {
+    data: userPosts = [],
+    isLoading: isLoadingPosts,
+    error: postsError
+  } = useQuery({
+    ...chatCacheService.getUserPostsQuery(otherUser?._id!),
+    queryFn: () => exploreApiService.getUserPosts(otherUser!._id),
+    enabled: !!otherUser?._id,
+  });
+
+  // Get typing status
+  const { data: isTyping = false } = useQuery({
+    ...chatCacheService.getTypingStatusQuery(otherUser?._id!),
+  });
+
+  // Process messages and posts
+  const messages = processMessages(messagesData);
+  const formattedUserPosts = formatUserPosts(userPosts);
 
   return {
     // User data
@@ -115,12 +113,12 @@ export function useChatData({ userId, conversationId, otherUser }: UseChatDataPr
     userError: currentUserError?.message || otherUserError?.message || null,
     
     // Messages data
-    messages: uniqueMessages,
+    messages,
     hasNextPage: !!hasNextPage,
     isFetchingNextPage,
     isLoadingMessages,
     messagesError: messagesError?.message || null,
-    fetchNextPage: async () => { await fetchNextPage(); },
+    fetchNextPage,
     
     // Posts data
     userPosts: formattedUserPosts,

@@ -6,18 +6,25 @@ import { useChatHistory } from "@/hooks/useChatHistory";
 import { useCurrentUser } from "@/context/CurrentUserContext";
 import { MessageContent } from "@/lib/types/chat";
 import { useLanguage } from '@/context/LanguageContext';
-import { SocketProvider } from '@/context/SocketContext';
+import { useSocketConnection } from '@/hooks/chat/useSocketConnection';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-// Inner component that uses the context
-const ChatHistoryContent = () => {
+export default function ChatHistory() {
   const { dict } = useLanguage();
   const { currentUser, loadingUser } = useCurrentUser();
-  const { chats, loading, error, deleteMessages, markAsRead } = useChatHistory();
   const queryClient = useQueryClient();
+  
+  // Initialize socket connection if user is logged in
+  useSocketConnection({ 
+    userId: currentUser?._id,
+    enabled: !!currentUser
+  });
+  
+  // Get chat history data
+  const { chats, loading, error, deleteMessages, markAsRead } = useChatHistory();
 
   // Add real-time update support
   useEffect(() => {
@@ -178,24 +185,5 @@ const ChatHistoryContent = () => {
         })}
       </div>
     </div>
-  );
-};
-
-// Main ChatHistory component that provides the context
-export default function ChatHistory() {
-  const { currentUser, loadingUser } = useCurrentUser();
-
-  if (loadingUser) {
-    return <Loading />;
-  }
-
-  if (!currentUser) {
-    return null;
-  }
-
-  return (
-    <SocketProvider userId={currentUser._id}>
-      <ChatHistoryContent />
-    </SocketProvider>
   );
 }

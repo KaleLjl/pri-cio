@@ -4,13 +4,13 @@ import { ChatMessage, MessageContent } from '@/lib/types/chat';
 import { messageApiService } from '@/lib/services/api/chat/messageService';
 import { socketService } from '@/lib/services/socket/socketService';
 import { chatCacheService } from '@/lib/services/cache/chatCacheService';
-import { useSocket } from '@/context/SocketContext';
+import { useRef } from 'react';
 
 interface UseMessageActionsProps {
   conversationId?: string;
   currentUserId?: string;
   otherUserId?: string;
-  handleMessageSubmit: (message: string) => void;
+  handleMessageSubmit?: (message: string) => void;
 }
 
 interface MutationContext {
@@ -24,12 +24,36 @@ export function useMessageActions({
   handleMessageSubmit,
 }: UseMessageActionsProps) {
   const queryClient = useQueryClient();
-  const { isConnected } = useSocket();
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const isConnected = socketService.isConnected();
 
   // Initialize cache service
   chatCacheService.initialize(queryClient);
 
-  
+  // Handle typing status
+  const handleTyping = (typing: boolean) => {
+    if (!conversationId || !currentUserId) return;
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    socketService.handleTypingStatus({
+      conversationId,
+      userId: currentUserId,
+      typing,
+    });
+
+    if (typing) {
+      typingTimeoutRef.current = setTimeout(() => {
+        socketService.handleTypingStatus({
+          conversationId,
+          userId: currentUserId,
+          typing: false,
+        });
+      }, 3000);
+    }
+  };
 
   // Send message mutation
   const sendMessageMutation = useMutation({
@@ -37,6 +61,8 @@ export function useMessageActions({
       if (!conversationId || !otherUserId || !currentUserId) {
         throw new Error('Missing required data');
       }
+
+      // Create optimistic message
       const optimisticMessage: ChatMessage = {
         _id: uuidv4(),
         conversationId,
@@ -48,7 +74,7 @@ export function useMessageActions({
       };
 
       // Step 1: Handle optimistic update in cache
-      await chatCacheService.handleOptimisticMessage(optimisticMessage);
+      await chatCacheService.handleMessageSubmission(optimisticMessage);
 
       // Step 2: Send via socket if connected
       if (isConnected) {
@@ -59,7 +85,7 @@ export function useMessageActions({
       const sentMessage = await messageApiService.sendMessage(conversationId, content, otherUserId);
 
       // Step 4: Update message status in cache
-      await chatCacheService.updateMessageStatus(optimisticMessage._id, 'sent', sentMessage);
+      await chatCacheService.handleMessageSendSuccess(optimisticMessage, sentMessage);
 
       return { sentMessage, optimisticMessage };
     },
@@ -67,13 +93,7 @@ export function useMessageActions({
       console.error('Failed to send message:', error);
       
       if (context?.optimisticMessage) {
-        // Update message status to failed in cache
-        await chatCacheService.updateMessageStatus(context.optimisticMessage._id, 'failed');
-      }
-
-      // Invalidate queries to refresh the UI
-      if (conversationId) {
-        queryClient.invalidateQueries({ queryKey: ['chat-messages', conversationId] });
+        await chatCacheService.handleMessageSendFailure(context.optimisticMessage._id);
       }
     }
   });
@@ -89,7 +109,7 @@ export function useMessageActions({
       await messageApiService.deleteMessages(conversationId);
 
       // Step 2: Clear cache
-      queryClient.removeQueries({ queryKey: ['chat-messages', conversationId] });
+      await chatCacheService.clearConversationMessages(conversationId);
 
       // Step 3: Notify via socket if connected
       if (isConnected) {
@@ -105,7 +125,8 @@ export function useMessageActions({
     const message = input?.value.trim();
     
     if (message) {
-      handleMessageSubmit(message);
+      handleMessageSubmit?.(message);
+      handleTyping(false);
       await sendMessageMutation.mutateAsync(message);
       input.value = '';
     }
@@ -115,6 +136,7 @@ export function useMessageActions({
     sendMessage: (content: MessageContent) => sendMessageMutation.mutateAsync(content),
     deleteMessages: () => deleteMessagesMutation.mutateAsync(),
     handleSubmit,
+    handleTyping,
     isLoading: sendMessageMutation.isPending,
     isDeleting: deleteMessagesMutation.isPending,
     error: sendMessageMutation.error,

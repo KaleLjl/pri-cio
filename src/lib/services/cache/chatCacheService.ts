@@ -1,9 +1,6 @@
 import { ChatCacheClient } from '@/lib/utils/cache/chatCacheClient';
 import { ChatMessage } from '@/lib/utils/socket/types';
-import { MessagesResponse } from '@/lib/utils/cache/types';
 import { QueryClient } from '@tanstack/react-query';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { CacheKeys } from '@/lib/utils/cache/types';
 
 /**
  * Chat Cache Service
@@ -20,6 +17,46 @@ export const chatCacheService = {
    */
   initialize: (queryClient: QueryClient): void => {
     chatCacheService.client = new ChatCacheClient(queryClient);
+  },
+
+  /**
+   * Get messages query configuration
+   */
+  getMessagesQuery: (conversationId: string) => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.getMessagesQuery(conversationId);
+  },
+
+  /**
+   * Get current user query configuration
+   */
+  getCurrentUserQuery: () => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.getCurrentUserQuery();
+  },
+
+  /**
+   * Get user by ID query configuration
+   */
+  getUserByIdQuery: (userId: string) => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.getUserByIdQuery(userId);
+  },
+
+  /**
+   * Get user posts query configuration
+   */
+  getUserPostsQuery: (userId: string) => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.getUserPostsQuery(userId);
+  },
+
+  /**
+   * Get typing status query configuration
+   */
+  getTypingStatusQuery: (userId: string) => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.getTypingStatusQuery(userId);
   },
 
   /**
@@ -44,6 +81,9 @@ export const chatCacheService = {
     return chatCacheService.client.handleOptimisticMessage(message);
   },
 
+  /**
+   * Message Status Handling
+   */
   updateMessageStatus: async (
     messageId: string,
     status: string,
@@ -51,6 +91,11 @@ export const chatCacheService = {
   ): Promise<void> => {
     if (!chatCacheService.client) throw new Error('Cache service not initialized');
     return chatCacheService.client.updateMessageStatus(messageId, status, newMessage);
+  },
+
+  handleMessageStatusSequence: async (messageId: string, statuses: string[]): Promise<void> => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.handleMessageStatusSequence(messageId, statuses);
   },
 
   /**
@@ -80,5 +125,36 @@ export const chatCacheService = {
   isNewConversation: async (conversationId: string): Promise<boolean> => {
     if (!chatCacheService.client) throw new Error('Cache service not initialized');
     return chatCacheService.client.isNewConversation(conversationId);
+  },
+
+  /**
+   * Prefetch Methods
+   */
+  prefetchMessages: async (conversationId: string): Promise<void> => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.prefetchMessages(conversationId);
+  },
+
+  /**
+   * Message Cache Operations
+   */
+  clearConversationMessages: async (conversationId: string): Promise<void> => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.clearConversationMessages(conversationId);
+  },
+
+  handleMessageSubmission: async (message: ChatMessage): Promise<void> => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.handleMessageSubmission(message);
+  },
+
+  handleMessageSendSuccess: async (optimisticMessage: ChatMessage, sentMessage: ChatMessage): Promise<void> => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.handleMessageSendSuccess(optimisticMessage, sentMessage);
+  },
+
+  handleMessageSendFailure: async (messageId: string): Promise<void> => {
+    if (!chatCacheService.client) throw new Error('Cache service not initialized');
+    return chatCacheService.client.handleMessageSendFailure(messageId);
   },
 }; 
