@@ -35,6 +35,20 @@ export default function Chat({ userId }: ChatProps) {
     currentUserId: userId,
     enabled: !!conversationId && !!userId
   });
+
+  // Prevent body scrolling
+  React.useEffect(() => {
+    // Save original styles
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    
+    // Disable scrolling on body
+    document.body.style.overflow = 'hidden';
+    
+    // Cleanup function to restore original style
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
+  }, []);
   
   // Show loading state
   if (isInitializing) {
@@ -78,24 +92,30 @@ export default function Chat({ userId }: ChatProps) {
   }
   
   return (
-    <div className="flex flex-col h-screen pt-16 bg-gray-900">
-      <div className="container max-w-4xl mx-auto flex-1 flex flex-col">
-        {/* Chat header */}
-        <ChatHeader userId={userId} conversationId={conversationId} />
-        
-        {/* Chat content */}
-        <div className="flex-1 flex flex-col overflow-hidden relative mt-20">
-          {/* Message list */}
-          <MessageList userId={userId} conversationId={conversationId} />
-          
-          {/* Message input */}
-          <MessageInput 
-            userId={userId} 
-            conversationId={conversationId} 
-            otherUserId={otherUser._id}
-          />
+    <>
+      {/* Fixed background */}
+      <div className="fixed inset-0 bg-gradient-to-b from-purple-900 via-purple-800 to-gray-900" />
+      
+      {/* Main chat container */}
+      <div className="fixed inset-0 flex flex-col overflow-hidden">
+        <div className="container max-w-4xl mx-auto flex flex-col h-full p-4 pt-16">
+          {/* Chat content container */}
+          <div className="flex flex-col flex-grow h-0 bg-[#16162a]/90 rounded-lg shadow-2xl border border-purple-500/10 overflow-hidden">
+            {/* Chat header - now part of the normal flow */}
+            <ChatHeader userId={userId} conversationId={conversationId} />
+            
+            {/* Message list - scrollable area */}
+            <MessageList userId={userId} conversationId={conversationId} />
+            
+            {/* Message input */}
+            <MessageInput 
+              userId={userId} 
+              conversationId={conversationId} 
+              otherUserId={otherUser._id}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 } 

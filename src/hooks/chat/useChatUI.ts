@@ -22,7 +22,6 @@ export function useChatUI({
   userPosts = [],
   onTyping,
 }: UseChatUIProps) {
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
