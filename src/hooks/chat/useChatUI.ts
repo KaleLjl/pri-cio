@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { ChatMessage } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
-import { socketService } from '@/lib/services/socket/socketService';
 
 interface UseChatUIProps {
   messages: ChatMessage[];

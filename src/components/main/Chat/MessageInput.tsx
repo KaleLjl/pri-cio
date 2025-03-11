@@ -4,7 +4,11 @@ import { useMessageActions } from '@/hooks/chat/useMessageActions';
 import { useChatData } from '@/hooks/chat/useGetData';
 import { useLanguage } from '@/context/LanguageContext';
 
-const MessageInput: React.FC<{ userId: string; conversationId: string }> = ({ userId, conversationId }) => {
+const MessageInput: React.FC<{ userId: string; conversationId: string; otherUserId: string }> = ({ 
+  userId, 
+  conversationId,
+  otherUserId 
+}) => {
   const { dict } = useLanguage();
   
   // Get chat data
@@ -32,7 +36,8 @@ const MessageInput: React.FC<{ userId: string; conversationId: string }> = ({ us
     isLoading: isSendingMessage
   } = useMessageActions({
     conversationId,
-    currentUserId: userId
+    currentUserId: userId,
+    otherUserId
   });
 
   return (

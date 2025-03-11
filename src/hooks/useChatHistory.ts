@@ -5,7 +5,7 @@ import { ChatRecord } from "@/lib/types/chat";
 import { socketService } from "@/lib/services/socket/socketService";
 import { chatCacheService } from "@/lib/services/cache/chatCacheService";
 import { conversationApiService } from "@/lib/services/api/chat/conversationService";
-import { messageApiService } from "@/lib/services/api/chat/messageService";
+import { messageApiService } from "@/lib/services/api/chat/messageApiService";
 
 interface UseChatHistoryReturn {
   chats: ChatRecord[];

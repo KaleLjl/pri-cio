@@ -21,7 +21,6 @@ interface UseInitializeChatResult {
 }
 
 export function useInitializeChat({ userId, conversationId }: UseInitializeChatProps): UseInitializeChatResult {
-  const { dict } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -60,14 +59,22 @@ export function useInitializeChat({ userId, conversationId }: UseInitializeChatP
           throw new Error('Failed to get conversation ID');
         }
 
+        if (!result?.otherUser || !result?.otherUser?._id) {
+          console.error('Missing otherUser in response:', result);
+          throw new Error('Failed to get other user information');
+        }
+
         // Use provided conversationId if available
-        setCurrentConversationId(conversationId || result.conversationId);
+        const finalConversationId = conversationId || result.conversationId;
+        console.log('Setting conversationId:', finalConversationId);
+        
+        setCurrentConversationId(finalConversationId);
         setCurrentUserId(result.currentUserId);
         setOtherUser(result.otherUser);
         
         // Prefetch messages using cache service
-        if (result.conversationId) {
-          await chatCacheService.prefetchMessages(result.conversationId);
+        if (finalConversationId) {
+          await chatCacheService.prefetchMessages(finalConversationId);
         }
 
       } catch (err) {

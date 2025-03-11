@@ -3,7 +3,7 @@ import { ChatUser, ChatMessage } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
 import { userApiService } from '@/lib/services/api/users/userService';
 import { exploreApiService } from '@/lib/services/api/explore/exploreService';
-import { messageApiService } from '@/lib/services/api/chat/messageService';
+import { messageApiService } from '@/lib/services/api/chat/messageApiService';
 import { chatCacheService } from '@/lib/services/cache/chatCacheService';
 import { MessagesResponse } from '@/lib/utils/cache/types';
 
@@ -22,19 +22,31 @@ export const getPrimaryImage = (images: Array<{id: string, url: string, isPrimar
 // Helper function to process messages
 function processMessages(messagesData: any) {
   const messages = messagesData?.pages.flatMap((page: MessagesResponse) => page.messages) ?? [];
-  return messages
-    .map((msg: ChatMessage) => {
-      if (typeof msg.content !== 'string' && msg.content.type === 'object_discussion') {
-        return {
+  
+  // Create a Map to track unique messages by ID
+  const uniqueMessages = new Map();
+  
+  // Process messages and keep only unique ones
+  messages.forEach((msg: ChatMessage) => {
+    // Process message content if needed
+    const processedMsg = typeof msg.content !== 'string' && msg.content.type === 'object_discussion'
+      ? {
           ...msg,
           content: {
             ...msg.content,
             imageUrl: getPrimaryImage(msg.content.images || []),
           }
-        };
-      }
-      return msg;
-    })
+        }
+      : msg;
+    
+    // Only add if not already in the map (keep the first occurrence)
+    if (!uniqueMessages.has(msg._id)) {
+      uniqueMessages.set(msg._id, processedMsg);
+    }
+  });
+  
+  // Convert map values to array and sort by creation time
+  return Array.from(uniqueMessages.values())
     .sort((a: ChatMessage, b: ChatMessage) => 
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );

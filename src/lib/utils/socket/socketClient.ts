@@ -44,7 +44,7 @@ export class SocketClient {
     this.userId = userId;
     
     // Create socket connection
-    this.socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000", {
+    this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001", {
       transports: ["websocket"],
       auth: { userId },
       reconnection: true,

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, MessageContent } from '@/lib/types/chat';
-import { messageApiService } from '@/lib/services/api/chat/messageService';
+import { messageApiService } from '@/lib/services/api/chat/messageApiService';
 import { socketService } from '@/lib/services/socket/socketService';
 import { chatCacheService } from '@/lib/services/cache/chatCacheService';
 import { useRef } from 'react';
@@ -58,8 +58,16 @@ export function useMessageActions({
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (content: MessageContent) => {
-      if (!conversationId || !otherUserId || !currentUserId) {
-        throw new Error('Missing required data');
+      if (!conversationId) {
+        throw new Error('Missing conversation ID');
+      }
+      
+      if (!currentUserId) {
+        throw new Error('Missing current user ID');
+      }
+      
+      if (!otherUserId) {
+        throw new Error('Missing recipient user ID');
       }
 
       // Create optimistic message
@@ -125,10 +133,18 @@ export function useMessageActions({
     const message = input?.value.trim();
     
     if (message) {
+      // Log the conversationId for debugging
+      console.log('Sending message with conversationId:', conversationId);
+      
       handleMessageSubmit?.(message);
       handleTyping(false);
-      await sendMessageMutation.mutateAsync(message);
-      input.value = '';
+      
+      try {
+        await sendMessageMutation.mutateAsync(message);
+        input.value = '';
+      } catch (error) {
+        console.error('Error sending message:', error);
+      }
     }
   };
 

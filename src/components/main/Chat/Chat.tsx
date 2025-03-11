@@ -16,7 +16,7 @@ export default function Chat({ userId }: ChatProps) {
   const { currentUser } = useCurrentUser();
   
   // Get URL params
-  const conversationId = typeof window !== 'undefined' 
+  const urlConversationId = typeof window !== 'undefined' 
     ? new URLSearchParams(window.location.search).get('id') || ''
     : '';
   
@@ -24,9 +24,9 @@ export default function Chat({ userId }: ChatProps) {
   useSocketConnection({ userId });
   
   // Initialize chat
-  const { isInitializing, error } = useInitializeChat({ 
+  const { isInitializing, error, otherUser, conversationId } = useInitializeChat({ 
     userId, 
-    conversationId 
+    conversationId: urlConversationId 
   });
   
   // Set up message reception
@@ -53,6 +53,30 @@ export default function Chat({ userId }: ChatProps) {
     );
   }
   
+  // Show message if otherUser is not available
+  if (!otherUser || !otherUser._id) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center p-6 bg-gray-800 rounded-lg shadow-lg">
+          <h2 className="text-xl font-bold text-yellow-500 mb-2">Chat Not Available</h2>
+          <p className="text-white">Unable to load chat information. Please try again later.</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show message if conversationId is not available
+  if (!conversationId) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center p-6 bg-gray-800 rounded-lg shadow-lg">
+          <h2 className="text-xl font-bold text-yellow-500 mb-2">Chat Not Available</h2>
+          <p className="text-white">Unable to load conversation. Please try again later.</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="flex flex-col h-screen pt-16 bg-gray-900">
       <div className="container max-w-4xl mx-auto flex-1 flex flex-col">
@@ -65,7 +89,11 @@ export default function Chat({ userId }: ChatProps) {
           <MessageList userId={userId} conversationId={conversationId} />
           
           {/* Message input */}
-          <MessageInput userId={userId} conversationId={conversationId} />
+          <MessageInput 
+            userId={userId} 
+            conversationId={conversationId} 
+            otherUserId={otherUser._id}
+          />
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { chatCacheService } from '@/lib/services/cache/chatCacheService';
 import { socketService } from '@/lib/services/socket/socketService';
-import { messageApiService } from '@/lib/services/api/chat/messageService';
+import { messageApiService } from '@/lib/services/api/chat/messageApiService';
 import { ChatMessage } from '@/lib/types/chat';
 
 interface UseMessageReceptionProps {

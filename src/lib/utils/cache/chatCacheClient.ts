@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { ChatMessage } from "../socket/types";
-import { messageApiService } from '@/lib/services/api/chat/messageService';
+import { messageApiService } from '@/lib/services/api/chat/messageApiService';
 import { 
   ChatRecord,
   ChatCacheClientInterface, 
@@ -79,18 +79,39 @@ export class ChatCacheClient implements ChatCacheClientInterface {
       });
     } else {
       // Add new message to the first page
-      const updatedData = {
-        ...existingData,
-        pages: [
-          {
-            ...existingData.pages[0],
-            messages: [message, ...existingData.pages[0].messages],
-          },
-          ...existingData.pages.slice(1),
-        ],
-      };
+      // First, ensure we don't have any messages with the same ID (defensive check)
+      const allMessages = existingData.pages.flatMap(page => page.messages);
+      const hasDuplicate = allMessages.some((m: ChatMessage) => m._id === message._id);
+      
+      if (hasDuplicate) {
+        console.warn(`Attempted to add duplicate message with ID ${message._id}`);
+        // Update existing message instead of adding a new one
+        const updatedPages = existingData.pages.map((page) => ({
+          ...page,
+          messages: page.messages.map((m: ChatMessage) =>
+            m._id === message._id ? { ...m, ...message } : m
+          ),
+        }));
+        
+        this.queryClient.setQueryData(conversationKey, {
+          ...existingData,
+          pages: updatedPages,
+        });
+      } else {
+        // Add new message to the first page
+        const updatedData = {
+          ...existingData,
+          pages: [
+            {
+              ...existingData.pages[0],
+              messages: [message, ...existingData.pages[0].messages],
+            },
+            ...existingData.pages.slice(1),
+          ],
+        };
 
-      this.queryClient.setQueryData(conversationKey, updatedData);
+        this.queryClient.setQueryData(conversationKey, updatedData);
+      }
     }
   }
 
