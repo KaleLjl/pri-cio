@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import type { Dictionary } from '@/lib/utils/International-i18/types';
 import type { Locale } from '@/lib/utils/International-i18/i18n-config';
 
+// Note: We don't need to add ChatProvider here since it's only used in the Chat component tree
 interface RootContextProps {
   children: React.ReactNode;
   lang: Locale;

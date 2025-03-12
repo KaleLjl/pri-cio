@@ -1,54 +1,24 @@
 'use client';
 import React from 'react';
 import { ChatProps } from '@/lib/types/chat';
-import { useCurrentUser } from '@/context/CurrentUserContext';
 import { useSocketConnection } from '@/hooks/chat/useSocketConnection';
 import { useMessageReception } from '@/hooks/chat/useMessageReception';
-import { useInitializeChat } from '@/hooks/chat/useInitializeChat';
+import { ChatProvider, useChatContext } from '@/context/ChatContext';
 import Loading from '@/components/shared/Loading';
 import ChatHeader from './ChatHeader';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 
-// Main chat component
-export default function Chat({ userId }: ChatProps) {
-  // Get current user
-  const { currentUser } = useCurrentUser();
+// Chat content component that uses the context
+function ChatContent() {
+  const { currentUserId, otherUser, conversationId, isInitializing, error } = useChatContext();
   
-  // Get URL params
-  const urlConversationId = typeof window !== 'undefined' 
-    ? new URLSearchParams(window.location.search).get('id') || ''
-    : '';
-  
-  // Initialize socket connection
-  useSocketConnection({ userId });
-  
-  // Initialize chat
-  const { isInitializing, error, otherUser, conversationId, currentUserId } = useInitializeChat({ 
-    userId, 
-    conversationId: urlConversationId 
-  });
-  
-  // Set up message reception
+  // Set up message reception with type-safe approach
   useMessageReception({
     conversationId,
-    currentUserId: currentUserId || userId, // Use currentUserId from useInitializeChat if available
-    enabled: !!conversationId && !!(currentUserId || userId)
+    currentUserId: currentUserId || '',
+    enabled: !!conversationId && !!currentUserId
   });
-
-  // Prevent body scrolling
-  React.useEffect(() => {
-    // Save original styles
-    const originalStyle = window.getComputedStyle(document.body).overflow;
-    
-    // Disable scrolling on body
-    document.body.style.overflow = 'hidden';
-    
-    // Cleanup function to restore original style
-    return () => {
-      document.body.style.overflow = originalStyle;
-    };
-  }, []);
   
   // Show loading state
   if (isInitializing) {
@@ -91,9 +61,6 @@ export default function Chat({ userId }: ChatProps) {
     );
   }
   
-  // Use currentUserId from useInitializeChat if available, fallback to userId
-  const actualUserId = currentUserId || userId;
-  
   return (
     <>
       {/* Fixed background */}
@@ -104,21 +71,48 @@ export default function Chat({ userId }: ChatProps) {
         <div className="container max-w-4xl mx-auto flex flex-col h-full p-4 pt-16">
           {/* Chat content container */}
           <div className="flex flex-col flex-grow h-0 bg-[#16162a]/90 rounded-lg shadow-2xl border border-purple-500/10 overflow-hidden">
-            {/* Chat header - now part of the normal flow */}
-            <ChatHeader userId={actualUserId} conversationId={conversationId} />
+            {/* Chat header */}
+            <ChatHeader />
             
             {/* Message list - scrollable area */}
-            <MessageList userId={actualUserId} conversationId={conversationId} />
+            <MessageList />
             
             {/* Message input */}
-            <MessageInput 
-              userId={actualUserId} 
-              conversationId={conversationId} 
-              otherUserId={otherUser._id}
-            />
+            <MessageInput />
           </div>
         </div>
       </div>
     </>
+  );
+}
+
+// Main chat component with provider
+export default function Chat({ userId }: ChatProps) {
+  // Get URL params
+  const urlConversationId = typeof window !== 'undefined' 
+    ? new URLSearchParams(window.location.search).get('id') || ''
+    : '';
+  
+  // Initialize socket connection
+  useSocketConnection({ userId });
+  
+  // Prevent body scrolling
+  React.useEffect(() => {
+    // Save original styles
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    
+    // Disable scrolling on body
+    document.body.style.overflow = 'hidden';
+    
+    // Cleanup function to restore original style
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
+  }, []);
+  
+  return (
+    <ChatProvider userId={userId} conversationId={urlConversationId}>
+      <ChatContent />
+    </ChatProvider>
   );
 } 

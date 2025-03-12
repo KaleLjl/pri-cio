@@ -2,13 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import MessageItem from './MessageItem';
 import { useChatData } from '@/hooks/chat/useGetData';
+import { useChatContext } from '@/context/ChatContext';
 
-interface MessageListProps {
-  userId: string;
-  conversationId: string;
-}
-
-const MessageList: React.FC<MessageListProps> = ({ userId, conversationId }) => {
+// Updated to use ChatContext instead of props
+const MessageList: React.FC = () => {
+  // Get chat data from context
+  const { currentUserId, conversationId } = useChatContext();
+  
   // Get chat data
   const { 
     messages, 
@@ -16,7 +16,7 @@ const MessageList: React.FC<MessageListProps> = ({ userId, conversationId }) => 
     fetchNextPage,
     hasNextPage
   } = useChatData({ 
-    userId, 
+    userId: currentUserId || '', 
     conversationId 
   });
   
@@ -54,11 +54,11 @@ const MessageList: React.FC<MessageListProps> = ({ userId, conversationId }) => 
     
     if (isNewMessage) {
       lastMessageRef.current = lastMessage._id;
-      if (shouldScrollToBottom || lastMessage.senderId === userId) {
+      if (shouldScrollToBottom || lastMessage.senderId === currentUserId) {
         scrollToBottom();
       }
     }
-  }, [messages, userId, shouldScrollToBottom]);
+  }, [messages, currentUserId, shouldScrollToBottom]);
 
   // Handle infinite scroll
   useEffect(() => {
@@ -104,7 +104,7 @@ const MessageList: React.FC<MessageListProps> = ({ userId, conversationId }) => 
           <MessageItem 
             key={message._id} 
             message={message} 
-            userId={userId}
+            userId={currentUserId || ''}
             conversationId={conversationId}
           />
         ))}

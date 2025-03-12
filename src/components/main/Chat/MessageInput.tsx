@@ -3,42 +3,49 @@ import { useChatUI } from '@/hooks/chat/useChatUI';
 import { useMessageActions } from '@/hooks/chat/useMessageActions';
 import { useChatData } from '@/hooks/chat/useGetData';
 import { useLanguage } from '@/context/LanguageContext';
+import { useChatContext } from '@/context/ChatContext';
 
-const MessageInput: React.FC<{ userId: string; conversationId: string; otherUserId: string }> = ({ 
-  userId, 
-  conversationId,
-  otherUserId 
-}) => {
+// Updated to use ChatContext instead of props
+const MessageInput: React.FC = () => {
   const { dict } = useLanguage();
   
-  // Get chat data
+  // Get chat data from context
+  const { currentUserId, otherUser, conversationId } = useChatContext();
+  
+  // Get chat data - always call hooks at the top level
   const { messages } = useChatData({ 
-    userId, 
+    userId: currentUserId || '', 
     conversationId 
   });
   
-  // Get UI state
+  // Get UI state - always call hooks at the top level
   const { 
     inputMessage, 
     handleMessageInput
   } = useChatUI({
     messages,
-    currentUserId: userId,
+    currentUserId: currentUserId || '',
     conversationId,
     fetchNextPage: async () => {},
     hasNextPage: false,
     userPosts: []
   });
   
-  // Get message actions
+  // Get message actions - always call hooks at the top level
+  const userId = currentUserId || undefined;
   const { 
     handleSubmit,
     isLoading: isSendingMessage
   } = useMessageActions({
     conversationId,
     currentUserId: userId,
-    otherUserId
+    otherUserId: otherUser?._id || ''
   });
+
+  // If otherUser is not available, don't render the component
+  if (!otherUser || !otherUser._id) {
+    return null;
+  }
 
   return (
     <div className="p-4 border-t border-gray-700/50">

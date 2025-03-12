@@ -1,18 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+'use client';
+
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ChatUser } from '@/lib/types/chat';
-import { useLanguage } from '@/context/LanguageContext';
-import { useQueryClient } from '@tanstack/react-query';
 import { conversationApiService } from '@/lib/services/api/chat/conversationService';
 import { chatCacheService } from '@/lib/services/cache/chatCacheService';
+import { useQueryClient } from '@tanstack/react-query';
 
-export interface UseInitializeChatProps {
-  userId: string;
-  conversationId?: string;
-}
-
-interface UseInitializeChatResult {
+interface ChatContextValue {
   currentUserId: string | null;
   otherUser: ChatUser | null;
   conversationId: string;
@@ -20,53 +14,56 @@ interface UseInitializeChatResult {
   error: string | null;
 }
 
-export function useInitializeChat({ userId, conversationId }: UseInitializeChatProps): UseInitializeChatResult {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+const ChatContext = createContext<ChatContextValue | null>(null);
+
+export const useChatContext = () => {
+  const context = useContext(ChatContext);
+  if (!context) {
+    throw new Error('useChatContext must be used within a ChatProvider');
+  }
+  return context;
+};
+
+interface ChatProviderProps {
+  children: ReactNode;
+  userId: string;
+  conversationId?: string;
+}
+
+export function ChatProvider({ children, userId, conversationId: initialConversationId }: ChatProviderProps) {
   const queryClient = useQueryClient();
-  const [currentConversationId, setCurrentConversationId] = useState<string>(conversationId || '');
+  const [currentConversationId, setCurrentConversationId] = useState<string>(initialConversationId || '');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [otherUser, setOtherUser] = useState<ChatUser | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const hasInitialized = useRef(false);
   
-  // Authentication check
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/signin');
-    }
-  }, [status, router]);
-  
-  // Initialize chat
-  useEffect(() => {
+    let isMounted = true;
+    
     const initializeChat = async () => {
-      if (status !== 'authenticated' || !userId || hasInitialized.current) {
-        return;
-      }
+      if (!userId) return;
       
       try {
         setIsInitializing(true);
         setError(null);
-        hasInitialized.current = true;
         
         // Initialize conversation
         const result = await conversationApiService.initializeConversation(userId);
-        console.log('Initialization result:', result);
+        
+        if (!isMounted) return;
         
         if (!result?.conversationId) {
-          console.error('Missing conversationId in response:', result);
           throw new Error('Failed to get conversation ID');
         }
 
         if (!result?.otherUser || !result?.otherUser?._id) {
-          console.error('Missing otherUser in response:', result);
           throw new Error('Failed to get other user information');
         }
 
         // Use provided conversationId if available
-        const finalConversationId = conversationId || result.conversationId;
-        console.log('Setting conversationId:', finalConversationId);
+        const finalConversationId = initialConversationId || result.conversationId;
+        console.log('Setting conversationId in context:', finalConversationId);
         
         setCurrentConversationId(finalConversationId);
         setCurrentUserId(result.currentUserId);
@@ -78,22 +75,35 @@ export function useInitializeChat({ userId, conversationId }: UseInitializeChatP
         }
 
       } catch (err) {
-        console.error('Error initializing chat:', err);
-        setError(err instanceof Error ? err.message : 'Failed to initialize chat');
-        hasInitialized.current = false; // Reset if there was an error
+        if (isMounted) {
+          console.error('Error initializing chat in context:', err);
+          setError(err instanceof Error ? err.message : 'Failed to initialize chat');
+        }
       } finally {
-        setIsInitializing(false);
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       }
     };
     
     initializeChat();
-  }, [status, userId, conversationId, queryClient]);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [userId, initialConversationId, queryClient]);
   
-  return {
+  const value = {
     currentUserId,
     otherUser,
     conversationId: currentConversationId,
     isInitializing,
     error,
   };
+  
+  return (
+    <ChatContext.Provider value={value}>
+      {children}
+    </ChatContext.Provider>
+  );
 } 

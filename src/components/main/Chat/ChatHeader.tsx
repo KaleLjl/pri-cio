@@ -1,45 +1,49 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
-import { useInitializeChat } from '@/hooks/chat/useInitializeChat';
+import { useChatContext } from '@/context/ChatContext';
 import { useChatData } from '@/hooks/chat/useGetData';
 import { useChatUI } from '@/hooks/chat/useChatUI';
 import { useMessageActions } from '@/hooks/chat/useMessageActions';
 import { useLanguage } from '@/context/LanguageContext';
 
-const ChatHeader: React.FC<{ userId: string; conversationId: string }> = ({ userId, conversationId }) => {
+// Updated to use ChatContext instead of props
+const ChatHeader: React.FC = () => {
   const { dict, lang } = useLanguage();
   const router = useRouter();
   
-  // Get chat initialization data
-  const { otherUser } = useInitializeChat({ 
-    userId, 
-    conversationId 
-  });
+  // Get chat data from context
+  const { currentUserId, otherUser, conversationId } = useChatContext();
   
-  // Get chat data
+  // Get chat data - always call hooks at the top level
   const { userPosts, isLoadingPosts, isTyping } = useChatData({ 
-    userId, 
+    userId: currentUserId || '', 
     conversationId, 
     otherUser 
   });
   
-  // Get UI state
+  // Get UI state - always call hooks at the top level
   const { showPosts, handleTogglePosts } = useChatUI({
     messages: [],
-    currentUserId: userId,
+    currentUserId: currentUserId || '',
     conversationId,
     fetchNextPage: async () => {},
     hasNextPage: false,
     userPosts
   });
   
-  // Get message actions
+  // Get message actions - always call hooks at the top level
+  const userId = currentUserId || undefined;
   const { deleteMessages } = useMessageActions({
     conversationId,
     currentUserId: userId,
     otherUserId: otherUser?._id
   });
+
+  // If otherUser is not available, don't render the component
+  if (!otherUser || !otherUser._id) {
+    return null;
+  }
 
   return (
     <div className="bg-gray-800/95 backdrop-blur-sm rounded-t-lg shadow-lg border-b border-purple-500/10">
