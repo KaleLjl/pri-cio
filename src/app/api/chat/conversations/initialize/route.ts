@@ -65,6 +65,13 @@ export async function POST(req: Request) {
       console.log('Returning existing conversation');
       return NextResponse.json({
         _id: existingConversation._id,
+        conversationId: existingConversation._id,
+        currentUserId: currentUserId,
+        otherUser: {
+          _id: participant._id.toString(),
+          name: participant.name,
+          avatarUrl: participant.avatarUrl
+        },
         participants: [
           {
             _id: currentUser._id,
@@ -94,6 +101,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       _id: newConversation.insertedId,
+      conversationId: newConversation.insertedId,
+      currentUserId: currentUserId,
+      otherUser: {
+        _id: participant._id.toString(),
+        name: participant.name,
+        avatarUrl: participant.avatarUrl
+      },
       participants: [
         {
           _id: currentUser._id,

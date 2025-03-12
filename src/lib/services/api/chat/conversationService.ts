@@ -15,12 +15,11 @@ export const conversationApiService = {
 
     const data = await response.json();
     
-    // Transform the response to the expected structure
-    // This handles both potential response formats
+    // 直接使用服务器返回的字段，不需要复杂的转换
     return {
       conversationId: data.conversationId || data._id,
       currentUserId: data.currentUserId,
-      otherUser: data.otherUser || data.participants?.find((p: ChatUser) => p._id !== data.currentUserId)
+      otherUser: data.otherUser
     };
   },
 

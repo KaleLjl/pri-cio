@@ -24,7 +24,7 @@ export default function Chat({ userId }: ChatProps) {
   useSocketConnection({ userId });
   
   // Initialize chat
-  const { isInitializing, error, otherUser, conversationId } = useInitializeChat({ 
+  const { isInitializing, error, otherUser, conversationId, currentUserId } = useInitializeChat({ 
     userId, 
     conversationId: urlConversationId 
   });
@@ -32,8 +32,8 @@ export default function Chat({ userId }: ChatProps) {
   // Set up message reception
   useMessageReception({
     conversationId,
-    currentUserId: userId,
-    enabled: !!conversationId && !!userId
+    currentUserId: currentUserId || userId, // Use currentUserId from useInitializeChat if available
+    enabled: !!conversationId && !!(currentUserId || userId)
   });
 
   // Prevent body scrolling
@@ -79,7 +79,7 @@ export default function Chat({ userId }: ChatProps) {
     );
   }
   
-  // Show message if conversationId is not available`````
+  // Show message if conversationId is not available
   if (!conversationId) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -90,6 +90,9 @@ export default function Chat({ userId }: ChatProps) {
       </div>
     );
   }
+  
+  // Use currentUserId from useInitializeChat if available, fallback to userId
+  const actualUserId = currentUserId || userId;
   
   return (
     <>
@@ -102,14 +105,14 @@ export default function Chat({ userId }: ChatProps) {
           {/* Chat content container */}
           <div className="flex flex-col flex-grow h-0 bg-[#16162a]/90 rounded-lg shadow-2xl border border-purple-500/10 overflow-hidden">
             {/* Chat header - now part of the normal flow */}
-            <ChatHeader userId={userId} conversationId={conversationId} />
+            <ChatHeader userId={actualUserId} conversationId={conversationId} />
             
             {/* Message list - scrollable area */}
-            <MessageList userId={userId} conversationId={conversationId} />
+            <MessageList userId={actualUserId} conversationId={conversationId} />
             
             {/* Message input */}
             <MessageInput 
-              userId={userId} 
+              userId={actualUserId} 
               conversationId={conversationId} 
               otherUserId={otherUser._id}
             />

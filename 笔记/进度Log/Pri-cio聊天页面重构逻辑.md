@@ -3,19 +3,24 @@
 ## 整体重构的逻辑
 - 组件层:使用组件相关的hook
 - Hook层:写抽象后 与组件进行交互的Hook+具体的业务的逻辑
-- service与client层:没有实际与组件进行交互 而是与后端进行交互的function ,写在
+- service与client层:没有实际与组件进行交互 而是与后端进行交互的function
 
 
-## Log
-### 完成
+## Log:
 - 对聊天/聊天历史页面相关的hook按照整体重构的逻辑进行重构
 - 测试+Debug:现在可以发送信息.
 - 测试+Debug:聊天背景颜色不显示,scoll bar消失
 - 测试+Debug:Fetching不了之前的聊天信息
+- 测试+Debug:发送的消息不在自己这一侧而是在对方这一侧(问题在于sender和receiver的id是一样的,前端传递的 receiverId 实际上是当前用户自己的 ID (67a49fda1f0fc98a25072be0)，而不是对话对方的 ID。)
 ### TODO
-- 测试+Debug:发送的消息不在自己这一侧而是在对方这一侧
+- 把一些共用的prop放在chat context里(比如说,initializeChat相关的信息)
+- Debug:无法正确显示对方用户的头像
+- 测试+Debug:消息是否实时进行
+- 测试+Debug:聊天状态是否实时传输
+- 测试+Debug:未读已读是否确认
+- 最后清理Hook与组件垃圾
 - 把ChatUI的部分转移到ChatContext之中
-- 测试组件对新的hook的实现
--   解决ui上的问题    
-- 把“议价组件”的hook融合到现有的架构里
+
+
+- 把“议价组件”的hook融合到现有的架构
 - 看看chatcontext有哪些部分,是否可以删除掉一些

@@ -4,7 +4,7 @@ import { ChatMessage, MessageContent } from '@/lib/types/chat';
 import { messageApiService } from '@/lib/services/api/chat/messageApiService';
 import { socketService } from '@/lib/services/socket/socketService';
 import { chatCacheService } from '@/lib/services/cache/chatCacheService';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 
 interface UseMessageActionsProps {
   conversationId?: string;
@@ -29,6 +29,21 @@ export function useMessageActions({
 
   // Initialize cache service
   chatCacheService.initialize(queryClient);
+
+  // Validate IDs
+  useEffect(() => {
+    if (!currentUserId || !otherUserId) {
+      console.warn('Missing user IDs:', { currentUserId, otherUserId });
+      return;
+    }
+
+    if (currentUserId === otherUserId) {
+      console.error('Invalid user configuration: Cannot send message to self', {
+        currentUserId,
+        otherUserId
+      });
+    }
+  }, [currentUserId, otherUserId]);
 
   // Handle typing status
   const handleTyping = (typing: boolean) => {
@@ -70,6 +85,15 @@ export function useMessageActions({
         throw new Error('Missing recipient user ID');
       }
 
+      if (currentUserId === otherUserId) {
+        console.error('Attempted to send message to self:', {
+          currentUserId,
+          otherUserId,
+          conversationId
+        });
+        throw new Error('Cannot send message to yourself');
+      }
+
       // Create optimistic message
       const optimisticMessage: ChatMessage = {
         _id: uuidv4(),
@@ -80,6 +104,14 @@ export function useMessageActions({
         createdAt: new Date().toISOString(),
         status: 'sending',
       };
+
+      // Log message details for debugging
+      console.log('Sending message:', {
+        conversationId,
+        senderId: currentUserId,
+        receiverId: otherUserId,
+        messageId: optimisticMessage._id
+      });
 
       // Step 1: Handle optimistic update in cache
       await chatCacheService.handleMessageSubmission(optimisticMessage);

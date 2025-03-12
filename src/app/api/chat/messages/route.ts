@@ -114,6 +114,7 @@ export async function POST(req: Request) {
     }
 
     const { conversationId, content, receiverId } = await req.json();
+    
     if (!content || !receiverId) {
       return NextResponse.json({ error: "Content and receiver ID are required" }, { status: 400 });
     }
@@ -121,6 +122,7 @@ export async function POST(req: Request) {
     const client = await clientPromise;
     const db = client.db("pri-cio");
 
+    // Get sender information
     const sender = await db
       .collection("users")
       .findOne({ email: session.user.email }, { projection: { _id: 1 } });
@@ -129,36 +131,70 @@ export async function POST(req: Request) {
     }
     const senderId = sender._id.toString();
 
-    // 首先尝试查找现有的对话，不管是否提供了conversationId
-    let conversation = await db.collection("conversations").findOne({
-      participants: {
-        $all: [senderId, receiverId],
-        $size: 2
-      }
-    });
-
-    // 如果没有找到现有对话，则创建新对话
-    if (!conversation) {
-      conversation = {
-        _id: new ObjectId(),
-        participants: [senderId, receiverId],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      await db.collection("conversations").insertOne(conversation);
-    } else {
-      // 如果对话存在，恢复被删除的对话（如果被删除了的话）
-      await db.collection("conversations").updateOne(
-        { _id: conversation._id },
-        { 
-          $set: { updatedAt: new Date() },
-          $unset: { deletedBy: "" } // 移除 deletedBy 字段，恢复对话
-        }
-      );
+    // Validate that sender is not receiver
+    if (senderId === receiverId) {
+      console.error('Invalid message configuration: sender and receiver are the same', {
+        senderId,
+        receiverId,
+        senderEmail: session.user.email
+      });
+      return NextResponse.json({ error: "Cannot send message to yourself" }, { status: 400 });
     }
 
+    // Validate receiver exists
+    const receiver = await db
+      .collection("users")
+      .findOne({ _id: new ObjectId(receiverId) });
+    if (!receiver) {
+      return NextResponse.json({ error: "Receiver not found" }, { status: 404 });
+    }
+
+    // Find or create conversation
+    let targetConversation;
+    if (conversationId) {
+      // If conversationId is provided, verify it exists and includes both users
+      targetConversation = await db.collection("conversations").findOne({
+        _id: new ObjectId(conversationId),
+        participants: {
+          $all: [senderId, receiverId],
+          $size: 2
+        }
+      });
+    }
+
+    if (!targetConversation) {
+      // If no valid conversation found, look for existing one or create new
+      targetConversation = await db.collection("conversations").findOne({
+        participants: {
+          $all: [senderId, receiverId],
+          $size: 2
+        }
+      });
+
+      if (!targetConversation) {
+        // Create new conversation
+        targetConversation = {
+          _id: new ObjectId(),
+          participants: [senderId, receiverId],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        await db.collection("conversations").insertOne(targetConversation);
+      }
+    }
+
+    // Update conversation (restore if deleted)
+    await db.collection("conversations").updateOne(
+      { _id: targetConversation._id },
+      { 
+        $set: { updatedAt: new Date() },
+        $unset: { deletedBy: "" }
+      }
+    );
+
+    // Create new message
     const newMessage = {
-      conversationId: conversation._id,
+      conversationId: targetConversation._id,
       senderId,
       receiverId,
       content,
@@ -168,18 +204,24 @@ export async function POST(req: Request) {
     };
 
     const result = await db.collection("messages").insertOne(newMessage);
-    await db
-      .collection("conversations")
-      .updateOne({ _id: conversation._id }, { 
+
+    // Update conversation unread count
+    await db.collection("conversations").updateOne(
+      { _id: targetConversation._id },
+      { 
         $set: { updatedAt: new Date() },
         $inc: { unreadCount: 1 }
-      });
+      }
+    );
 
-    return NextResponse.json({
-      _id: result.insertedId,
+    // Prepare response
+    const response = {
+      _id: result.insertedId.toString(),
       ...newMessage,
-      conversationId: conversation._id.toString(),
-    });
+      conversationId: targetConversation._id.toString(),
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error sending message:", error);
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
