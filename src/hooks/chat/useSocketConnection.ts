@@ -13,7 +13,7 @@ export function useSocketConnection({ userId, enabled = true }: UseSocketConnect
 
     // Initialize socket connection
     const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || '', {
-      query: { userId },
+      auth: { userId },
       transports: ['websocket'],
       autoConnect: false
     });
@@ -25,7 +25,7 @@ export function useSocketConnection({ userId, enabled = true }: UseSocketConnect
     socket.connect();
 
     // Cleanup on unmount
-    return () => {
+  return () => {
       socketService.cleanup();
     };
   }, [userId, enabled]);

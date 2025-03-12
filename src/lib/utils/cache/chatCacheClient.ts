@@ -54,63 +54,131 @@ export class ChatCacheClient implements ChatCacheClientInterface {
     const conversationKey = [CacheKeys.CONVERSATION_MESSAGES, message.conversationId];
     const existingData = this.queryClient.getQueryData<InfiniteMessagesData>(conversationKey);
 
+    console.log('[ChatCache] Updating messages cache:', {
+      messageId: message._id,
+      conversationId: message.conversationId,
+      existingDataFound: !!existingData
+    });
+
     if (!existingData) {
-      // No cached data yet, don't update
-      return;
+      // No cached data yet, initialize with this message
+      console.log('[ChatCache] No existing data found, initializing cache with message');
+      try {
+        // Create a new cache entry with this message
+        const newData: InfiniteMessagesData = {
+          pages: [
+            {
+              messages: [message],
+              hasMore: false
+            }
+          ],
+          pageParams: [undefined]
+        };
+        
+        this.queryClient.setQueryData(conversationKey, newData);
+        console.log('[ChatCache] Successfully initialized cache with message');
+        return;
+      } catch (error) {
+        console.error('[ChatCache] Error initializing cache with message:', error);
+        return;
+      }
     }
 
     // Check if message already exists to avoid duplicates
-    const messageExists = existingData.pages.some((page) =>
-      page.messages.some((m: ChatMessage) => m._id === message._id)
-    );
+    let messageExists = false;
+    let existingMessageIndex = -1;
+    let existingPageIndex = -1;
+
+    // Find existing message with more detailed logging
+    for (let i = 0; i < existingData.pages.length; i++) {
+      const page = existingData.pages[i];
+      for (let j = 0; j < page.messages.length; j++) {
+        if (page.messages[j]._id === message._id) {
+          messageExists = true;
+          existingMessageIndex = j;
+          existingPageIndex = i;
+          break;
+        }
+      }
+      if (messageExists) break;
+    }
+
+    console.log('[ChatCache] Message existence check:', {
+      messageId: message._id,
+      exists: messageExists,
+      pageIndex: existingPageIndex,
+      messageIndex: existingMessageIndex
+    });
 
     if (messageExists) {
       // If message exists, update its status
-      const updatedPages = existingData.pages.map((page) => ({
-        ...page,
-        messages: page.messages.map((m: ChatMessage) =>
-          m._id === message._id ? { ...m, ...message } : m
-        ),
-      }));
+      try {
+        console.log('[ChatCache] Updating existing message');
+        const updatedPages = existingData.pages.map((page, pageIndex) => {
+          if (pageIndex === existingPageIndex) {
+            return {
+              ...page,
+              messages: page.messages.map((m: ChatMessage, msgIndex) =>
+                msgIndex === existingMessageIndex ? { ...m, ...message } : m
+              ),
+            };
+          }
+          return page;
+        });
 
-      this.queryClient.setQueryData(conversationKey, {
-        ...existingData,
-        pages: updatedPages,
-      });
-    } else {
-      // Add new message to the first page
-      // First, ensure we don't have any messages with the same ID (defensive check)
-      const allMessages = existingData.pages.flatMap(page => page.messages);
-      const hasDuplicate = allMessages.some((m: ChatMessage) => m._id === message._id);
-      
-      if (hasDuplicate) {
-        console.warn(`Attempted to add duplicate message with ID ${message._id}`);
-        // Update existing message instead of adding a new one
-        const updatedPages = existingData.pages.map((page) => ({
-          ...page,
-          messages: page.messages.map((m: ChatMessage) =>
-            m._id === message._id ? { ...m, ...message } : m
-          ),
-        }));
-        
         this.queryClient.setQueryData(conversationKey, {
           ...existingData,
           pages: updatedPages,
         });
-      } else {
-        // Add new message to the first page
-        const updatedData = {
-          ...existingData,
-          pages: [
-            {
-              ...existingData.pages[0],
-              messages: [message, ...existingData.pages[0].messages],
-            },
-            ...existingData.pages.slice(1),
-          ],
-        };
+        console.log('[ChatCache] Successfully updated existing message');
+      } catch (error) {
+        console.error('[ChatCache] Error updating existing message:', error);
+      }
+    } else {
+      // Add new message to the first page
+      try {
+        console.log('[ChatCache] Adding new message to cache');
+        // First, ensure we don't have any messages with the same ID (defensive check)
+        const allMessages = existingData.pages.flatMap(page => page.messages);
+        const hasDuplicate = allMessages.some((m: ChatMessage) => m._id === message._id);
+        
+        if (hasDuplicate) {
+          console.warn(`[ChatCache] Attempted to add duplicate message with ID ${message._id}`);
+          // Update existing message instead of adding a new one
+          const updatedPages = existingData.pages.map((page) => ({
+            ...page,
+            messages: page.messages.map((m: ChatMessage) =>
+              m._id === message._id ? { ...m, ...message } : m
+            ),
+          }));
+          
+          this.queryClient.setQueryData(conversationKey, {
+            ...existingData,
+            pages: updatedPages,
+          });
+          console.log('[ChatCache] Updated duplicate message instead of adding new one');
+        } else {
+          // Add new message to the first page
+          const updatedData = {
+            ...existingData,
+            pages: [
+              {
+                ...existingData.pages[0],
+                messages: [message, ...existingData.pages[0].messages],
+              },
+              ...existingData.pages.slice(1),
+            ],
+          };
 
-        this.queryClient.setQueryData(conversationKey, updatedData);
+          this.queryClient.setQueryData(conversationKey, updatedData);
+          console.log('[ChatCache] Successfully added new message to cache');
+          
+          // Force a cache invalidation to ensure UI updates
+          this.queryClient.invalidateQueries({ queryKey: conversationKey });
+          console.log('[ChatCache] Invalidated query to force UI update');
+        }
+      } catch (error) {
+        console.error('[ChatCache] Error adding new message to cache:', error);
       }
     }
   }

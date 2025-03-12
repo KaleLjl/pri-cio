@@ -1,6 +1,7 @@
 import { Socket } from 'socket.io-client';
 import { ChatMessage, NewConversationData, ConversationReadData, TypingData } from '../../utils/socket/types';
 import { SocketEvents } from '../../utils/socket/socketEvents';
+import { SocketEvent } from '../../utils/socket/types';
 
 /**
  * Socket API Service
@@ -40,12 +41,12 @@ export const socketService = {
    * Room Management
    */
   joinRoom: (conversationId: string): void => {
-    socketService.socket?.emit('join_room', { conversationId });
+    socketService.socket?.emit(SocketEvent.JOIN_ROOM, { roomId: conversationId });
     socketService.activeRooms.add(conversationId);
   },
 
   leaveRoom: (conversationId: string): void => {
-    socketService.socket?.emit('leave_room', { conversationId });
+    socketService.socket?.emit(SocketEvent.LEAVE_ROOM, { roomId: conversationId });
     socketService.activeRooms.delete(conversationId);
   },
 
@@ -57,7 +58,7 @@ export const socketService = {
    * Message Operations
    */
   sendMessage: (message: ChatMessage): void => {
-    socketService.socket?.emit('message', message);
+    socketService.socket?.emit(SocketEvent.SEND_MESSAGE, message);
   },
 
   /**
@@ -68,11 +69,11 @@ export const socketService = {
       clearTimeout(socketService.typingTimeout);
     }
 
-    socketService.socket?.emit('typing', data);
+    socketService.socket?.emit(SocketEvent.SEND_TYPING, data);
 
     if (data.typing) {
       socketService.typingTimeout = setTimeout(() => {
-        socketService.socket?.emit('typing', { ...data, typing: false });
+        socketService.socket?.emit(SocketEvent.SEND_TYPING, { ...data, typing: false });
       }, 3000);
     }
   },
@@ -81,11 +82,11 @@ export const socketService = {
    * Message Status Operations
    */
   sendMessageDelivered: (messageId: string): void => {
-    socketService.socket?.emit('message_delivered', { messageId });
+    socketService.socket?.emit(SocketEvent.SEND_MESSAGE_DELIVERED, { messageId });
   },
 
   sendMessageRead: (messageId: string): void => {
-    socketService.socket?.emit('message_read', { messageId });
+    socketService.socket?.emit(SocketEvent.SEND_MESSAGE_READ, { messageId });
   },
 
   /**

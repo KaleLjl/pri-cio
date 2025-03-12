@@ -35,13 +35,12 @@ export enum SocketEvent {
   SEND_MESSAGE = 'send_message',
   NEW_MESSAGE = 'new_message',
   SEND_TYPING = 'send_typing',
-  USER_TYPING = 'user_typing',
+  TYPING = 'typing',
   SEND_MESSAGE_DELIVERED = 'send_message_delivered',
   MESSAGE_DELIVERED = 'message_delivered',
   SEND_MESSAGE_READ = 'send_message_read',
   MESSAGE_READ = 'message_read',
   NEW_CONVERSATION = 'new_conversation',
   CONVERSATION_READ = 'conversation_read',
-  TYPING = 'typing',
   EXPLORE_POSTS_UPDATE = 'explore_posts_update'
 } 

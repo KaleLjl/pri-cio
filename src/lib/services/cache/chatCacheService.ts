@@ -72,8 +72,35 @@ export const chatCacheService = {
    * Message Handling
    */
   handleNewMessage: async (message: ChatMessage): Promise<void> => {
-    if (!chatCacheService.client) throw new Error('Cache service not initialized');
-    return chatCacheService.client.handleNewMessage(message);
+    if (!chatCacheService.client) {
+      console.error('[ChatService] Cannot handle new message: Cache service not initialized');
+      throw new Error('Cache service not initialized');
+    }
+    
+    if (!message || !message._id || !message.conversationId) {
+      console.error('[ChatService] Invalid message received:', message);
+      throw new Error('Invalid message format');
+    }
+    
+    console.log('[ChatService] Processing new message:', {
+      messageId: message._id,
+      conversationId: message.conversationId,
+      senderId: message.senderId,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      // First update the messages cache
+      await chatCacheService.client.handleNewMessage(message);
+      
+      // Then ensure the conversation exists in the chat history
+      await chatCacheService.client.handleNewConversation(message.conversationId);
+      
+      console.log('[ChatService] Successfully processed new message:', message._id);
+    } catch (error) {
+      console.error('[ChatService] Error handling new message:', error);
+      throw error;
+    }
   },
 
   handleOptimisticMessage: async (message: ChatMessage): Promise<void> => {

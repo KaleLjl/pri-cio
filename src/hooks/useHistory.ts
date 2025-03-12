@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { HistoryItem, DealingItem } from '@/lib/types/history';
-import { socketService } from '@/lib/socket';
+import { socketService } from 'src/lib/services/socket/socketService.ts';
 
 interface Profile {
   name: string;
