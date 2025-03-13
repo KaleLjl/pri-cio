@@ -4,7 +4,8 @@ import { ChatMessage, MessageContent } from '@/lib/types/chat';
 import { messageApiService } from '@/lib/services/api/chat/messageApiService';
 import { socketService } from '@/lib/services/socket/socketService';
 import { chatCacheService } from '@/lib/services/cache/chatCacheService';
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
+import { CacheKeys } from '@/lib/utils/cache/types';
 
 interface UseMessageActionsProps {
   conversationId?: string;
@@ -24,9 +25,8 @@ export function useMessageActions({
   handleMessageSubmit,
 }: UseMessageActionsProps) {
   const queryClient = useQueryClient();
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
-  const isConnected = socketService.isConnected();
   const retryTimeoutRef = useRef<NodeJS.Timeout>();
+  const isConnected = socketService.isConnected();
 
   // Initialize cache service
   chatCacheService.initialize(queryClient);
@@ -46,53 +46,9 @@ export function useMessageActions({
     }
   }, [currentUserId, otherUserId]);
 
-  // Handle typing status with error handling
-  const handleTyping = useCallback((typing: boolean) => {
-    if (!conversationId || !currentUserId) {
-      console.warn('Cannot send typing status: Missing IDs');
-      return;
-    }
-
-    if (!socketService.isConnected()) {
-      console.warn('Cannot send typing status: Socket not connected');
-      return;
-    }
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    try {
-      socketService.handleTypingStatus({
-        conversationId,
-        userId: currentUserId,
-        typing,
-      });
-
-      if (typing) {
-        typingTimeoutRef.current = setTimeout(() => {
-          try {
-            socketService.handleTypingStatus({
-              conversationId,
-              userId: currentUserId,
-              typing: false,
-            });
-          } catch (error) {
-            console.error('Error sending typing status:', error);
-          }
-        }, 3000);
-      }
-    } catch (error) {
-      console.error('Error handling typing status:', error);
-    }
-  }, [conversationId, currentUserId]);
-
-  // Cleanup typing timeout on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
@@ -147,8 +103,10 @@ export function useMessageActions({
       });
 
       try {
-        console.log('[Chat] Step 1: Updating cache with optimistic message');
-        await chatCacheService.handleMessageSubmission(optimisticMessage);
+        // Step 1: Add optimistic update
+        console.log('[Chat] Step 1: Adding optimistic update');
+        await queryClient.cancelQueries({ queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId] });
+        await chatCacheService.handleOptimisticMessage(optimisticMessage);
 
         // Step 2: Send via socket if connected
         if (isConnected) {
@@ -168,20 +126,17 @@ export function useMessageActions({
         const sentMessage = await messageApiService.sendMessage(conversationId, content, otherUserId);
         console.log('[Chat] Message sent via API successfully:', sentMessage._id);
 
-        // Step 4: Update message status in cache
+        // Step 4: Update cache with actual message
         console.log('[Chat] Step 4: Updating cache with sent message');
+        await queryClient.cancelQueries({ queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId] });
         await chatCacheService.handleMessageSendSuccess(optimisticMessage, sentMessage);
-
-        // Step 5: Retry socket send if it wasn't connected initially
-        if (!isConnected && socketService.isConnected()) {
-          try {
-            console.log('[Chat] Step 5: Retrying socket send after API success');
-            socketService.sendMessage(sentMessage);
-            console.log('[Chat] Retry socket send successful');
-          } catch (error) {
-            console.error('[Chat] Failed to retry message via socket:', error);
-          }
-        }
+        
+        // Force a refetch to ensure consistency
+        await queryClient.invalidateQueries({ 
+          queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId],
+          exact: true,
+          refetchType: 'all'
+        });
 
         return { sentMessage, optimisticMessage };
       } catch (error) {
@@ -194,7 +149,15 @@ export function useMessageActions({
       
       if (context?.optimisticMessage) {
         console.log('[Chat] Handling message send failure in cache');
+        await queryClient.cancelQueries({ queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId] });
         await chatCacheService.handleMessageSendFailure(context.optimisticMessage._id);
+        
+        // Force a refetch on error
+        await queryClient.invalidateQueries({ 
+          queryKey: [CacheKeys.CONVERSATION_MESSAGES, conversationId],
+          exact: true,
+          refetchType: 'all'
+        });
       }
 
       // Set up retry mechanism for socket send
@@ -256,7 +219,6 @@ export function useMessageActions({
         console.log('Sending message with conversationId:', conversationId);
         
         handleMessageSubmit?.(message);
-        handleTyping(false);
         
         await sendMessageMutation.mutateAsync(message);
         input.value = '';
@@ -271,7 +233,6 @@ export function useMessageActions({
     sendMessage: (content: MessageContent) => sendMessageMutation.mutateAsync(content),
     deleteMessages: () => deleteMessagesMutation.mutateAsync(),
     handleSubmit,
-    handleTyping,
     isLoading: sendMessageMutation.isPending,
     isDeleting: deleteMessagesMutation.isPending,
     error: sendMessageMutation.error,

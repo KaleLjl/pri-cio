@@ -12,6 +12,7 @@ interface ChatContextValue {
   conversationId: string;
   isInitializing: boolean;
   error: string | null;
+  otherUserId: string | null;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -99,6 +100,7 @@ export function ChatProvider({ children, userId, conversationId: initialConversa
     conversationId: currentConversationId,
     isInitializing,
     error,
+    otherUserId: otherUser?._id || null,
   };
   
   return (

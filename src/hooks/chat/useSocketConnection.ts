@@ -1,46 +1,72 @@
-import { useEffect } from 'react';
-import { io } from 'socket.io-client';
+import { useEffect, useCallback } from 'react';
+import { Socket } from 'socket.io-client';
 import { socketService } from '@/lib/services/socket/socketService';
+import { ChatMessage } from '@/lib/types/chat';
 
-interface UseSocketConnectionProps {
-  userId?: string;
+export interface UseSocketConnectionProps {
+  userId: string;
+  conversationId: string;
   enabled?: boolean;
+  onConnect?: () => void;
+  onDisconnect?: () => void;
+  onMessage?: (message: ChatMessage) => void;
 }
 
-export function useSocketConnection({ userId, enabled = true }: UseSocketConnectionProps) {
-  useEffect(() => {
-    if (!enabled || !userId) return;
+export function useSocketConnection({
+  userId,
+  conversationId,
+  enabled = true,
+  onConnect,
+  onDisconnect,
+  onMessage
+}: UseSocketConnectionProps) {
+  const setupEventHandlers = useCallback(() => {
+    if (!enabled) return;
 
-    // Initialize socket connection
-    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || '', {
-      auth: { userId },
-      transports: ['websocket'],
-      autoConnect: false
+    const socket = socketService.socket as Socket;
+    if (!socket) return;
+
+    socket.on('connect', () => {
+      console.log('[Socket] Connected');
+      onConnect?.();
     });
 
-    // Initialize socket service
-    socketService.initialize(socket);
+    socket.on('disconnect', () => {
+      console.log('[Socket] Disconnected');
+      onDisconnect?.();
+    });
 
-    // Connect to socket
-    socket.connect();
+    socket.on('message', (message: ChatMessage) => {
+      console.log('[Socket] Received message:', message);
+      onMessage?.(message);
+    });
 
-    // Cleanup on unmount
-  return () => {
-      socketService.cleanup();
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('message');
     };
-  }, [userId, enabled]);
+  }, [enabled, onConnect, onDisconnect, onMessage]);
 
-  return {
-    isConnected: socketService.isConnected(),
-    connect: socketService.connect,
-    disconnect: socketService.disconnect,
-    joinRoom: socketService.joinRoom,
-    leaveRoom: socketService.leaveRoom,
-    getActiveRooms: socketService.getActiveRooms,
-    sendMessage: socketService.sendMessage,
-    onNewMessage: socketService.onNewMessage,
-    onUserTyping: socketService.onUserTyping,
-    onMessageDelivered: socketService.onMessageDelivered,
-    onMessageRead: socketService.onMessageRead
-  };
+  useEffect(() => {
+    if (!enabled || !userId || !conversationId) {
+      console.log('[Socket] Connection disabled or missing required params');
+      return;
+    }
+
+    console.log('[Socket] Setting up connection for:', { userId, conversationId });
+    socketService.connect(userId);
+    
+    // Join the conversation room after connection
+    if (socketService.socket) {
+      socketService.socket.emit('join', { conversationId });
+    }
+    
+    const cleanup = setupEventHandlers();
+
+    return () => {
+      cleanup?.();
+      socketService.disconnect();
+    };
+  }, [userId, conversationId, enabled, setupEventHandlers]);
 } 

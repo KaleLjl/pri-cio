@@ -183,5 +183,5 @@ export const chatCacheService = {
   handleMessageSendFailure: async (messageId: string): Promise<void> => {
     if (!chatCacheService.client) throw new Error('Cache service not initialized');
     return chatCacheService.client.handleMessageSendFailure(messageId);
-  },
+  }
 }; 

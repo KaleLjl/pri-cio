@@ -15,11 +15,10 @@
 - Moved InitialChat part into Chat Context
 - Properly setup the socket server
 - Seted up the cache server but not properly yet
-
+- Debug:Set the socket propelly with the server side, client side named allign with each other
+- Debug: now the chat would real-time update(the reason is the react-query update config not setted propely)
 ### TODO
-- Debug: The Real-time chat features has missing 
-    - The socket server misallign with the socket client
-    - The cache did not propply set up 
+- Strtuctre the chat-realted hook to let me readable 
 - Testing + Debug: Check if chat status is transmitted in real-time
 - Testing + Debug: ChatHistory related issues
 - Testing + Debug: Verify read/unread confirmation

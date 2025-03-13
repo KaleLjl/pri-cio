@@ -49,4 +49,13 @@ export interface InfiniteMessagesData {
     nextCursor?: string;
   }[];
   pageParams: any[];
+}
+
+export interface HistoryMessageResult {
+  messages: ChatMessage[];
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  isLoadingMessages: boolean;
+  messagesError: string | null;
+  fetchNextPage: () => Promise<any>;
 } 

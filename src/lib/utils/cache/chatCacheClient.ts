@@ -1,4 +1,4 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { ChatMessage } from "../socket/types";
 import { messageApiService } from '@/lib/services/api/chat/messageApiService';
 import { 
@@ -7,6 +7,7 @@ import {
   CacheKeys, 
   InfiniteMessagesData,
   MessagesResponse,
+  HistoryMessageResult
 } from "./types";
 
 /**
@@ -18,9 +19,11 @@ import {
  */
 export class ChatCacheClient implements ChatCacheClientInterface {
   private queryClient: QueryClient;
+  private messageUpdateQueue: Map<string, ChatMessage>;
 
   constructor(queryClient: QueryClient) {
     this.queryClient = queryClient;
+    this.messageUpdateQueue = new Map();
   }
 
   /**
@@ -35,151 +38,138 @@ export class ChatCacheClient implements ChatCacheClientInterface {
   }
 
   /**
-   * Handle a new message
-   * Updates both the messages cache and chat history
+   * Handle a new message with immediate UI update
    */
   async handleNewMessage(message: ChatMessage): Promise<void> {
     try {
-      await this.updateMessagesCache(message);
-      await this.updateChatHistoryCache(message);
+      // Immediately update UI
+      this.updateMessagesCache(message);
+      
+      // Queue the message for verification
+      this.messageUpdateQueue.set(message._id, message);
+      
+      // Update chat history in background
+      this.updateChatHistoryCache(message).catch(error => {
+        console.error("Error updating chat history:", error);
+      });
+      
+      // Immediately invalidate the conversation query to trigger a refetch
+      this.queryClient.invalidateQueries({ 
+        queryKey: [CacheKeys.CONVERSATION_MESSAGES, message.conversationId],
+        exact: true
+      });
+      
+      // Verify message in background
+      this.verifyAndUpdateMessage(message).catch(error => {
+        console.error("Error verifying message:", error);
+        this.revertMessageUpdate(message);
+      });
     } catch (error) {
       console.error("Error handling new message:", error);
+      this.revertMessageUpdate(message);
+    }
+  }
+
+  /**
+   * Verify message with server and update if needed
+   */
+  private async verifyAndUpdateMessage(message: ChatMessage): Promise<void> {
+    try {
+      // Here you would typically verify the message with your server
+      // For now, we'll just simulate a verification delay
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Remove from queue after verification
+      this.messageUpdateQueue.delete(message._id);
+    } catch (error) {
+      console.error("Error verifying message:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Revert a message update in case of error
+   */
+  private revertMessageUpdate(message: ChatMessage): void {
+    try {
+      const conversationKey = [CacheKeys.CONVERSATION_MESSAGES, message.conversationId];
+      const existingData = this.queryClient.getQueryData<InfiniteMessagesData>(conversationKey);
+
+      if (!existingData) return;
+
+      // Remove the message from cache
+      const updatedPages = existingData.pages.map(page => ({
+        ...page,
+        messages: page.messages.filter((m: ChatMessage) => m._id !== message._id)
+      }));
+
+      this.queryClient.setQueryData(conversationKey, {
+        ...existingData,
+        pages: updatedPages
+      });
+
+      // Remove from queue
+      this.messageUpdateQueue.delete(message._id);
+    } catch (error) {
+      console.error("Error reverting message update:", error);
     }
   }
 
   /**
    * Update the messages cache for a specific conversation
    */
-  private async updateMessagesCache(message: ChatMessage): Promise<void> {
+  private updateMessagesCache(message: ChatMessage): void {
     const conversationKey = [CacheKeys.CONVERSATION_MESSAGES, message.conversationId];
     const existingData = this.queryClient.getQueryData<InfiniteMessagesData>(conversationKey);
 
-    console.log('[ChatCache] Updating messages cache:', {
-      messageId: message._id,
-      conversationId: message.conversationId,
-      existingDataFound: !!existingData
-    });
-
     if (!existingData) {
-      // No cached data yet, initialize with this message
-      console.log('[ChatCache] No existing data found, initializing cache with message');
-      try {
-        // Create a new cache entry with this message
-        const newData: InfiniteMessagesData = {
-          pages: [
-            {
-              messages: [message],
-              hasMore: false
-            }
-          ],
-          pageParams: [undefined]
-        };
-        
-        this.queryClient.setQueryData(conversationKey, newData);
-        console.log('[ChatCache] Successfully initialized cache with message');
-        return;
-      } catch (error) {
-        console.error('[ChatCache] Error initializing cache with message:', error);
-        return;
-      }
+      // Initialize cache with new message
+      const newData: InfiniteMessagesData = {
+        pages: [
+          {
+            messages: [message],
+            nextCursor: undefined
+          }
+        ],
+        pageParams: [undefined]
+      };
+      
+      this.queryClient.setQueryData(conversationKey, newData);
+      return;
     }
 
-    // Check if message already exists to avoid duplicates
-    let messageExists = false;
-    let existingMessageIndex = -1;
-    let existingPageIndex = -1;
-
-    // Find existing message with more detailed logging
-    for (let i = 0; i < existingData.pages.length; i++) {
-      const page = existingData.pages[i];
-      for (let j = 0; j < page.messages.length; j++) {
-        if (page.messages[j]._id === message._id) {
-          messageExists = true;
-          existingMessageIndex = j;
-          existingPageIndex = i;
-          break;
-        }
-      }
-      if (messageExists) break;
-    }
-
-    console.log('[ChatCache] Message existence check:', {
-      messageId: message._id,
-      exists: messageExists,
-      pageIndex: existingPageIndex,
-      messageIndex: existingMessageIndex
-    });
+    // Check for existing message
+    const messageExists = existingData.pages.some(page => 
+      page.messages.some((m: ChatMessage) => m._id === message._id)
+    );
 
     if (messageExists) {
-      // If message exists, update its status
-      try {
-        console.log('[ChatCache] Updating existing message');
-        const updatedPages = existingData.pages.map((page, pageIndex) => {
-          if (pageIndex === existingPageIndex) {
-            return {
-              ...page,
-              messages: page.messages.map((m: ChatMessage, msgIndex) =>
-                msgIndex === existingMessageIndex ? { ...m, ...message } : m
-              ),
-            };
-          }
-          return page;
-        });
+      // Update existing message
+      const updatedPages = existingData.pages.map(page => ({
+        ...page,
+        messages: page.messages.map((m: ChatMessage) =>
+          m._id === message._id ? { ...m, ...message } : m
+        )
+      }));
 
-        this.queryClient.setQueryData(conversationKey, {
-          ...existingData,
-          pages: updatedPages,
-        });
-        console.log('[ChatCache] Successfully updated existing message');
-      } catch (error) {
-        console.error('[ChatCache] Error updating existing message:', error);
-      }
+      this.queryClient.setQueryData(conversationKey, {
+        ...existingData,
+        pages: updatedPages
+      });
     } else {
-      // Add new message to the first page
-      try {
-        console.log('[ChatCache] Adding new message to cache');
-        // First, ensure we don't have any messages with the same ID (defensive check)
-        const allMessages = existingData.pages.flatMap(page => page.messages);
-        const hasDuplicate = allMessages.some((m: ChatMessage) => m._id === message._id);
-        
-        if (hasDuplicate) {
-          console.warn(`[ChatCache] Attempted to add duplicate message with ID ${message._id}`);
-          // Update existing message instead of adding a new one
-          const updatedPages = existingData.pages.map((page) => ({
-            ...page,
-            messages: page.messages.map((m: ChatMessage) =>
-              m._id === message._id ? { ...m, ...message } : m
-            ),
-          }));
-          
-          this.queryClient.setQueryData(conversationKey, {
-            ...existingData,
-            pages: updatedPages,
-          });
-          console.log('[ChatCache] Updated duplicate message instead of adding new one');
-        } else {
-          // Add new message to the first page
-          const updatedData = {
-            ...existingData,
-            pages: [
-              {
-                ...existingData.pages[0],
-                messages: [message, ...existingData.pages[0].messages],
-              },
-              ...existingData.pages.slice(1),
-            ],
-          };
+      // Add new message to first page
+      const updatedData = {
+        ...existingData,
+        pages: [
+          {
+            ...existingData.pages[0],
+            messages: [message, ...existingData.pages[0].messages]
+          },
+          ...existingData.pages.slice(1)
+        ]
+      };
 
-          this.queryClient.setQueryData(conversationKey, updatedData);
-          console.log('[ChatCache] Successfully added new message to cache');
-          
-          // Force a cache invalidation to ensure UI updates
-          this.queryClient.invalidateQueries({ queryKey: conversationKey });
-          console.log('[ChatCache] Invalidated query to force UI update');
-        }
-      } catch (error) {
-        console.error('[ChatCache] Error adding new message to cache:', error);
-      }
+      this.queryClient.setQueryData(conversationKey, updatedData);
     }
   }
 
@@ -441,6 +431,16 @@ export class ChatCacheClient implements ChatCacheClientInterface {
     };
   }
 
+  private getBaseQueryConfig() {
+    return {
+      staleTime: 0, // Consider data always stale
+      gcTime: 1000 * 60 * 5, // Cache for 5 minutes
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true
+    };
+  }
+
   // Message related query configurations
   getMessagesQuery(conversationId: string) {
     return {
@@ -450,7 +450,9 @@ export class ChatCacheClient implements ChatCacheClientInterface {
         if (!lastPage.hasMore) return undefined;
         const lastMessage = lastPage.messages[lastPage.messages.length - 1];
         return lastMessage?._id;
-      }
+      },
+      ...this.getBaseQueryConfig(),
+      refetchInterval: 1000, // Poll every second for updates
     };
   }
 
@@ -469,20 +471,29 @@ export class ChatCacheClient implements ChatCacheClientInterface {
   // User related query configurations
   getCurrentUserQuery() {
     return {
-      queryKey: ['current-user']
+      queryKey: ['current-user'],
+      ...this.getBaseQueryConfig(),
+      // Current user data doesn't need frequent polling
+      refetchInterval: 1000 * 60, // Poll every minute
     };
   }
 
   getUserByIdQuery(userId: string) {
     return {
-      queryKey: ['user', userId]
+      queryKey: ['user', userId],
+      ...this.getBaseQueryConfig(),
+      // User data doesn't need frequent polling
+      refetchInterval: 1000 * 60, // Poll every minute
     };
   }
 
   // Posts related query configurations
   getUserPostsQuery(userId: string) {
     return {
-      queryKey: ['explore-posts', userId]
+      queryKey: ['explore-posts', userId],
+      ...this.getBaseQueryConfig(),
+      // Posts don't need very frequent updates
+      refetchInterval: 1000 * 30, // Poll every 30 seconds
     };
   }
 
@@ -490,6 +501,9 @@ export class ChatCacheClient implements ChatCacheClientInterface {
   getTypingStatusQuery(userId: string) {
     return {
       queryKey: ['chat-typing-status', userId],
+      ...this.getBaseQueryConfig(),
+      // Typing status needs frequent updates
+      refetchInterval: 500, // Poll every 500ms
       initialData: false
     };
   }
@@ -544,5 +558,57 @@ export class ChatCacheClient implements ChatCacheClientInterface {
     } catch (error) {
       console.error("Error handling message send failure:", error);
     }
+  }
+
+  /**
+   * Get historical messages for a conversation with pagination support
+   * Returns an infinite query for messages with proper configuration
+   */
+  handleGetHistoryMessage(conversationId: string, enabled: boolean): HistoryMessageResult {
+    const {
+      data: messagesData,
+      fetchNextPage,
+      hasNextPage,
+      isFetchingNextPage,
+      isLoading: isLoadingMessages,
+      error: messagesError,
+    } = useInfiniteQuery({
+      ...this.getMessagesQuery(conversationId),
+      queryFn: ({ pageParam }) => messageApiService.getMessages(conversationId, pageParam),
+      enabled: enabled && !!conversationId,
+      refetchInterval: 1000, // Enable polling every second for real-time updates
+      select: (data) => ({
+        pages: data.pages,
+        pageParams: data.pageParams,
+      }),
+    });
+
+    const messages = this.processMessages(messagesData);
+
+    return {
+      messages,
+      hasNextPage: !!hasNextPage,
+      isFetchingNextPage,
+      isLoadingMessages,
+      messagesError: messagesError?.message || null,
+      fetchNextPage,
+    };
+  }
+
+  /**
+   * Process messages to ensure uniqueness and correct ordering
+   */
+  private processMessages(messagesData: any): ChatMessage[] {
+    const messages = messagesData?.pages.flatMap((page: MessagesResponse) => page.messages) ?? [];
+    const uniqueMessages = new Map<string, ChatMessage>();
+    
+    messages.forEach((msg: ChatMessage) => {
+      if (!uniqueMessages.has(msg._id)) {
+        uniqueMessages.set(msg._id, msg);
+      }
+    });
+    
+    return Array.from(uniqueMessages.values())
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }
 } 

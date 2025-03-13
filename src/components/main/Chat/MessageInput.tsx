@@ -1,49 +1,41 @@
 import React from 'react';
-import { useChatUI } from '@/hooks/chat/useChatUI';
 import { useMessageActions } from '@/hooks/chat/useMessageActions';
-import { useChatData } from '@/hooks/chat/useGetData';
 import { useLanguage } from '@/context/LanguageContext';
 import { useChatContext } from '@/context/ChatContext';
 
-// Updated to use ChatContext instead of props
 const MessageInput: React.FC = () => {
   const { dict } = useLanguage();
-  
-  // Get chat data from context
   const { currentUserId, otherUser, conversationId } = useChatContext();
-  
-  // Get chat data - always call hooks at the top level
-  const { messages } = useChatData({ 
-    userId: currentUserId || '', 
-    conversationId 
-  });
-  
-  // Get UI state - always call hooks at the top level
+  const [inputMessage, setInputMessage] = React.useState('');
+
+  // Get message actions
   const { 
-    inputMessage, 
-    handleMessageInput
-  } = useChatUI({
-    messages,
-    currentUserId: currentUserId || '',
-    conversationId,
-    fetchNextPage: async () => {},
-    hasNextPage: false,
-    userPosts: []
-  });
-  
-  // Get message actions - always call hooks at the top level
-  const userId = currentUserId || undefined;
-  const { 
-    handleSubmit,
+    handleSubmit: handleMessageSubmit,
     isLoading: isSendingMessage
   } = useMessageActions({
     conversationId,
-    currentUserId: userId,
-    otherUserId: otherUser?._id || ''
+    currentUserId: currentUserId || undefined,
+    otherUserId: otherUser?._id,
+    handleMessageSubmit: (message: string) => {
+      setInputMessage('');
+    }
   });
 
-  // If otherUser is not available, don't render the component
-  if (!otherUser || !otherUser._id) {
+  // Handle form submission
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputMessage.trim()) {
+      handleMessageSubmit(e);
+    }
+  };
+
+  // Handle input change
+  const handleMessageInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputMessage(e.target.value);
+  };
+
+  // If required data is not available, don't render the component
+  if (!otherUser?._id || !currentUserId || !conversationId) {
     return null;
   }
 
