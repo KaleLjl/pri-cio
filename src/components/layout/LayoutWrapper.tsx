@@ -13,14 +13,15 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const isAuthPage = pathname?.includes('/signin');
   const isAroundPage = pathname?.includes('/around'); 
   const isSignupPage = pathname?.includes('/signup');
+  const isResetPasswordPage = pathname?.includes('/reset-password');
 
   return (
     <>
-      {!isAuthPage && !isSignupPage && <Navigation />}
+      {!isAuthPage && !isSignupPage && !isResetPasswordPage && <Navigation />}
       <main className="min-h-screen">
         {children}
       </main>
-      {!isAuthPage && !isAroundPage && !isSignupPage && <Footer />}
+      {!isAuthPage && !isAroundPage && !isSignupPage && !isResetPasswordPage && <Footer />}
     </>
   );
-} 
+}

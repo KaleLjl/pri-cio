@@ -36,8 +36,9 @@ const Navigation: React.FC = () => {
   // Current language from URL
   const currentLang = pathname?.split('/')[1] || 'en';
 
-  // For user avatar
+  // For user avatar and name
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
 
   // For toggling the mobile menu (hamburger)
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -68,9 +69,9 @@ const Navigation: React.FC = () => {
     setAnchorElMore(null);
   };
 
-  // Fetch user avatar if logged in
+  // Fetch user avatar and name if logged in
   useEffect(() => {
-    const fetchUserAvatar = async () => {
+    const fetchUserProfile = async () => {
       if (session?.user?.email) {
         try {
           const response = await fetch(`/api/editprofile`);
@@ -81,21 +82,36 @@ const Navigation: React.FC = () => {
           const userProfile = profiles.find(
             (profile: { email: string }) => profile.email === session.user?.email
           );
+          
+          // Set avatar URL
           if (userProfile?.avatarUrl) {
             setCurrentAvatarUrl(userProfile.avatarUrl);
           } else {
             setCurrentAvatarUrl(null);
           }
+          
+          // Set user name in state and update session
+          if (userProfile?.name) {
+            setUserName(userProfile.name);
+            if (session.user) {
+              session.user.name = userProfile.name;
+            }
+          } else {
+            setUserName(null);
+          }
         } catch (error) {
-          console.error('Error fetching user avatar:', error);
+          console.error('Error fetching user profile:', error);
           setCurrentAvatarUrl(null);
+          setUserName(null);
         }
       }
     };
-    fetchUserAvatar();
+    fetchUserProfile();
   }, [session?.user?.email]);
 
   const emailInitial = session?.user?.email?.charAt(0).toUpperCase() || 'U';
+  // Use userName from state if available, otherwise fall back to session name
+  const displayName = userName || session?.user?.name;
 
   // Main nav items
   const navItems: NavItem[] = session
@@ -133,14 +149,14 @@ const Navigation: React.FC = () => {
               {currentAvatarUrl ? (
                 <ImageWithFallback
                   src={currentAvatarUrl}
-                  alt={session?.user?.name || emailInitial}
+                  alt={displayName || emailInitial}
                   layout="fill"
                   objectFit="cover"
                   isAvatar
                 />
               ) : (
-                <div className="flex items-center justify-center w-full h-full bg-gray-500 text-white">
-                  {session?.user?.name ? session.user.name[0] : 'A'}
+                <div className="flex items-center justify-center w-full h-full bg-purple-600 text-white">
+                  {displayName ? displayName[0].toUpperCase() : emailInitial}
                 </div>
               )}
             </div>

@@ -13,6 +13,8 @@ import Loading from '@/components/shared/Loading';
 function SignInContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
   const searchParams = useSearchParams();
   const router = useRouter();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
@@ -36,6 +38,52 @@ function SignInContent() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleResetEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setResetEmail(e.target.value);
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    // Email format validation using regex
+    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    if (!emailRegex.test(resetEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to send reset link');
+      }
+
+      // Show success message
+      alert(`Password reset link sent to ${resetEmail}. Please check your email.`);
+      setShowResetPassword(false); // Return to sign in form
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
@@ -74,7 +122,54 @@ function SignInContent() {
   };
 
   if (loading) {
-    return <Loading text="Signing in..." />;
+    return <Loading text={showResetPassword ? "Sending reset link..." : "Signing in..."} />;
+  }
+
+  if (showResetPassword) {
+    return (
+      <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-8 md:px-16">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-black">Reset Password</h1>
+          <p className="text-gray-600 mt-2">Enter your account email</p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleResetPassword} className="space-y-4 mb-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={resetEmail}
+              onChange={handleResetEmailChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            Reset Password
+          </button>
+        </form>
+
+        <button
+          onClick={() => setShowResetPassword(false)}
+          className="text-purple-600 hover:text-purple-700 text-center mt-4"
+        >
+          Return to sign in
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -111,6 +206,15 @@ function SignInContent() {
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
             required
           />
+        </div>
+        <div className="flex justify-end">
+          <button 
+            type="button" 
+            onClick={() => setShowResetPassword(true)}
+            className="text-gray-600 hover:text-purple-600 text-sm"
+          >
+            Forgot your password?
+          </button>
         </div>
         <button
           type="submit"

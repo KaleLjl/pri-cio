@@ -52,6 +52,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   const emailInitial = userEmail.charAt(0).toUpperCase();
   const [isAvatarLoading, setIsAvatarLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const { fetchProfileData } = useProfilePage(userId);
   const [activeTab, setActiveTab] = useState<'saved' | 'posted' | 'dealing'>('saved');
   const [transitionDirection, setTransitionDirection] = useState<'left' | 'right'>('right');
@@ -75,17 +76,40 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   const currentUserId = session?.user?.id || '';
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const profileData = await fetchProfileData(); // Fetch profile data
-        setAvatarUrl(profileData.avatarUrl || null); // Set avatar URL
-      } catch (error) {
-        console.error("Error loading profile:", error);
+    const fetchUserProfile = async () => {
+      if (session?.user?.email) {
+        try {
+          const response = await fetch(`/api/editprofile`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch user profile: ${response.statusText}`);
+          }
+          const profiles = await response.json();
+          const userProfile = profiles.find(
+            (profile: { email: string }) => profile.email === session.user?.email
+          );
+          
+          // Set avatar URL
+          if (userProfile?.avatarUrl) {
+            setAvatarUrl(userProfile.avatarUrl);
+          } else {
+            setAvatarUrl(null);
+          }
+          
+          // Set user name in state
+          if (userProfile?.name) {
+            setUserName(userProfile.name);
+          } else {
+            setUserName(null);
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          setAvatarUrl(null);
+          setUserName(null);
+        }
       }
     };
-
-    loadProfile();
-  }, [fetchProfileData]);
+    fetchUserProfile();
+  }, [session?.user?.email]);
 
   useEffect(() => {
     // Measure the height of the active tab's content
@@ -321,12 +345,12 @@ export default function History({ histories: initialHistories }: HistoryProps) {
       ...item,
       userProfile: {
         _id: userId,
-        name: session?.user?.name || '',
+        name: userName || session?.user?.name || '',
         avatarUrl: avatarUrl || ''
       }
     });
     setCurrentImageIndex(0);
-  }, [userId, session?.user?.name, avatarUrl]);
+  }, [userId, userName, session?.user?.name, avatarUrl]);
 
   const handlePrevImage = useCallback(() => {
     if (!selectedCard?.images?.length) return;
@@ -402,15 +426,21 @@ export default function History({ histories: initialHistories }: HistoryProps) {
       {/* Header Section */}
       <div className="relative flex flex-col items-center">
         <div className="relative w-[150px] h-[150px] rounded-full overflow-hidden">
-          <ImageWithFallback
-            src={avatarUrl || ''}
-            alt={session?.user?.name || emailInitial}
-            fill
-            style={{ objectFit: "cover" }}
-            isAvatar={true}
-          />
+          {avatarUrl ? (
+            <ImageWithFallback
+              src={avatarUrl}
+              alt={userName || session?.user?.name || emailInitial}
+              fill
+              style={{ objectFit: "cover" }}
+              isAvatar={true}
+            />
+          ) : (
+            <div className="flex items-center justify-center w-full h-full bg-purple-600 text-white text-6xl">
+              {userName ? userName[0].toUpperCase() : session?.user?.name ? session.user.name[0].toUpperCase() : emailInitial}
+            </div>
+          )}
         </div>
-        <h1 className="text-2xl text-white font-bold mt-4">{session?.user?.name || 'User'}</h1>
+        <h1 className="text-2xl text-white font-bold mt-4">{userName || session?.user?.name || emailInitial}</h1>
         <p className="text-sm text-gray-400 mt-2">{userId || 'N/A'}</p>
         <button
           onClick={() => {

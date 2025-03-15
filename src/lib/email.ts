@@ -49,3 +49,35 @@ export async function sendVerificationEmail(email: string, code: string) {
     return false;
   }
 }
+
+export async function sendPasswordResetEmail(email: string, token: string) {
+  // Use NEXTAUTH_URL if available, otherwise fallback to localhost for development
+  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const resetUrl = `${baseUrl}/en/reset-password?token=${token}`;
+  
+  const mailOptions = {
+    from: `PRICIO AI <${process.env.SMTP_FROM}>`,
+    to: email,
+    subject: 'Reset Your Password - PRICIO AI',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #6B46C1;">Reset Your Password</h1>
+        <p>You requested a password reset for your PRICIO AI account. Click the button below to reset your password:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background-color: #6B46C1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Reset Password</a>
+        </div>
+        <p style="color: #666;">This link will expire in 1 hour. If you did not request a password reset, you can safely ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #888; font-size: 12px;">This is an automated message from PRICIO AI. Please do not reply to this email.</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    return false;
+  }
+}
