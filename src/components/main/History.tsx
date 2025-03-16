@@ -4,12 +4,8 @@ import { useHistory } from '@/lib/hooks/useHistory';
 import { HistoryItem, DealingItem } from '@/lib/types/history';
 import { useSession } from 'next-auth/react'; // To fetch user session data
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Switch } from '@headlessui/react';
-import Modal from '@/components/shared/Modal';
+import { AnimatePresence } from 'framer-motion';
 import Toast from '@/components/shared/Toast';
-import EditModal from '@/components/shared/EditModal';
-import { Avatar } from '@mui/material';
 import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
 import { CURRENCIES, Currency } from '@/components/main/CreatePost'; // Import types and data
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
@@ -18,7 +14,6 @@ import ItemDetailModal from '@/components/shared/ItemDetailModal';
 import { useRouter } from 'next/navigation';
 import ToExplore from '@/components/shared/ToExplore';
 import { useToExplore } from '@/lib/hooks/useToExplore';
-import { TEXT } from '@/lib/constants/text';
 
 interface HistoryProps {
   histories: HistoryItem[];
@@ -246,11 +241,11 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           },
           (err) => {
             console.error('Error fetching location:', err);
-            alert(TEXT.around.enableLocation);
+            alert('Enable location to get directions');
           }
         );
       } else {
-        alert(TEXT.around.geolocationNotSupported);
+        alert('Geolocation not supported');
       }
     },
     []
@@ -472,13 +467,11 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                           {activeDropdown === history._id && (
                             <div className="absolute right-0 top-full mt-1 w-30 bg-black shadow-lg rounded-lg z-50">
                               <ToExplore
-                                historyId={history._id}
+                                history={history}
+                                locationPermission={locationPermission}
+                                onLocationPermissionChange={handleLocationPermission}
                                 onSuccess={() => {
                                   showNewToast('Successfully posted to explore!', 'success');
-                                  setActiveDropdown(null);
-                                }}
-                                onError={(error) => {
-                                  showNewToast(error, 'error');
                                   setActiveDropdown(null);
                                 }}
                               >
@@ -638,7 +631,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                           history.currency
                         } {history.price || 'N/A'}
                       </p>
-                      <p className="text-sm mt-1">{history.description || TEXT.history.noDescription}</p>
+                      <p className="text-sm mt-1">{history.description || 'No description available'}</p>
                       <p className="text-xs text-gray-300 mt-1">
                         {history.createdAt
                           ? new Date(history.createdAt).toLocaleString()
@@ -665,18 +658,16 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           }}
         >
           <h2 className="text-2xl font-bold mb-4 flex items-center text-white">
-            <span>{TEXT.history.dealingItems}</span>
+            <span>Dealing Items</span>
             <span className="ml-3 text-sm font-normal text-gray-500">
-              ({dealingHistories.length} {TEXT.history.itemCount})
+              ({dealingHistories.length} items)
             </span>
           </h2>
 
           {isDealingLoading ? (
-            <Loading text={TEXT.history.loading} />
+            <Loading text="Loading dealing items..." />
           ) : dealingHistories.length === 0 ? (
-            <div className="text-center text-white py-10">
-              {TEXT.history.noDealingItems}
-            </div>
+            <div className="text-center text-white py-10">No dealing items</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
               {dealingHistories.map((item) => (
@@ -688,7 +679,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                   <div className="relative w-full h-full">
                     <Image
                       src={item.imageUrl || '/fallback.jpg'}
-                      alt={item.description || TEXT.history.noDescription}
+                      alt={item.description || 'No description available'}
                       fill
                       style={{ objectFit: "cover" }}
                       className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
@@ -700,7 +691,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                         item.role === 'buying' ? 'bg-blue-500' : 'bg-green-500'
                       } text-white shadow-lg`}
                     >
-                      {item.role === 'buying' ? 'Buying' : 'Selling'}
+                      {item.role === 'buying' ? 'Buyer' : 'Seller'}
                     </div>
 
                     {/* Deal Status */}
@@ -730,7 +721,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                         {item.price || 'N/A'}
                       </p>
                       <p className="text-sm mb-2">
-                        {item.description || TEXT.history.noDescription}
+                        {item.description || 'No description available'}
                       </p>
                       <p className="text-xs text-gray-300 mb-3">
                         {item.createdAt
@@ -748,7 +739,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                             }}
                             className="flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded-lg text-sm font-medium transition-colors duration-200"
                           >
-                            {TEXT.history.complete}
+                            Complete
                           </button>
                           <button
                             onClick={(e) => {
@@ -757,7 +748,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                             }}
                             className="flex-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition-colors duration-200"
                           >
-                            {TEXT.history.cancel}
+                            Cancel
                           </button>
                         </div>
                       )}
