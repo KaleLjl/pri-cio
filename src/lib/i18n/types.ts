@@ -81,6 +81,9 @@ export interface Dictionary {
     anonymous: string;
     comments: string;
     writeComment: string;
+    today: string;
+    yesterday: string;
+    daysAgo: string;
   };
   history: {
     loading: string;
@@ -214,4 +217,4 @@ export interface Dictionary {
     alreadyInDiscussion: string;
     inDiscussion: string;
   };
-} 
+}

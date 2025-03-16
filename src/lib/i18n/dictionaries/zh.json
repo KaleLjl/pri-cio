@@ -80,7 +80,10 @@
     "createdAt": "创建于",
     "anonymous": "匿名",
     "comments": "0 条评论",
-    "writeComment": "写评论..."
+    "writeComment": "写评论...",
+    "today": "今天",
+    "yesterday": "昨天",
+    "daysAgo": "天前"
   },
   "history": {
     "loading": "加载中...",
@@ -214,4 +217,4 @@
     "alreadyInDiscussion": "该商品正在讨论中",
     "inDiscussion": "讨论中"
   }
-} 
+}

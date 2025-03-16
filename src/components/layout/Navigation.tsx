@@ -16,6 +16,7 @@ import {
   FaDesktop,
   FaSignInAlt,
   FaSignOutAlt,
+  FaMapMarkerAlt,
 } from 'react-icons/fa';
 import { Menu, MenuItem } from '@mui/material';
 import { i18n } from '@/lib/i18n/i18n-config';
@@ -46,6 +47,7 @@ const Navigation: React.FC = () => {
 
   // For the top search bar on /explore
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showSearchInput, setShowSearchInput] = useState<boolean>(false);
 
   // Menu anchor for the language sub-menu
   const [anchorElLanguage, setAnchorElLanguage] = useState<null | HTMLElement>(null);
@@ -240,20 +242,40 @@ const Navigation: React.FC = () => {
 
           {/* Search Bar (only on /explore) */}
           {pathname.includes('/explore') && (
-            <div className="flex-grow flex justify-center">
-              <div className="relative w-full max-w-xs">
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder={dict.navigation.search || 'Search...'}
-                  value={searchQuery}
-                  onChange={handleSearch}
-                  className="pl-10 px-4 py-2 rounded-md border border-gray-300 bg-transparent focus:outline-none focus:border-gray-500 w-full text-white placeholder-gray-400"
-                />
+            <div className="flex-grow flex justify-end items-center space-x-4">
+              <div className="relative">
+                {showSearchInput ? (
+                  <div className="flex items-center relative w-full max-w-xs animate-fadeIn">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder={dict.navigation.search || 'Search...'}
+                      value={searchQuery}
+                      onChange={handleSearch}
+                      className="pl-10 px-4 py-2 rounded-md border border-gray-300 bg-transparent focus:outline-none focus:border-gray-500 w-64 text-white placeholder-gray-400"
+                      autoFocus
+                      onBlur={() => {
+                        if (!searchQuery) setShowSearchInput(false);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setShowSearchInput(true)}
+                    className="p-3 rounded-full bg-purple-600 hover:bg-purple-700 transition-colors duration-200 text-white"
+                    aria-label="Search"
+                  >
+                    <FaSearch className="text-lg" />
+                  </button>
+                )}
               </div>
-              <Link href={`/${currentLang}/around`} className="ml-4">
-                <button className="px-4 py-2 rounded-md bg-transparent border text-white hover:bg-gray-500">
-                  {dict.navigation.around}
+              <Link href={`/${currentLang}/around`}>
+                <button 
+                  className="p-3 rounded-full bg-transparent border border-gray-300 hover:bg-gray-700 transition-colors duration-200 text-white flex items-center justify-center"
+                  aria-label="Around Me"
+                  title={dict.navigation.around}
+                >
+                  <FaMapMarkerAlt className="text-lg" />
                 </button>
               </Link>
             </div>
@@ -318,118 +340,13 @@ const Navigation: React.FC = () => {
             {navItems.map((item) => (
               <div
                 key={item.href}
-                onClick={(e) => {
-                  if (item.onClick) {
-                    e.preventDefault();
-                    handleNavClick(item, e);
-                  }
-                }}
+                onClick={(e) => handleNavClick(item, e)}
                 className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
               >
                 {item.label}
               </div>
             ))}
             <hr className="my-2 border-gray-700" />
-            {session ? (
-              <>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaDesktop />
-                          <span>{dict.navigation.app}</span>
-                        </div>
-                      ),
-                      href: `/${currentLang}/app`,
-                    }, e);
-                  }}
-                  className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaDesktop className="inline mr-2" />
-                  {dict.navigation.app}
-                </div>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaGlobe />
-                          <span>{currentLang.toUpperCase()}</span>
-                        </div>
-                      ),
-                      href: 'language-selector',
-                      onClick: handleLanguageClick
-                    }, e);
-                  }}
-                  className="flex items-center px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaGlobe className="mr-2" />
-                  {currentLang.toUpperCase()}
-                </div>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaSignOutAlt />
-                          <span>{dict.navigation.signout}</span>
-                        </div>
-                      ),
-                      href: 'sign-out',
-                      onClick: () => signOut()
-                    }, e);
-                  }}
-                  className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaSignOutAlt className="inline mr-2" />
-                  {dict.navigation.signout}
-                </div>
-              </>
-            ) : (
-              <>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaSignInAlt />
-                          <span>{dict.navigation.signin}</span>
-                        </div>
-                      ),
-                      href: `/${currentLang}/signin`,
-                    }, e);
-                  }}
-                  className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaSignInAlt className="inline mr-2" />
-                  {dict.navigation.signin}
-                </div>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaGlobe />
-                          <span>{currentLang.toUpperCase()}</span>
-                        </div>
-                      ),
-                      href: 'language-selector',
-                      onClick: handleLanguageClick
-                    }, e);
-                  }}
-                  className="flex items-center px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaGlobe className="mr-2" />
-                  {currentLang.toUpperCase()}
-                </div>
-              </>
-            )}
 
             {/* Second-level menu for language (mobile) */}
             <Menu

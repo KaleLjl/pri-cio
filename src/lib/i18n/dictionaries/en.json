@@ -80,7 +80,10 @@
     "createdAt": "Created at",
     "anonymous": "Anonymous",
     "comments": "0 comments",
-    "writeComment": "Write a comment..."
+    "writeComment": "Write a comment...",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "days ago"
   },
   "history": {
     "loading": "Loading...",
@@ -213,4 +216,4 @@
     "dealError": "Failed to complete deal. Please try again.",
     "alreadyInDiscussion": "This item is already in discussion"
   }
-} 
+}
