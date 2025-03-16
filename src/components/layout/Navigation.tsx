@@ -14,6 +14,7 @@ import {
   FaDesktop,
   FaSignInAlt,
   FaSignOutAlt,
+  FaMapMarkerAlt,
 } from 'react-icons/fa';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 
@@ -270,12 +271,7 @@ const Navigation: React.FC = () => {
             {navItems.map((item) => (
               <div
                 key={item.href}
-                onClick={(e) => {
-                  if (item.onClick) {
-                    e.preventDefault();
-                    handleNavClick(item, e);
-                  }
-                }}
+                onClick={(e) => handleNavClick(item, e)}
                 className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
               >
                 {item.label}

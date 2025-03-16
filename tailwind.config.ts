@@ -12,9 +12,18 @@ export default {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
-    },
-    fontFamily: {
-      sans: ['Inter Variable', 'sans-serif'],
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.2s ease-in-out',
+      },
+      fontFamily: {
+        sans: ['Inter Variable', 'sans-serif'],
+      },
     },
   },
   plugins: [],

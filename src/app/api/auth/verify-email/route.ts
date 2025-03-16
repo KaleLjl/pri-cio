@@ -23,7 +23,9 @@ export async function POST(req: Request) {
     const existingUser = await db.collection('users').findOne({ email: normalizedEmail });
     if (existingUser) {
       return NextResponse.json(
-        { message: 'User already exists' },
+        { message: 'User already exists',
+          code: 'EMAIL_EXISTS'
+        },
         { status: 400 }
       );
     }

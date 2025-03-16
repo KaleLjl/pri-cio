@@ -37,6 +37,7 @@ interface ItemDetailModalProps {
 }
 
 export default function ItemDetailModal({
+
   item,
   currentImageIndex,
   onClose,
@@ -48,6 +49,26 @@ export default function ItemDetailModal({
   currentUserId,
   onUpdate,
 }: ItemDetailModalProps) {
+  const { dict } = useLanguage();
+  
+  // Format date to show either 'X days ago' or DD/MM/YYYY
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 7) {
+      if (diffDays === 0) return dict.explore.today;
+      if (diffDays === 1) return dict.explore.yesterday;
+      return `${diffDays} ${dict.explore.daysAgo}`;
+    } else {
+      return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+    }
+  };
+  
   const [isEditing, setIsEditing] = useState(false);
   const [editPrice, setEditPrice] = useState(item.price);
   const [editDescription, setEditDescription] = useState(item.description);
@@ -101,20 +122,63 @@ export default function ItemDetailModal({
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.5 }}
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 bg-black z-50 overflow-y-auto"
       onClick={onClose}
     >
       <motion.div
         onClick={(e) => e.stopPropagation()}
-        className="bg-black rounded-2xl shadow-xl w-[90%] max-w-4xl p-8 text-black"
+        className="w-full h-full flex flex-col text-white"
       >
-        <div className="grid" style={{ gridTemplateColumns: '500px auto', gap: '1.5rem' }}>
-          {/* LEFT Column: 500x500 image, arrows inside */}
-          <div className="relative w-[500px] h-[500px] bg-white rounded-lg overflow-hidden">
+        {/* Header with back button and user profile - Fixed height header */}
+        <div className="relative h-20 pt-10 px-4 flex items-center justify-between z-10">
+          <div className="flex items-center space-x-4">
+            <button 
+              onClick={onClose}
+              className="p-2 rounded-full bg-black/40 text-white hover:bg-black/60"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            {item.userProfile && (
+              <div className="flex items-center space-x-3 ml-2">
+                <div
+                  className="relative w-8 h-8 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-600"
+                  onClick={handleAvatarClick}
+                >
+                  <ImageWithFallback
+                    src={item.userProfile?.avatarUrl || ''}
+                    alt={item.userProfile?.name || dict.explore.anonymous}
+                    layout="fill"
+                    objectFit="cover"
+                    isAvatar
+                  />
+                </div>
+                <span className="font-semibold text-white text-xl md:text-2xl">
+                  {item.userProfile?.name || dict.explore.anonymous}
+                </span>
+              </div>
+            )}
+          </div>
+          
+          {isOwnItem && onUpdate && !item.exploreId && (
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+            >
+              {isEditing ? 'Cancel' : 'Edit'}
+            </button>
+          )}
+        </div>
+        
+        <div className="flex flex-col w-full">
+          {/* Full-width image - Now positioned below the header */}
+          <div className="relative w-full h-screen max-h-[70vh] bg-black overflow-hidden">
             {((item.images && item.images.length > 0) || item.imageUrl) ? (
               <>
                 <ImageWithFallback
@@ -126,19 +190,20 @@ export default function ItemDetailModal({
                   alt={item.description || 'No description available'}
                   fill
                   style={{ objectFit: 'contain', backgroundColor: 'black' }}
+                  className="object-contain"
                 />
                 {/* Arrows inside the image box */}
                 {item.images && item.images.length > 1 && (
                   <>
                     <button
                       onClick={onPrevImage}
-                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-r hover:bg-black/70"
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-r hover:bg-black/70 text-xl md:text-base"
                     >
                       ◀
                     </button>
                     <button
                       onClick={onNextImage}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-r hover:bg-black/70"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-l hover:bg-black/70 text-xl md:text-base"
                     >
                       ▶
                     </button>
@@ -153,35 +218,18 @@ export default function ItemDetailModal({
           </div>
 
           {/* RIGHT Column: details */}
-          <div className="flex flex-col space-y-4 overflow-hidden">
-            {/* top row: avatar & name */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div
-                  className="relative w-10 h-10 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-600"
-                  onClick={handleAvatarClick}
-                >
-                  <ImageWithFallback
-                    src={item.userProfile?.avatarUrl || ''}
-                    alt={item.userProfile?.name || 'Anonymous'}
-                    layout="fill"
-                    objectFit="cover"
-                    isAvatar
-                  />
-                </div>
-                <span className="font-semibold text-white">
-                  {item.userProfile?.name || 'Anonymous'}
-                </span>
-              </div>
-              {isOwnItem && onUpdate && !item.exploreId && (
+          <div className="flex flex-col space-y-6 overflow-hidden p-4">
+            {/* Edit button (moved from duplicate user section) */}
+            {isOwnItem && onUpdate && !item.exploreId && (
+              <div className="flex justify-end">
                 <button
                   onClick={() => setIsEditing(!isEditing)}
                   className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
                 >
                   {isEditing ? 'Cancel' : 'Edit'}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {isEditing ? (
               <div className="space-y-4">
@@ -221,22 +269,22 @@ export default function ItemDetailModal({
               </div>
             ) : (
               <>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-xl md:text-2xl font-bold text-white">
                   {CURRENCIES.find((c) => c.value === item.currency)?.symbol}{' '}
                   {item.price || ''}
                 </p>
                 <h2 className="text-lg text-white">
                   {item.description || 'No description available'}
                 </h2>
-                <p className="text-gray-600 text-sm">
-                  Created at:{' '}
-                  {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
+                <p className="text-gray-600 text-xs md:text-sm flex items-center space-x-2">
+                  <span>{formatDate(item.createdAt)}</span>
+                  {item?.location && (
+                    <>
+                      <span>•</span>
+                      <span>{item.location.city}, {item.location.country}</span>
+                    </>
+                  )}
                 </p>
-                {item?.location && (
-                  <p className="text-gray-600">
-                    Location: {item.location.city}, {item.location.country}
-                  </p>
-                )}
               </>
             )}
 
@@ -245,7 +293,7 @@ export default function ItemDetailModal({
             {/* Buttons at the bottom */}
             {item.location && !isEditing && (
               <div className="flex flex-col justify-end flex-grow">
-                <div className="border-t border-gray-600 pt-4 flex justify-between space-x-4">
+                <div className="border-t border-gray-600 pt-6 flex justify-between space-x-4">
                   {/* Directions */}
                   <button
                     onClick={handleGetDirections}
@@ -297,4 +345,4 @@ export default function ItemDetailModal({
       </motion.div>
     </motion.div>
   );
-} 
+}
