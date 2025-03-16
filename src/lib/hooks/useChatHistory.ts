@@ -19,7 +19,7 @@ export function useChatHistory(): UseChatHistoryReturn {
   const queryClient = useQueryClient();
   const socket = useContext(SocketContext);
 
-  // 获取聊天历史
+  // Fetch ChatHistory
   const {
     data: chats = [],
     isLoading: loading,
@@ -37,12 +37,11 @@ export function useChatHistory(): UseChatHistoryReturn {
     enabled: !!session,
   });
 
-  // 包装 refetch 函数以返回 void
   const refetch = async () => {
     await queryRefetch();
   };
 
-  // 删除消息
+  // Delete Message
   const deleteMessages = async (conversationId: string) => {
     try {
       const response = await fetch("/api/chat/messages", {
@@ -59,10 +58,10 @@ export function useChatHistory(): UseChatHistoryReturn {
         throw new Error(data.error || "Failed to delete messages");
       }
 
-      // 离开房间
+
       socket.leaveRoom(conversationId);
       
-      // 清除缓存
+  
       queryClient.removeQueries({ queryKey: ["chat-messages", conversationId] });
       await refetch();
     } catch (error) {

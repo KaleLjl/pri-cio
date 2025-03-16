@@ -18,7 +18,6 @@ import { format } from 'date-fns';
 import { useChatHistory } from '@/lib/hooks/useChatHistory';
 import { useEffect } from 'react';
 
-// 在文件顶部添加一个帮助函数
 const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
   const primaryImage = images.find(img => img.isPrimary) || images[0];
   return primaryImage?.url || '';
@@ -116,7 +115,7 @@ export default function Chat({ userId }: ChatProps) {
     setShowPosts,
   });
 
-  // 在对话初始化完成后标记消息为已读
+  // Mark the message as read
   useEffect(() => {
     if (conversationId) {
       markAsRead(conversationId).catch(error => {

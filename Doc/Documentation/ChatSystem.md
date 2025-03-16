@@ -121,104 +121,243 @@ Manages WebSocket connections and real-time events.
 
 ## Areas for Improvement
 
-### 1. Performance Optimizations
-- Implement message virtualization for better performance with large message histories
-- Add message batching for bulk operations
-- Optimize image loading with progressive loading
-- Implement better caching strategies for media content
+### 1. Architecture Refinement
+Current analysis shows overlapping responsibilities between SocketEventManager and ChatCacheManager:
 
-### 2. Feature Enhancements
-- Add support for voice messages
-- Implement message reactions
-- Add message threading support
-- Add file sharing capabilities
-- Implement message search functionality
-- Add message forwarding feature
+```typescript
+// Current overlap in event handling
+// SocketEventManager.ts
+public initializeEventListeners({
+  onNewMessage,
+  onNewConversation,
+  onMessageDelivered,
+  onMessageRead,
+  onConversationRead,
+  onUserTyping
+})
 
-### 3. Security Improvements
-- Implement end-to-end encryption
-- Add message expiration feature
-- Implement better rate limiting
-- Add message validation and sanitization
-- Implement better error handling and recovery
+// ChatCacheManager.ts
+public async handleNewMessage(message: ChatMessage)
+public async handleNewConversation(conversationId: string)
+public updateMessageStatus(messageId: string, status: Status)
+```
 
-### 4. UI/UX Improvements
-- Add message grouping by time
-- Implement better loading states
-- Add pull-to-refresh functionality
-- Improve mobile responsiveness
-- Add better error feedback
-- Implement better offline support
+Recommendations:
+- Implement a clear event flow: Socket Event → SocketEventManager → ChatCacheManager → UI Update
+- Make ChatCacheManager the single source of truth for data updates
+- Remove duplicate message status management between Socket and Cache managers
 
-### 5. Code Structure Improvements
-- Split large components into smaller, more manageable pieces
-- Implement better state management (consider using Redux or Zustand)
-- Add better TypeScript types and interfaces
-- Implement better error boundary handling
-- Add comprehensive unit tests
-- Implement better logging and monitoring
+### 2. State Management Optimization
+Current issues:
+- Multiple components handling same state updates
+- Redundant API calls for the same data
+- Mixing of real-time updates with REST API calls
 
-### 6. Real-time Features
-- Add presence indicators
-- Implement better typing indicator logic
-- Add read receipts with timestamps
-- Implement better offline message queueing
-- Add support for multi-device synchronization
+Proposed solution:
+```typescript
+// Centralized state management
+interface ChatStateManager {
+  handleMessageUpdate: (message: ChatMessage) => void;
+  handleConversationUpdate: (conversation: Conversation) => void;
+  handleStatusUpdate: (status: MessageStatus) => void;
+}
+
+// Event bus pattern
+class ChatEventBus {
+  emit(event: ChatEvent): void;
+  subscribe(event: ChatEvent, handler: Handler): void;
+  unsubscribe(event: ChatEvent, handler: Handler): void;
+}
+```
+
+### 3. Real-time vs REST API Separation
+Current redundancy:
+```typescript
+// Current: Both WebSocket and REST API updating same data
+socket.on('message', handleNewMessage);
+fetch('/api/chat/messages').then(handleNewMessage);
+```
+
+Recommended separation:
+- WebSocket: Real-time events (typing, presence, immediate message delivery)
+- REST API: CRUD operations, history loading, initial data fetch
+- Cache: Local state management and optimistic updates
+
+## Implementation Guide
+
+### 1. Refactored Service Layer
+```typescript
+class ChatService {
+  private socketManager: SocketEventManager;
+  private cacheManager: ChatCacheManager;
+  private stateManager: ChatStateManager;
+
+  constructor() {
+    this.socketManager = SocketEventManager.getInstance();
+    this.cacheManager = new ChatCacheManager(queryClient);
+    this.stateManager = new ChatStateManager();
+    
+    // Initialize socket events with clear flow
+    this.socketManager.initializeEventListeners({
+      onNewMessage: this.handleNewMessage.bind(this),
+      onNewConversation: this.handleNewConversation.bind(this),
+      onMessageStatus: this.handleMessageStatus.bind(this),
+    });
+  }
+
+  private handleNewMessage(message: ChatMessage) {
+    // Single entry point for message handling
+    this.cacheManager.handleNewMessage(message);
+    this.stateManager.notifySubscribers('message', message);
+  }
+
+  private handleNewConversation(data: ConversationData) {
+    // Unified conversation handling
+    this.cacheManager.handleNewConversation(data.conversationId);
+    this.stateManager.notifySubscribers('conversation', data);
+  }
+}
+```
+
+### 2. Optimized Event Flow
+```typescript
+// Clear event flow with proper separation
+interface ChatEventFlow {
+  // Socket events - real-time only
+  socketEvents: {
+    'new-message': (message: ChatMessage) => void;
+    'typing-status': (status: TypingStatus) => void;
+    'presence': (presence: UserPresence) => void;
+  };
+
+  // REST API - data operations
+  apiOperations: {
+    fetchHistory: (params: HistoryParams) => Promise<Messages>;
+    updateMessage: (message: MessageUpdate) => Promise<void>;
+    deleteMessage: (messageId: string) => Promise<void>;
+  };
+
+  // Cache operations - local state
+  cacheOperations: {
+    updateCache: (data: CacheUpdate) => void;
+    invalidateCache: (keys: CacheKeys) => void;
+    optimisticUpdate: (update: OptimisticUpdate) => void;
+  };
+}
+```
+
+### 3. Enhanced State Management
+```typescript
+class ChatStateManager {
+  private subscribers = new Map<string, Set<Subscriber>>();
+  private cache: ChatCacheManager;
+
+  constructor(cache: ChatCacheManager) {
+    this.cache = cache;
+  }
+
+  public update(type: UpdateType, data: UpdateData) {
+    // Single update point
+    this.cache.update(type, data);
+    this.notifySubscribers(type, data);
+  }
+
+  public subscribe(type: string, subscriber: Subscriber) {
+    if (!this.subscribers.has(type)) {
+      this.subscribers.set(type, new Set());
+    }
+    this.subscribers.get(type)!.add(subscriber);
+  }
+
+  private notifySubscribers(type: string, data: any) {
+    this.subscribers.get(type)?.forEach(subscriber => subscriber(data));
+  }
+}
+```
+
+### 4. Performance Optimizations
+
+#### Message Batching
+```typescript
+class MessageBatcher {
+  private queue: Message[] = [];
+  private timeout: NodeJS.Timeout | null = null;
+
+  public queueMessage(message: Message) {
+    this.queue.push(message);
+    this.scheduleFlush();
+  }
+
+  private scheduleFlush() {
+    if (!this.timeout) {
+      this.timeout = setTimeout(() => this.flush(), 100);
+    }
+  }
+
+  private flush() {
+    if (this.queue.length > 0) {
+      this.processMessages(this.queue);
+      this.queue = [];
+    }
+    this.timeout = null;
+  }
+}
+```
+
+#### Smart Polling
+```typescript
+class PollingManager {
+  private baseInterval = 1000;
+  private maxInterval = 30000;
+  private currentInterval: number;
+  private isWebSocketActive: boolean;
+
+  public adjustPolling(wsStatus: WebSocketStatus) {
+    if (wsStatus === 'connected') {
+      this.stopPolling();
+      this.isWebSocketActive = true;
+    } else {
+      this.startPolling();
+      this.isWebSocketActive = false;
+    }
+  }
+
+  private startPolling() {
+    this.currentInterval = this.baseInterval;
+    this.poll();
+  }
+
+  private async poll() {
+    if (!this.isWebSocketActive) {
+      await this.fetchUpdates();
+      this.currentInterval = Math.min(this.currentInterval * 2, this.maxInterval);
+      setTimeout(() => this.poll(), this.currentInterval);
+    }
+  }
+}
+```
 
 ## Best Practices
 
-### 1. Message Handling
-- Always validate messages before sending
-- Implement proper error handling for failed messages
-- Use optimistic updates for better UX
-- Implement proper message retry logic
+### 1. Event Handling
+- Use the ChatEventBus for all event distribution
+- Implement proper error boundaries for event handlers
+- Use TypeScript for better type safety in event handling
 
-### 2. State Management
-- Use proper state management for complex state
-- Implement proper loading states
-- Handle edge cases and error states
-- Use proper TypeScript types
+### 2. State Updates
+- Always use ChatStateManager for state updates
+- Implement optimistic updates for better UX
+- Handle edge cases and error states properly
 
 ### 3. Performance
-- Implement proper pagination
+- Use message batching for bulk operations
+- Implement smart polling as WebSocket fallback
 - Use proper caching strategies
-- Optimize image loading
-- Implement proper WebSocket connection management
 
-### 4. Security
-- Validate all user input
-- Implement proper authentication
-- Use proper encryption for sensitive data
-- Implement proper rate limiting
-
-## API Integration
-
-### WebSocket Events
-```typescript
-// Connection events
-socket.on('connect', () => {});
-socket.on('disconnect', () => {});
-
-// Message events
-socket.on('message', (message) => {});
-socket.on('typing', (data) => {});
-socket.on('read', (data) => {});
-
-// Error events
-socket.on('error', (error) => {});
-```
-
-### REST Endpoints
-```typescript
-// Message operations
-POST /api/messages - Send message
-DELETE /api/messages - Delete messages
-GET /api/messages - Get message history
-
-// Chat operations
-GET /api/chats - Get chat list
-GET /api/chats/:id - Get chat details
-```
+### 4. Error Handling
+- Implement proper error recovery
+- Use proper logging for debugging
+- Handle network errors gracefully
 
 ## Conclusion
-The chat system provides a solid foundation for real-time communication with support for rich features like object discussions and message status tracking. By implementing the suggested improvements, the system can be enhanced to provide an even better user experience while maintaining high performance and security standards. 
+The chat system provides a robust foundation for real-time communication. By implementing these improvements, we can achieve better performance, maintainability, and reliability while reducing code duplication and clarifying responsibility boundaries. 
