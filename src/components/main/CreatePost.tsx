@@ -3,7 +3,6 @@ import { useHistory } from '@/lib/hooks/useHistory';
 import Image from 'next/image';
 import { useShareCard } from '@/lib/hooks/useShareCard';
 import Modal from '@/components/shared/Modal';
-import { useLanguage } from '@/lib/context/LanguageContext';
 import { useUploadMetaData } from '@/lib/hooks/upload/useUploadMetaData';
 import { useUploadImageProcess } from '@/lib/hooks/upload/useUploadImageProcess';
 import { useUploadAI } from '@/lib/hooks/upload/useUploadAI';
@@ -20,17 +19,6 @@ export type Currency = {
   symbol: string;
 };
 
-// 提取常量
-// const CURRENCIES = [
-//   { value: 'GBP', label: '£ GBP', symbol: '£' },
-//   { value: 'USD', label: '$ USD', symbol: '$' },
-//   { value: 'EUR', label: '€ EUR', symbol: '€' },
-//   { value: 'CNY', label: '¥ CNY', symbol: '¥' },
-// ].map(curr => ({
-//   ...curr,
-//   label: `  ${curr.label}  `
-// }));
-
 export const CURRENCIES: Currency[] = [
   { value: 'GBP', label: '£ GBP', symbol: '£' },
   { value: 'USD', label: '$ USD', symbol: '$' },
@@ -42,7 +30,6 @@ export const CURRENCIES: Currency[] = [
 }));
 
 export default function ImageCapture() {
-  const { dict } = useLanguage();
   const [metaState, metaActions] = useUploadMetaData();
   const [imageState, imageActions] = useUploadImageProcess();
   const [aiState, aiActions] = useUploadAI();
@@ -96,28 +83,28 @@ export default function ImageCapture() {
 
   return (
     <>
-      {/* 给标题和货币选择器的容器设置固定高度 */}
+      {/* Container for title and currency selector */}
       <div className="flex flex-col justify-center mb-4">
         <div className="flex flex-col space-y-4">
           <div className="px-4">
             {!imageState.images.length && (
               <h2 className="text-3xl font-light text-white text-center tracking-wide">
-                {dict.app.title}
+                Upload your item
               </h2>
             )}
             {imageState.images.length > 0 && !uiState.isEditing && (
               <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
-                {dict.app.titleWithPrice}
+                Set your price
               </h2>
             )}
             {imageState.images.length > 0 && uiState.isEditing && (
               <h2 className="text-3xl font-light text-gray-600 text-center tracking-wide">
-                {dict.app.titleEditing}
+                Edit your item
               </h2>
             )}
           </div>
           
-          {/* 货币选择器只在没有图片时显示 */}
+          {/* Currency selector only shown when no images */}
           {!imageState.images.length && (
             <div className="flex justify-center">
               <select
@@ -150,123 +137,101 @@ export default function ImageCapture() {
         </div>
       </div>
 
-      {/* 这是图片,价格描述显示区域 */}
+      {/* Image, price and description display area */}
       <div 
         className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full bg-gray-800"
       >
-        {/* 这是图片的显示区域 */}
+        {/* Image display area */}
         <div className="flex flex-col items-center">
           <div className="w-full max-w-96 aspect-square relative group">
             {imageState.primaryImage ? (
-              <div className="relative w-full h-full rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                <Image 
-                  src={imageState.primaryImage} 
-                  alt="Selected" 
+              <div className="relative w-full h-full">
+                <Image
+                  src={imageState.primaryImage}
+                  alt="Uploaded"
                   fill
-                  className="object-cover"
-                  unoptimized
+                  style={{ objectFit: "cover" }}
+                  className="rounded-2xl"
                 />
-                {aiState.isLoading && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+                {/* Image controls */}
+                <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl flex items-center justify-center">
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={imageActions.uploadImageFromDevice}
+                      className="p-2 bg-white text-black rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={handleAnalyzeImage}
+                      className="p-2 bg-white text-black rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={imageActions.clearImage}
+                      className="p-2 bg-white text-black rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                      </svg>
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
             ) : (
-              <div 
-                className="w-full h-full border-2 border-dashed border-gray-300 rounded-xl bg-gray-200 flex items-center justify-center group-hover:border-purple-500 transition-colors"
+              <div
                 onClick={imageActions.uploadImageFromDevice}
+                className="w-full h-full border-2 border-dashed border-gray-600 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-gray-400 group-hover:text-purple-500">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-gray-600">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                 </svg>
+                <p className="mt-4 text-gray-600">Click to upload</p>
               </div>
             )}
           </div>
 
-          {/* 缩略图预览区域 */}
-          {imageState.images.length > 0 && (
-            <div className="mt-4 flex gap-2 overflow-x-auto w-full max-w-96 pb-2">
-              {imageState.images.map((image) => (
-                <div
-                  key={image.id}
-                  className={`relative w-16 h-16 flex-shrink-0 cursor-pointer rounded-lg overflow-hidden
-                    ${image.isPrimary ? 'ring-2 ring-purple-500' : 'hover:ring-2 hover:ring-purple-300'}`}
-                  onClick={() => imageActions.setPrimaryImage(image.id)}
-                >
-                  <Image
-                    src={image.url}
-                    alt="Thumbnail"
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                  <button
-                    className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-bl-lg"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      imageActions.removeImage(image.id);
-                    }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-              <div
-                className="w-16 h-16 flex-shrink-0 border-2 border-dashed border-gray-300 rounded-lg 
-                  flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
-                onClick={imageActions.uploadImageFromDevice}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-400">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-              </div>
-            </div>
-          )}
-
-          {/* 这是价格与描述的显示区域 */}
+          {/* Price and description */}
           {imageState.primaryImage && (
-            <div className="mt-2 text-center w-full space-y-4">
-              <div className="flex justify-center">
+            <div className="w-full mt-8 space-y-6">
+              {/* Price input */}
+              <div>
                 {uiState.isEditing && uiState.activeField === 'price' ? (
-                  <div className="relative flex items-center">
-                    <span className="absolute left-4 text-3xl font-semibold text-purple-600">
-                      {CURRENCIES.find(c => c.value === metaState.currency)?.symbol}
-                    </span>
-                    <input
-                      type="text"
-                      value={metaState.price}
-                      onChange={(e) => handlePriceChange(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          uiActions.stopEditing();
-                        }
-                      }}
-                      className="w-auto min-w-[120px] pl-8 text-3xl font-semibold text-purple-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
-                      style={{ width: `${Math.max(120, (metaState.price?.length || 1) * 20)}px` }}
-                      placeholder="0"
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    value={metaState.price}
+                    onChange={(e) => handlePriceChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        uiActions.stopEditing();
+                      }
+                    }}
+                    className="w-full p-2 text-2xl text-gray-600 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
+                    placeholder="Enter price"
+                    onClick={(e) => e.stopPropagation()}
+                  />
                 ) : (
-                  <div
-                    className="flex items-center text-3xl font-semibold text-purple-600 cursor-pointer hover:bg-purple-100 rounded-lg px-4 py-2"
+                  <p 
+                    className="text-2xl text-center p-2 cursor-pointer hover:bg-purple-100 rounded-lg"
                     onClick={(e) => {
                       e.stopPropagation();
                       uiActions.startEditing('price');
                     }}
+                    style={{ color: metaState.price ? '#4B5563' : 'rgba(75, 85, 99, 0.5)' }}
                   >
-                    <span className="mr-1">{CURRENCIES.find(c => c.value === metaState.currency)?.symbol}</span>
-                    <span>
-                      {metaState.price || '0.00'}
-                    </span>
-                  </div>
+                    {metaState.price ? `${CURRENCIES.find(c => c.value === metaState.currency)?.symbol}${metaState.price}` : 'Enter price'}
+                  </p>
                 )}
               </div>
 
-              <div className="w-full">
+              {/* Description input */}
+              <div>
                 {uiState.isEditing && uiState.activeField === 'description' ? (
                   <textarea
                     value={metaState.description}
@@ -293,7 +258,7 @@ export default function ImageCapture() {
                       target.style.height = 'auto';
                       target.style.height = target.scrollHeight + 'px';
                     }}
-                    placeholder={dict.app.descriptionPlaceholder}
+                    placeholder="Enter description here..."
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
@@ -314,19 +279,19 @@ export default function ImageCapture() {
         </div>
       </div>
 
-      {/* 以下三个区域为不同时候的按钮 */}
-      {/* 这是在为上传图片时候显示的按钮 */}
+      {/* Button areas for different states */}
+      {/* Buttons for initial upload */}
       {!imageState.images.length && (
         <div className="flex space-x-4">
           <button onClick={imageActions.uploadImageFromDevice} disabled={aiState.isLoading} className="flex items-center justify-start w-32 px-4 py-2 bg-white text-black rounded-lg hover:bg-purple-500 hover:text-white disabled:opacity-50 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
             </svg>
-            {dict.app.uploadButton}
+            Upload
           </button>
         </div>
       )}
-      {/* 这是在上传图片后显示的按钮 */}
+      {/* Buttons after upload */}
       {imageState.images.length > 0 && (
         <div className="flex space-x-4">
           <button 
@@ -357,19 +322,19 @@ export default function ImageCapture() {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
             </svg>
-            {dict.app.deleteButton}
+            Delete
           </button>
         </div>
       )}
 
       <Modal 
-        title={dict.app.errorTitle}
+        title="Error"
         message={aiState.errorMessage || ''}
         isOpen={aiState.showErrorModal}
         onClose={aiActions.closeErrorModal}
         onConfirm={aiActions.closeErrorModal}
-        confirmText={dict.app.closeButton}
-        cancelText={dict.app.cancelButton}
+        confirmText="Close"
+        cancelText="Cancel"
       />
 
       <ChatAIModal

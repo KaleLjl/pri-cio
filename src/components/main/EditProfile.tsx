@@ -11,11 +11,9 @@ import {
 } from "@mui/material";
 import { useProfilePage } from "@/lib/hooks/useProfilePage";
 import { useSession } from 'next-auth/react'; // Import useSession to get user data
-import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 
 const ProfilePage = () => {
-  const { dict } = useLanguage();
   // 获取用户会话数据
   const { data: session } = useSession();
   const userId = session?.user?.id || "";
@@ -79,7 +77,7 @@ const ProfilePage = () => {
 
   // 加载状态显示
   if (isLoading) {
-    return <div className="text-center py-10">{dict.editProfile.loading}</div>;
+    return <div className="text-center py-10">Loading profile...</div>;
   }
 
   return (
@@ -100,7 +98,7 @@ const ProfilePage = () => {
             color: "white",
           }}
         >
-          {dict.editProfile.title}
+          Edit Profile
         </Typography>
 
         {/* 页面说明文字 */}
@@ -115,7 +113,7 @@ const ProfilePage = () => {
             mt: 2,
           }}
         >
-          {dict.editProfile.subtitle}
+          Update your profile information
         </Typography>
   
         {/* 头像上传区域 */}
@@ -140,7 +138,7 @@ const ProfilePage = () => {
               "&:hover": { backgroundColor: "gray" },
             }}
           >
-            {dict.editProfile.avatar.change}
+            Change Avatar
             <input
               type="file"
               accept="image/*"
@@ -153,7 +151,7 @@ const ProfilePage = () => {
         {/* 表单输入区域 */}
         <Box component="form" sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <TextField
-            label={dict.editProfile.form.name.label}
+            label="Name"
             name="name"
             value={formData.name}
             onChange={(e) => handleInputChange(e.target.name, e.target.value)}
@@ -182,7 +180,7 @@ const ProfilePage = () => {
             }}
           />
           <TextField
-            label={dict.editProfile.form.about.label}
+            label="About"
             name="about"
             value={formData.about}
             onChange={(e) => handleInputChange(e.target.name, e.target.value)}
@@ -198,22 +196,22 @@ const ProfilePage = () => {
                   borderColor: "white",
                 },
                 "&:hover fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
+                  borderColor: "#6D28D9",
                 },
                 "&.Mui-focused fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
+                  borderColor: "#6D28D9",
                 },
               },
               "& .MuiInputLabel-root": {
                 color: "white",
                 "&.Mui-focused": {
-                  color: "#6D28D9", // Purple-600
+                  color: "#6D28D9",
                 },
               },
             }}
           />
           <TextField
-            label={dict.editProfile.form.website.label}
+            label="Website"
             name="website"
             value={formData.website}
             onChange={(e) => handleInputChange(e.target.name, e.target.value)}
@@ -227,16 +225,16 @@ const ProfilePage = () => {
                   borderColor: "white",
                 },
                 "&:hover fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
+                  borderColor: "#6D28D9",
                 },
                 "&.Mui-focused fieldset": {
-                  borderColor: "#6D28D9", // Purple-600
+                  borderColor: "#6D28D9",
                 },
               },
               "& .MuiInputLabel-root": {
                 color: "white",
                 "&.Mui-focused": {
-                  color: "#6D28D9", // Purple-600
+                  color: "#6D28D9",
                 },
               },
             }}
@@ -256,7 +254,7 @@ const ProfilePage = () => {
             }}
             onClick={resetForm}
           >
-            {dict.editProfile.actions.reset}
+            Reset
           </Button>
           
           {/* 保存按钮 */}
@@ -265,11 +263,11 @@ const ProfilePage = () => {
             sx={{
               borderRadius: "20px",
               backgroundColor: "#6D28D9",
-              "&:hover": { backgroundColor: "#9333ea" }, // Darker Purple
+              "&:hover": { backgroundColor: "#9333ea" },
             }}
             onClick={saveProfile}
           >
-            {dict.editProfile.actions.save}
+            Save
           </Button>
         </Box>
       </Container>

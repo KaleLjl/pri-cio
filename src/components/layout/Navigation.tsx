@@ -8,8 +8,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import LogoImage from '/public/image/logo.png';
 import {
   FaSearch,
-  FaGlobe,
-  FaAlignJustify,
   FaCompass,
   FaEnvelopeOpenText,
   FaPenFancy,
@@ -17,10 +15,7 @@ import {
   FaSignInAlt,
   FaSignOutAlt,
 } from 'react-icons/fa';
-import { Menu, MenuItem } from '@mui/material';
-import { i18n } from '@/lib/i18n/i18n-config';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
-import { useLanguage } from '@/lib/context/LanguageContext';
 
 interface NavItem {
   label: JSX.Element;
@@ -29,13 +24,9 @@ interface NavItem {
 }
 
 const Navigation: React.FC = () => {
-  const { dict } = useLanguage();
   const { data: session } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-
-  // Current language from URL
-  const currentLang = pathname?.split('/')[1] || 'en';
 
   // For user avatar and name
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
@@ -46,20 +37,6 @@ const Navigation: React.FC = () => {
 
   // For the top search bar on /explore
   const [searchQuery, setSearchQuery] = useState<string>('');
-
-  // Menu anchor for the language sub-menu
-  const [anchorElLanguage, setAnchorElLanguage] = useState<null | HTMLElement>(null);
-  const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElLanguage(event.currentTarget);
-  };
-  const handleLanguageClose = () => {
-    setAnchorElLanguage(null);
-  };
-  const handleLanguageSelect = (lang: string) => {
-    const newPath = pathname.replace(`/${currentLang}`, `/${lang}`);
-    router.push(newPath);
-    handleLanguageClose();
-  };
 
   // Fetch user avatar if logged in
   useEffect(() => {
@@ -75,14 +52,12 @@ const Navigation: React.FC = () => {
             (profile: { email: string }) => profile.email === session.user?.email
           );
           
-          // Set avatar URL
           if (userProfile?.avatarUrl) {
             setCurrentAvatarUrl(userProfile.avatarUrl);
           } else {
             setCurrentAvatarUrl(null);
           }
           
-          // Set user name in state and update session
           if (userProfile?.name) {
             setUserName(userProfile.name);
             if (session.user) {
@@ -102,7 +77,6 @@ const Navigation: React.FC = () => {
   }, [session?.user?.email]);
 
   const emailInitial = session?.user?.email?.charAt(0).toUpperCase() || 'U';
-  // Use userName from state if available, otherwise fall back to session name
   const displayName = userName || session?.user?.name;
 
   // Main nav items
@@ -112,44 +86,34 @@ const Navigation: React.FC = () => {
           label: (
             <div className="flex items-center space-x-2">
               <FaCompass />
-              <span>{dict.navigation.explore}</span>
+              <span>Explore</span>
             </div>
           ),
-          href: `/${currentLang}/explore`,
+          href: '/explore',
         },
         {
           label: (
             <div className="flex items-center space-x-2">
               <FaEnvelopeOpenText />
-              <span>{dict.navigation.messages}</span>
+              <span>Messages</span>
             </div>
           ),
-          href: `/${currentLang}/chathistory`,
+          href: '/chathistory',
         },
         {
           label: (
             <div className="flex items-center space-x-2">
               <FaPenFancy />
-              <span>{dict.navigation.createpost}</span>
+              <span>Create Post</span>
             </div>
           ),
-          href: `/${currentLang}/createpost`,
-        },
-        {
-          label: (
-            <div className="flex items-center space-x-2">
-              <FaGlobe />
-              <span>{currentLang.toUpperCase()}</span>
-            </div>
-          ),
-          href: 'language-selector',
-          onClick: handleLanguageClick
+          href: '/createpost',
         },
         {
           label: (
             <div className="flex items-center space-x-2">
               <FaSignOutAlt />
-              <span>{dict.navigation.signout}</span>
+              <span>Sign Out</span>
             </div>
           ),
           href: 'sign-out',
@@ -173,7 +137,7 @@ const Navigation: React.FC = () => {
               )}
             </div>
           ),
-          href: `/${currentLang}/history`,
+          href: '/history',
         },
       ]
     : [
@@ -181,29 +145,19 @@ const Navigation: React.FC = () => {
           label: (
             <div className="flex items-center space-x-2">
               <FaCompass />
-              <span>{dict.navigation.explore}</span>
+              <span>Explore</span>
             </div>
           ),
-          href: `/${currentLang}/explore`,
-        },
-        {
-          label: (
-            <div className="flex items-center space-x-2">
-              <FaGlobe />
-              <span>{currentLang.toUpperCase()}</span>
-            </div>
-          ),
-          href: 'language-selector',
-          onClick: handleLanguageClick
+          href: '/explore',
         },
         {
           label: (
             <div className="flex items-center space-x-2">
               <FaSignInAlt />
-              <span>{dict.navigation.signin}</span>
+              <span>Sign In</span>
             </div>
           ),
-          href: `/${currentLang}/signin`,
+          href: '/signin',
         },
       ];
 
@@ -221,8 +175,8 @@ const Navigation: React.FC = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    if (pathname === `/${currentLang}/explore`) {
-      router.push(`/${currentLang}/explore?search=${encodeURIComponent(query)}`);
+    if (pathname === '/explore') {
+      router.push(`/explore?search=${encodeURIComponent(query)}`);
     }
   };
 
@@ -232,7 +186,7 @@ const Navigation: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center flex-shrink-0">
-            <Link href={`/${currentLang}`} className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-2">
               <Image src={LogoImage} alt="Logo" width={50} height={50} />
               <span className="text-2xl font-bold text-white">PRICIO AI</span>
             </Link>
@@ -245,15 +199,15 @@ const Navigation: React.FC = () => {
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder={dict.navigation.search || 'Search...'}
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={handleSearch}
                   className="pl-10 px-4 py-2 rounded-md border border-gray-300 bg-transparent focus:outline-none focus:border-gray-500 w-full text-white placeholder-gray-400"
                 />
               </div>
-              <Link href={`/${currentLang}/around`} className="ml-4">
+              <Link href="/around" className="ml-4">
                 <button className="px-4 py-2 rounded-md bg-transparent border text-white hover:bg-gray-500">
-                  {dict.navigation.around}
+                  Around
                 </button>
               </Link>
             </div>
@@ -262,7 +216,6 @@ const Navigation: React.FC = () => {
           {/* Desktop Nav */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-center space-x-4">
-              {/* Main nav items */}
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -287,7 +240,6 @@ const Navigation: React.FC = () => {
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-white hover:text-gray-300"
             >
-              {/* Hamburger / X icon */}
               <svg
                 className="block h-6 w-6"
                 xmlns="http://www.w3.org/2000/svg"
@@ -330,141 +282,26 @@ const Navigation: React.FC = () => {
               </div>
             ))}
             <hr className="my-2 border-gray-700" />
-            {session ? (
-              <>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaDesktop />
-                          <span>{dict.navigation.app}</span>
-                        </div>
-                      ),
-                      href: `/${currentLang}/app`,
-                    }, e);
-                  }}
-                  className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaDesktop className="inline mr-2" />
-                  {dict.navigation.app}
-                </div>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaGlobe />
-                          <span>{currentLang.toUpperCase()}</span>
-                        </div>
-                      ),
-                      href: 'language-selector',
-                      onClick: handleLanguageClick
-                    }, e);
-                  }}
-                  className="flex items-center px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaGlobe className="mr-2" />
-                  {currentLang.toUpperCase()}
-                </div>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaSignOutAlt />
-                          <span>{dict.navigation.signout}</span>
-                        </div>
-                      ),
-                      href: 'sign-out',
-                      onClick: () => signOut()
-                    }, e);
-                  }}
-                  className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaSignOutAlt className="inline mr-2" />
-                  {dict.navigation.signout}
-                </div>
-              </>
-            ) : (
-              <>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaSignInAlt />
-                          <span>{dict.navigation.signin}</span>
-                        </div>
-                      ),
-                      href: `/${currentLang}/signin`,
-                    }, e);
-                  }}
-                  className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaSignInAlt className="inline mr-2" />
-                  {dict.navigation.signin}
-                </div>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavClick({
-                      label: (
-                        <div className="flex items-center space-x-2">
-                          <FaGlobe />
-                          <span>{currentLang.toUpperCase()}</span>
-                        </div>
-                      ),
-                      href: 'language-selector',
-                      onClick: handleLanguageClick
-                    }, e);
-                  }}
-                  className="flex items-center px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  <FaGlobe className="mr-2" />
-                  {currentLang.toUpperCase()}
-                </div>
-              </>
+            {session && (
+              <div
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavClick({
+                    label: (
+                      <div className="flex items-center space-x-2">
+                        <FaDesktop />
+                        <span>App</span>
+                      </div>
+                    ),
+                    href: '/app',
+                  }, e);
+                }}
+                className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
+              >
+                <FaDesktop className="inline mr-2" />
+                App
+              </div>
             )}
-
-            {/* Second-level menu for language (mobile) */}
-            <Menu
-              anchorEl={anchorElLanguage}
-              open={Boolean(anchorElLanguage)}
-              onClose={handleLanguageClose}
-              PaperProps={{
-                sx: {
-                  mt: 1,
-                  borderRadius: 2,
-                  backgroundColor: '#1a1a1a',
-                  color: 'white',
-                },
-              }}
-            >
-              {i18n.locales.map((locale) => (
-                <MenuItem
-                  key={locale}
-                  onClick={() => handleLanguageSelect(locale)}
-                  selected={currentLang === locale}
-                  sx={{
-                    '&:hover': {
-                      backgroundColor: '#333',
-                    },
-                    '&.Mui-selected': {
-                      backgroundColor: '#404040',
-                    },
-                  }}
-                >
-                  {locale === 'en'
-                    ? dict.navigation.language.en
-                    : dict.navigation.language.zh}
-                </MenuItem>
-              ))}
-            </Menu>
           </div>
         </div>
       )}

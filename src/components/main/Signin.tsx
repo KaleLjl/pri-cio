@@ -86,201 +86,198 @@ function SignInContent() {
     }
   };
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
 
     try {
       const result = await signIn('credentials', {
+        redirect: false,
         email: formData.email,
         password: formData.password,
         callbackUrl,
-        redirect: false, // Change to false to handle the redirect manually
       });
 
-      if (result?.error) {
-        switch (result.error) {
-          case 'CredentialsSignin':
-            setError('Invalid email or password. Please check your credentials.');
-            break;
-          case 'Email not found':
-            setError('This email is not registered. Please sign up first.');
-            break;
-          default:
-            setError(result.error);
-        }
-      } else if (result?.url) {
-        router.push(result.url);
+      if (!result?.error) {
+        router.push(callbackUrl);
+      } else {
+        setError('Invalid email or password');
       }
-    } catch (err) {
-      setError('An error occurred during sign in. Please try again.');
-      console.error('Sign in error:', err);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <Loading text={showResetPassword ? "Sending reset link..." : "Signing in..."} />;
-  }
-
-  if (showResetPassword) {
-    return (
-      <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-8 md:px-16">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-black">Reset Password</h1>
-          <p className="text-gray-600 mt-2">Enter your account email</p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleResetPassword} className="space-y-4 mb-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={resetEmail}
-              onChange={handleResetEmailChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-          >
-            Reset Password
-          </button>
-        </form>
-
-        <button
-          onClick={() => setShowResetPassword(false)}
-          className="text-purple-600 hover:text-purple-700 text-center mt-4"
-        >
-          Return to sign in
-        </button>
-      </div>
-    );
+    return <Loading text="Signing in..." />;
   }
 
   return (
-    <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-8 md:px-16">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-black">Continue to PRICIO AI</h1>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleEmailSignIn} className="space-y-4 mb-4">
-        <div>
-          <input
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            name="email"
-            onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
-            required
+    <div className="min-h-screen bg-black flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex justify-center">
+          <Image
+            src={LogoImage}
+            alt="Logo"
+            width={100}
+            height={100}
+            className="mx-auto"
           />
         </div>
-        <div>
-          <input
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            name="password"
-            onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
-            required
-          />
-        </div>
-        <div className="flex justify-end">
-          <button 
-            type="button" 
-            onClick={() => setShowResetPassword(true)}
-            className="text-gray-600 hover:text-purple-600 text-sm"
-          >
-            Forgot your password?
-          </button>
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-        >
-          Sign In
-        </button>
-      </form>
-
-      <div className="relative mb-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-300"></div>
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white text-gray-500">Or continue with</span>
-        </div>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+          Sign in to your account
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-400">
+          Or{' '}
+          <Link href="/signup" className="font-medium text-purple-600 hover:text-purple-500">
+            create a new account
+          </Link>
+        </p>
       </div>
 
-      <button
-        type="button"
-        onClick={handleGoogleSignIn}
-        disabled={loading}
-        className="flex items-center justify-center w-full py-3 border border-gray-300 rounded-lg bg-white hover:bg-purple-600 hover:text-white group transition"
-      >
-        <Image src={GoogleIcon} alt="Google" width={20} height={20} className="mr-2" />
-        <span className="text-black group-hover:text-white">Sign in with Google</span>
-      </button>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {showResetPassword ? (
+            <form onSubmit={handleResetPassword} className="space-y-6">
+              <div>
+                <label htmlFor="resetEmail" className="block text-sm font-medium text-white">
+                  Email address
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="resetEmail"
+                    name="resetEmail"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={resetEmail}
+                    onChange={handleResetEmailChange}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-gray-700 text-white"
+                  />
+                </div>
+              </div>
 
-      <p className="mt-4 text-center text-gray-600">
-        Don't have an account?{' '}
-        <Link href="/signup" className="text-purple-600 hover:text-purple-700">
-          Sign up
-        </Link>
-      </p>
+              {error && (
+                <div className="text-red-500 text-sm">{error}</div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword(false)}
+                  className="text-sm text-purple-600 hover:text-purple-500"
+                >
+                  Back to sign in
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                >
+                  Send Reset Link
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <div className="space-y-6">
+                <button
+                  onClick={handleGoogleSignIn}
+                  className="w-full inline-flex justify-center py-2 px-4 border border-gray-600 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                >
+                  <Image
+                    src={GoogleIcon}
+                    alt="Google Icon"
+                    width={20}
+                    height={20}
+                    className="mr-2"
+                  />
+                  Sign in with Google
+                </button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-600" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-gray-800 text-gray-400">Or continue with</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-white">
+                      Email address
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-gray-700 text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-white">
+                      Password
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-gray-700 text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="text-red-500 text-sm">{error}</div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setShowResetPassword(true)}
+                      className="text-sm text-purple-600 hover:text-purple-500"
+                    >
+                      Forgot your password?
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                    >
+                      Sign in
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-export default function SigninForm() {
+export default function SignIn() {
   return (
-    <div className="min-h-screen flex relative">
-      {/* Logo Section */}
-      <div className="absolute top-4 left-4 flex items-center space-x-2 z-50">
-        <Link href="/" className="flex items-center space-x-2">
-          <Image src={LogoImage} alt="Logo" width={40} height={40} />
-          <span className="text-2xl font-bold text-white md:text-white text-black">PRICIO AI</span>
-        </Link>
-      </div>
-
-      {/* Left Section: Visuals - Hidden on mobile */}
-      <div className="hidden md:flex w-1/2 bg-black items-center justify-center">
-        <div className="relative w-full h-full">
-          <Image 
-            src="/image/signin_image.jpg" 
-            alt="Sample 1" 
-            fill 
-            className="object-cover" 
-          />
-        </div>
-      </div>
-
-      {/* Right Section: Login Form - Full width on mobile */}
-      <Suspense fallback={<div>Loading...</div>}>
-        <SignInContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<Loading text="Loading..." />}>
+      <SignInContent />
+    </Suspense>
   );
 }

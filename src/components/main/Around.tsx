@@ -6,7 +6,6 @@ import { useExplore } from '@/lib/hooks/useExplore';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { CURRENCIES } from '@/components/main/CreatePost';
-import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import { useCurrentUser } from '@/lib/context/CurrentUserContext';
 import Loading from '@/components/shared/Loading';
@@ -151,7 +150,7 @@ type RouteInfo = {
 // 5) Main Around Component
 // --------------------------
 const Around = () => {
-  const { dict } = useLanguage();
+  const router = useRouter();
   const { currentUser } = useCurrentUser();
   const { explores, isLoading, fetchExplorePosts } = useExplore([]);
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -173,9 +172,6 @@ const Around = () => {
 
   // Track user location
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-
-  // Router hook
-  const router = useRouter();
 
   // Add state for showNavigateButton
   const [showNavigateButton, setShowNavigateButton] = useState(false);
@@ -276,11 +272,11 @@ const Around = () => {
     const promises = clusters.map(async (c) => {
       if (c.posts.length === 1) {
         const post = c.posts[0];
-        const areaName = await reverseGeocode(c.lat, c.lng, zoom, dict.around.unknownArea);
+        const areaName = await reverseGeocode(c.lat, c.lng, zoom, 'Unknown Area');
         const marker = new window.google.maps.Marker({
           position: { lat: c.lat, lng: c.lng },
           icon: getChatBubbleIcon(areaName, 1),
-          title: post.description || dict.around.noDescription,
+          title: post.description || 'No description available',
         });
         marker.addListener('click', () => {
           setShowClusterModal(false);
@@ -291,11 +287,11 @@ const Around = () => {
         marker.setMap(map);
         markersRef.current.push(marker);
       } else {
-        const areaName = await reverseGeocode(c.lat, c.lng, zoom, dict.around.unknownArea);
+        const areaName = await reverseGeocode(c.lat, c.lng, zoom, 'Unknown Area');
         const marker = new window.google.maps.Marker({
           position: { lat: c.lat, lng: c.lng },
           icon: getChatBubbleIcon(areaName, c.posts.length),
-          title: `${areaName} - ${c.posts.length} ${dict.around.posts}`,
+          title: `${areaName} - ${c.posts.length} posts`,
         });
         marker.addListener('click', () => {
           setSelectedPost(null);
@@ -408,11 +404,11 @@ const Around = () => {
         },
         (err) => {
           console.error('Error fetching location:', err.message);
-          alert(dict.around.enableLocation);
+          alert('Enable location to get directions');
         }
       );
     } else {
-      alert(dict.around.geolocationNotSupported);
+      alert('Geolocation not supported by this browser.');
     }
   };
 
@@ -437,7 +433,7 @@ const Around = () => {
         setUserLocation(origin);
       } catch (err) {
         console.error('Error fetching location:', (err as Error).message);
-        alert(dict.around.enableLocation);
+        alert('Enable location to draw route');
         return;
       }
     }
@@ -540,7 +536,7 @@ const Around = () => {
   };
 
   if (isLoading) {
-    return <Loading text={dict.explore.loading} />;
+    return <Loading text="Loading explore posts..." />;
   }
 
   return (
@@ -555,7 +551,7 @@ const Around = () => {
           zIndex: 10,
         }}
       >
-        <h1>{dict.around.navigationBar}</h1>
+        <h1>Around</h1>
       </nav>
 
       {/* Map */}
@@ -779,7 +775,7 @@ const Around = () => {
                 {showClusterModal && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-bold text-white">{dict.around.postsInCluster}</h2>
+                      <h2 className="text-lg font-bold text-white">Posts in this area</h2>
                       <button
                         onClick={handleCloseClusterModal}
                         className="text-gray-500 hover:text-gray-800 focus:outline-none text-2xl"

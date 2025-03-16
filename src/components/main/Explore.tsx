@@ -10,7 +10,6 @@ import { motion } from 'framer-motion';
 import Modal from 'react-modal';
 import { CURRENCIES } from '@/components/main/CreatePost';
 import { useSession } from 'next-auth/react';
-import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import ItemDetailModal from '@/components/shared/ItemDetailModal';
@@ -83,7 +82,6 @@ const RadiusDropdown = ({
 };
 
 export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
-  const { dict } = useLanguage();
   const { explores, isLoading, error } = useExplore(initialExplores);
 
   // Which card is open:
@@ -225,14 +223,14 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
           },
           (err) => {
             console.error('Error fetching location:', err);
-            alert(dict.around.enableLocation);
+            alert('Please enable location services to get directions');
           }
         );
       } else {
-        alert(dict.around.geolocationNotSupported);
+        alert('Geolocation is not supported by this browser');
       }
     },
-    [userLocation, dict.around, setUserLocation]
+    [userLocation]
   );
 
   // Send message
@@ -289,13 +287,13 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
 
   // Rendering
   if (isLoading) {
-    return <Loading />;
+    return <Loading text="Loading posts..." />;
   }
   if (error) {
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
-          <h1 className="text-2xl font-bold text-red-500">{dict.explore.error}</h1>
+          <h1 className="text-2xl font-bold text-red-500">Error loading posts</h1>
         </div>
       </div>
     );
@@ -304,7 +302,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
-          <h1 className="text-2xl font-bold">{dict.explore.noPostsFound}</h1>
+          <h1 className="text-2xl font-bold">No posts found</h1>
         </div>
       </div>
     );
@@ -321,7 +319,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
           onClick={() => setRadiusModalOpen(true)}
           className="px-4 py-2 text-white bg-transparent cursor-pointer rounded-full group-hover:bg-gray-800 transition-all duration-200"
         >
-          {dict.explore.setRadius}
+          Set Radius
         </span>
       </div>
 
@@ -342,7 +340,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                 <div className="relative w-full h-[400px]">
                   <ImageWithFallback
                     src={coverImage}
-                    alt={`${dict.explore.createdAt} ${
+                    alt={`Created at ${
                       explore.createdAt ? new Date(explore.createdAt).toLocaleString() : ''
                     }`}
                     fill
@@ -356,7 +354,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                   {CURRENCIES.find((c) => c.value === explore.currency)?.symbol} {explore.price}
                 </p>
                 <p className="text-xs text-gray-400">
-                  {explore.description || dict.explore.noDescription}
+                  {explore.description || 'No description available'}
                 </p>
                 <p className="text-xs text-gray-500 mb-2">
                   {explore.createdAt ? new Date(explore.createdAt).toLocaleString() : ''}
@@ -374,14 +372,14 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                   >
                     <ImageWithFallback
                       src={explore.userProfile?.avatarUrl || ''}
-                      alt={explore.userProfile?.name || dict.explore.anonymous}
+                      alt={explore.userProfile?.name || 'Anonymous'}
                       layout="fill"
                       objectFit="cover"
                       isAvatar
                     />
                   </div>
                   <span className="text-xs text-gray-300">
-                    {explore.userProfile?.name || dict.explore.anonymous}
+                    {explore.userProfile?.name || 'Anonymous'}
                   </span>
                 </div>
               </div>
@@ -398,12 +396,12 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
         overlayClassName="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center"
         ariaHideApp={false}
       >
-        <h2 className="text-black text-xl font-bold mb-4">{dict.explore.radiusModalTitle}</h2>
+        <h2 className="text-black text-xl font-bold mb-4">Set Search Radius</h2>
 
         {/* Enable Location */}
         <div className="flex items-center justify-between mb-4">
           <label htmlFor="locationSwitch" className="mr-3 text-gray-600">
-            {dict.explore.enableLocation}
+            Enable Location
           </label>
           <HeadlessSwitch
             checked={tempEnableLocation}
@@ -425,14 +423,14 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
 
         {tempEnableLocation && locationName && (
           <div className="mb-4 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-700">
-            {dict.explore.locationLabel}: {locationName}
+            Location: {locationName}
           </div>
         )}
       
         {/* No Limit */}
         <div className="flex items-center justify-between mb-4">
           <label htmlFor="noLimitSwitch" className="text-gray-600 mr-3">
-            {dict.explore.noLimit}
+            No Distance Limit
           </label>
           <HeadlessSwitch
             checked={tempNoLimit}
@@ -459,13 +457,12 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
           <RadiusDropdown radius={tempRadius} setRadius={setTempRadius} />
         )}
 
-
         <div className="mt-6 flex justify-end">
           <button
             onClick={handleApplyRadius}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500"
           >
-            {dict.explore.apply}
+            Apply
           </button>
         </div>
       </Modal>

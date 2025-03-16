@@ -12,20 +12,19 @@ import EditModal from '@/components/shared/EditModal';
 import { Avatar } from '@mui/material';
 import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
 import { CURRENCIES, Currency } from '@/components/main/CreatePost'; // Import types and data
-import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import ItemDetailModal from '@/components/shared/ItemDetailModal';
 import { useRouter } from 'next/navigation';
 import ToExplore from '@/components/shared/ToExplore';
 import { useToExplore } from '@/lib/hooks/useToExplore';
+import { TEXT } from '@/lib/constants/text';
 
 interface HistoryProps {
   histories: HistoryItem[];
 }
 
 export default function History({ histories: initialHistories }: HistoryProps) {
-  const { dict } = useLanguage();
   const {
     histories,
     setHistories,
@@ -247,14 +246,14 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           },
           (err) => {
             console.error('Error fetching location:', err);
-            alert(dict.around.enableLocation);
+            alert(TEXT.around.enableLocation);
           }
         );
       } else {
-        alert(dict.around.geolocationNotSupported);
+        alert(TEXT.around.geolocationNotSupported);
       }
     },
-    [dict.around]
+    []
   );
 
   const handleSendMessage = useCallback(
@@ -336,11 +335,11 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   };
 
   if (error) {
-    return <div className="text-center py-10 text-red-500">{dict.history.error}</div>;
+    return <div className="text-center py-10 text-red-500">Error loading history</div>;
   }
 
   if (isLoading) {
-    return <Loading text={dict.history.loading} />;
+    return <Loading text="Loading history..." />;
   }
 
   console.log('Avatar URL:', formData.avatarUrl);
@@ -373,7 +372,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           }}
           className="mt-4 px-4 py-2 bg-white text-black rounded-full font-semibold hover:bg-gray-300 transition duration-200"
         >
-          {dict.history.editProfile}
+          Edit Profile
         </button>
       </div>
 
@@ -383,19 +382,19 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           onClick={() => handleTabChange('saved')}
           className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'saved' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}
         >
-          {dict.history.savedItems}
+          Saved Items
         </button>
         <button
           onClick={() => handleTabChange('posted')}
           className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'posted' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}
         >
-          {dict.history.postedItems}
+          Posted Items
         </button>
         <button
           onClick={() => handleTabChange('dealing')}
           className={`px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'dealing' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}
         >
-          {dict.history.dealingItems}
+          Dealing Items
         </button>
       </div>
 
@@ -408,14 +407,14 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           }`}
         >
           <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
-            <span>{dict.history.savedItems}</span>
+            <span>Saved Items</span>
             <span className="ml-3 text-sm font-normal text-gray-500">
-              ({savedItemsCount} {dict.history.itemCount})
+              ({savedItemsCount} items)
             </span>
           </h2>
           {/* Saved Items */}
           {histories.length === 0 ? (
-            <div className="text-center py-10 text-gray-500">{dict.history.noHistory}</div>
+            <div className="text-center py-10 text-gray-500">No saved items</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
               {histories
@@ -439,7 +438,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                             ? (history.images.find(img => img.isPrimary)?.url || history.images[0]?.url || '/fallback.jpg')
                             : history.imageUrl || '/fallback.jpg'
                         }
-                        alt={history.description || dict.history.noDescription}
+                        alt={history.description || 'No description available'}
                         fill
                         style={{ objectFit: "cover" }}
                         className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
@@ -473,19 +472,14 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                           {activeDropdown === history._id && (
                             <div className="absolute right-0 top-full mt-1 w-30 bg-black shadow-lg rounded-lg z-50">
                               <ToExplore
-                                history={history}
-                                locationPermission={locationPermission}
-                                onLocationPermissionChange={handleLocationPermission}
-                                onSuccess={(result) => {
-                                  setHistories(prev => 
-                                    prev.map(h => 
-                                      h._id === history._id 
-                                        ? { ...h, exploreId: result.data._id.toString() } 
-                                        : h
-                                    )
-                                  );
-                                  setActiveDropdown(null);
+                                historyId={history._id}
+                                onSuccess={() => {
                                   showNewToast('Successfully posted to explore!', 'success');
+                                  setActiveDropdown(null);
+                                }}
+                                onError={(error) => {
+                                  showNewToast(error, 'error');
+                                  setActiveDropdown(null);
                                 }}
                               >
                                 {({ handlePost, isPosting }) => (
@@ -498,7 +492,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                                     disabled={isPosting}
                                   >
                                     <i className="fas fa-share mr-2"></i>
-                                    {isPosting ? dict.history.actions.posting : dict.history.actions.post}
+                                    {isPosting ? 'Posting...' : 'Post to Explore'}
                                   </button>
                                 )}
                               </ToExplore>
@@ -511,7 +505,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                                 className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
                               >
                                 <i className="fas fa-trash mr-2"></i>
-                                {actionInProgress[history._id] === 'deleting' ? dict.history.actions.deleting : dict.history.actions.delete}
+                                {actionInProgress[history._id] === 'deleting' ? 'Deleting...' : 'Delete'}
                               </button>
                             </div>
                           )}
@@ -529,7 +523,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                             history.currency
                           } {history.price || 'N/A'}
                         </p>
-                        <p className="text-sm mt-1">{history.description || dict.history.noDescription}</p>
+                        <p className="text-sm mt-1">{history.description || 'No description available'}</p>
                         <p className="text-xs text-gray-300 mt-1">
                           {history.createdAt
                             ? new Date(history.createdAt).toLocaleString()
@@ -556,14 +550,14 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           }}
         >
           <h2 className="text-2xl font-bold mb-4 flex items-center text-white">
-            <span>{dict.history.postedItems}</span>
+            <span>Posted Items</span>
             <span className="ml-3 text-sm font-normal text-gray-500">
-              ({postedHistories.length} {dict.history.itemCount})
+              ({postedHistories.length} items)
             </span>
           </h2>
           {/* Posted Items Content */}
           {postedHistories.length === 0 ? (
-            <div className="text-center text-white py-10">{dict.history.noHistory}</div>
+            <div className="text-center text-white py-10">No posted items</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
               {postedHistories.map((history) => (
@@ -581,7 +575,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                           ? (history.images.find(img => img.isPrimary)?.url || history.images[0]?.url || '/fallback.jpg')
                           : history.imageUrl || '/fallback.jpg'
                       }
-                      alt={history.description || dict.history.noDescription}
+                      alt={history.description || 'No description available'}
                       fill
                       style={{ objectFit: "cover" }}
                       className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
@@ -626,7 +620,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                               disabled={!!actionInProgress[history._id]}
                             >
                               <i className="fas fa-ban mr-2"></i>
-                              {actionInProgress[history._id] === 'unpublishing' ? dict.history.actions.unpublishing : dict.history.actions.unpublish}
+                              {actionInProgress[history._id] === 'unpublishing' ? 'Unpublishing...' : 'Unpublish'}
                             </button>
                           </div>
                         )}
@@ -644,7 +638,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                           history.currency
                         } {history.price || 'N/A'}
                       </p>
-                      <p className="text-sm mt-1">{history.description || dict.history.noDescription}</p>
+                      <p className="text-sm mt-1">{history.description || TEXT.history.noDescription}</p>
                       <p className="text-xs text-gray-300 mt-1">
                         {history.createdAt
                           ? new Date(history.createdAt).toLocaleString()
@@ -671,17 +665,17 @@ export default function History({ histories: initialHistories }: HistoryProps) {
           }}
         >
           <h2 className="text-2xl font-bold mb-4 flex items-center text-white">
-            <span>{dict.history.dealingItems}</span>
+            <span>{TEXT.history.dealingItems}</span>
             <span className="ml-3 text-sm font-normal text-gray-500">
-              ({dealingHistories.length} {dict.history.itemCount})
+              ({dealingHistories.length} {TEXT.history.itemCount})
             </span>
           </h2>
 
           {isDealingLoading ? (
-            <Loading text={dict.history.loading} />
+            <Loading text={TEXT.history.loading} />
           ) : dealingHistories.length === 0 ? (
             <div className="text-center text-white py-10">
-              {dict.history.noDealingItems}
+              {TEXT.history.noDealingItems}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
@@ -694,7 +688,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                   <div className="relative w-full h-full">
                     <Image
                       src={item.imageUrl || '/fallback.jpg'}
-                      alt={item.description || dict.history.noDescription}
+                      alt={item.description || TEXT.history.noDescription}
                       fill
                       style={{ objectFit: "cover" }}
                       className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
@@ -736,7 +730,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                         {item.price || 'N/A'}
                       </p>
                       <p className="text-sm mb-2">
-                        {item.description || dict.history.noDescription}
+                        {item.description || TEXT.history.noDescription}
                       </p>
                       <p className="text-xs text-gray-300 mb-3">
                         {item.createdAt
@@ -754,7 +748,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                             }}
                             className="flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded-lg text-sm font-medium transition-colors duration-200"
                           >
-                            {dict.history.complete}
+                            {TEXT.history.complete}
                           </button>
                           <button
                             onClick={(e) => {
@@ -763,7 +757,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
                             }}
                             className="flex-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition-colors duration-200"
                           >
-                            {dict.history.cancel}
+                            {TEXT.history.cancel}
                           </button>
                         </div>
                       )}

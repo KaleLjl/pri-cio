@@ -1,7 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { ObjectDiscussionData, ChatProps } from '@/lib/types/chat';
-import { useLanguage } from '@/lib/context/LanguageContext';
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { ExploreItem } from '@/lib/types/explore';
@@ -26,7 +25,6 @@ const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: bool
 };
 
 export default function Chat({ userId }: ChatProps) {
-  const { dict, lang } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { markAsRead } = useChatHistory();
@@ -65,7 +63,6 @@ export default function Chat({ userId }: ChatProps) {
     showMyPosts,
     myPosts,
     isLoadingMyPosts,
-    loadingMore,
     setShowMyPosts,
     setShowPosts,
     handleScroll,
@@ -117,7 +114,6 @@ export default function Chat({ userId }: ChatProps) {
     sendMessage,
     queryClient,
     setShowPosts,
-    dict,
   });
 
   // 在对话初始化完成后标记消息为已读
@@ -138,7 +134,7 @@ export default function Chat({ userId }: ChatProps) {
             onClick={() => router.back()}
             className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors"
           >
-            {dict.chat.actions.back}
+            Back
           </button>
         </div>
       </div>
@@ -146,7 +142,7 @@ export default function Chat({ userId }: ChatProps) {
   }
 
   if (isInitializing || !otherUser) {
-    return <Loading text={dict.chat.loading.chat} />;
+    return <Loading text="Loading chat..." />;
   }
 
   return (
@@ -159,9 +155,9 @@ export default function Chat({ userId }: ChatProps) {
               {/* User Info */}
               <div className="flex items-center space-x-4 p-4 bg-gray-800/95 backdrop-blur-sm rounded-t-lg shadow-lg">
                 <button
-                  onClick={() => router.push(`/${lang}/chathistory`)}
+                  onClick={() => router.push(`/chathistory`)}
                   className="p-2 hover:bg-gray-700 rounded-full transition-colors"
-                  aria-label={dict.chat.actions.back}
+                  aria-label="Back"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -192,7 +188,7 @@ export default function Chat({ userId }: ChatProps) {
                 <div className="flex-1">
                   <h1 className="text-xl font-bold">{otherUser.name || 'User'}</h1>
                   {isTyping && (
-                    <p className="text-sm text-purple-400">{dict.chat.typing}</p>
+                    <p className="text-sm text-purple-400">Typing...</p>
                   )}
                 </div>
                 <div className="flex items-center space-x-2">
@@ -220,18 +216,18 @@ export default function Chat({ userId }: ChatProps) {
                   )}
                   <button
                     onClick={async () => {
-                      if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
+                      if (window.confirm('Are you sure you want to delete all messages in this conversation?')) {
                         try {
                           await deleteMessages();
-                          alert(dict.chatHistory.toast.deleteSuccess);
+                          alert('Messages deleted successfully');
                         } catch (error) {
                           console.error("Failed to delete messages:", error);
-                          alert(error instanceof Error ? error.message : dict.chatHistory.toast.deleteError);
+                          alert(error instanceof Error ? error.message : 'Failed to delete messages');
                         }
                       }
                     }}
                     className="p-2 hover:bg-red-600 rounded-lg transition-colors text-sm text-white"
-                    title={dict.chatHistory.deleteConfirm.title}
+                    title="Delete conversation"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -251,7 +247,7 @@ export default function Chat({ userId }: ChatProps) {
                           className="flex-none w-32 bg-gray-700/30 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all relative"
                           onClick={() => {
                             if (isPostInDiscussion(post._id)) {
-                              alert(dict.objectDiscussion?.alreadyInDiscussion || "This item is already in discussion.");
+                              alert("This item is already in discussion.");
                               return;
                             }
                             handlePostClick(post);
@@ -260,7 +256,7 @@ export default function Chat({ userId }: ChatProps) {
                         >
                           {isPostInDiscussion(post._id) && (
                             <div className="absolute top-2 right-2 z-10 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                              {dict.objectDiscussion?.inDiscussion || "In Discussion"}
+                              In Discussion
                             </div>
                           )}
                           <div className="relative w-32 h-32">
@@ -316,47 +312,28 @@ export default function Chat({ userId }: ChatProps) {
                         message.senderId === currentUserId ? 'justify-end' : 'justify-start'
                       }`}
                     >
-                      <div
-                        className={`max-w-[70%] rounded-2xl p-4 ${
-                          message.senderId === currentUserId
-                            ? 'bg-purple-600/90 backdrop-blur-sm shadow-lg hover:bg-purple-500/90 transition-colors'
-                            : 'bg-gray-700/90 backdrop-blur-sm shadow-lg hover:bg-gray-600/90 transition-colors'
-                        }`}
-                      >
+                      <div className="max-w-[70%] space-y-1">
                         {typeof message.content === 'string' ? (
-                          <p className="text-sm whitespace-pre-wrap break-words max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
-                            {message.content}
-                          </p>
-                        ) : message.content.type === 'object_discussion' ? (
-                          <div 
-                            className={`space-y-3 max-w-sm ${
-                              (message.content as ObjectDiscussionData).status === 'discussing' ? 'cursor-pointer' : 'cursor-default'
-                            } hover:opacity-90 transition-opacity ${
-                              isPostFinalized(
-                                (message.content as ObjectDiscussionData).postId,
-                                (message.content as ObjectDiscussionData).discussingId || '',
-                                messages
-                              ) ? 'opacity-50' : ''
+                          <div
+                            className={`rounded-lg px-4 py-2 break-words ${
+                              message.senderId === currentUserId
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-gray-700 text-white'
                             }`}
-                            onClick={(e) => {
-                              if ((e.target as HTMLElement).tagName === 'BUTTON') {
-                                return;
-                              }
-                              const currentContent = message.content as ObjectDiscussionData;
-                              if (currentContent.status === 'discussing') {
-                                handleObjectDiscussionClick(currentContent, message.senderId);
-                              }
-                            }}
                           >
-                            <div className="flex items-start space-x-3">
-                              <div className="relative w-20 h-20 flex-shrink-0">
+                            {message.content}
+                          </div>
+                        ) : message.content.type === 'object_discussion' ? (
+                          <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+                            <div className="relative">
+                              <div className="relative w-full h-48">
                                 <div className="absolute -top-2 -left-2 z-10">
                                   <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
                                     isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
                                   }`}>
                                     {isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts)
-                                      ? dict.objectDiscussion?.sellerLabel 
-                                      : dict.objectDiscussion?.buyerLabel}
+                                      ? 'Seller'
+                                      : 'Buyer'}
                                   </span>
                                 </div>
                                 <ImageWithFallback
@@ -380,7 +357,7 @@ export default function Chat({ userId }: ChatProps) {
                                 </p>
                                 <div className="space-y-1.5 text-sm">
                                   <p className="flex items-center text-gray-300">
-                                    <span className="text-gray-400 w-20">{dict.objectDiscussion?.price}:</span>
+                                    <span className="text-gray-400 w-20">Price:</span>
                                     <span className={`ml-1 truncate ${
                                       isCurrentUserSeller((message.content as ObjectDiscussionData).postId, myPosts, userPosts) ? 'text-blue-400' : 'text-orange-400'
                                     }`}>
@@ -395,11 +372,11 @@ export default function Chat({ userId }: ChatProps) {
                                     )}
                                   </p>
                                   <p className="flex items-center text-gray-300">
-                                    <span className="text-gray-400 w-20">{dict.objectDiscussion?.location}:</span>
+                                    <span className="text-gray-400 w-20">Location:</span>
                                     <span className="ml-1 truncate">{(message.content as ObjectDiscussionData).location}</span>
                                   </p>
                                   <p className="flex items-center text-gray-300">
-                                    <span className="text-gray-400 w-20">{dict.objectDiscussion?.meetingTime}:</span>
+                                    <span className="text-gray-400 w-20">Meeting Time:</span>
                                     <span className="ml-1 truncate">
                                       {new Date((message.content as ObjectDiscussionData).meetingTime).toLocaleString()}
                                     </span>
@@ -432,10 +409,10 @@ export default function Chat({ userId }: ChatProps) {
                                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
-                                            {dict.chat?.status?.sending || 'Processing...'}
+                                            Processing...
                                           </span>
                                         ) : (
-                                          dict.objectDiscussion?.complete || 'Complete'
+                                          'Complete'
                                         )}
                                       </button>
                                     )}
@@ -459,10 +436,10 @@ export default function Chat({ userId }: ChatProps) {
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                           </svg>
-                                          {dict.chat?.status?.sending || 'Processing...'}
+                                          Processing...
                                         </span>
                                       ) : (
-                                        dict.objectDiscussion?.cancel || 'Cancel'
+                                        'Cancel'
                                       )}
                                     </button>
                                   </div>
@@ -476,8 +453,8 @@ export default function Chat({ userId }: ChatProps) {
                                       'text-red-500'
                                     }`}>
                                       {(message.content as ObjectDiscussionData).status === 'completed' 
-                                        ? dict.objectDiscussion?.completed 
-                                        : dict.objectDiscussion?.canceled}
+                                        ? 'Completed'
+                                        : 'Canceled'}
                                     </span>
                                   </div>
                                 )}
@@ -491,11 +468,11 @@ export default function Chat({ userId }: ChatProps) {
                           </span>
                           {message.senderId === currentUserId && (
                             <span className="text-xs text-gray-300">
-                              {message.status === 'sending' && dict.chat.status.sending}
-                              {message.status === 'sent' && dict.chat.status.sent}
-                              {message.status === 'delivered' && dict.chat.status.delivered}
-                              {message.status === 'read' && dict.chat.status.read}
-                              {message.status === 'error' && dict.chat.status.error}
+                              {message.status === 'sending' && 'Sending...'}
+                              {message.status === 'sent' && 'Sent'}
+                              {message.status === 'delivered' && 'Delivered'}
+                              {message.status === 'read' && 'Read'}
+                              {message.status === 'error' && 'Error'}
                             </span>
                           )}
                         </div>
@@ -557,7 +534,7 @@ export default function Chat({ userId }: ChatProps) {
                       type="text"
                       value={inputMessage}
                       onChange={handleMessageInput}
-                      placeholder={dict.chat.input.placeholder}
+                      placeholder="Type a message..."
                       className="flex-1 bg-gray-700/50 backdrop-blur-sm text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 transition-all"
                     />
                     {showMyPosts && (
@@ -568,7 +545,7 @@ export default function Chat({ userId }: ChatProps) {
                               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
                             </div>
                           ) : myPosts.length === 0 ? (
-                            <p className="text-center text-gray-400 py-4">{dict.explore.noPostsFound}</p>
+                            <p className="text-center text-gray-400 py-4">No posts found</p>
                           ) : (
                             myPosts.map((post) => (
                               <div
@@ -576,7 +553,7 @@ export default function Chat({ userId }: ChatProps) {
                                 className="flex items-start space-x-3 p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer transition-all relative"
                                 onClick={() => {
                                   if (isPostInDiscussion(post._id)) {
-                                    alert(dict.objectDiscussion?.alreadyInDiscussion || "This item is already in discussion.");
+                                    alert("This item is already in discussion.");
                                     return;
                                   }
                                   setSelectedPost(post);
@@ -585,7 +562,7 @@ export default function Chat({ userId }: ChatProps) {
                               >
                                 {isPostInDiscussion(post._id) && (
                                   <div className="absolute top-2 right-2 z-10 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                                    {dict.objectDiscussion?.inDiscussion || "In Discussion"}
+                                    In Discussion
                                   </div>
                                 )}
                                 <div className="relative w-16 h-16 flex-shrink-0">
@@ -619,7 +596,7 @@ export default function Chat({ userId }: ChatProps) {
                     {isSendingMessage ? (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     ) : (
-                      dict.chat.actions.send
+                      'Send'
                     )}
                   </button>
                 </form>

@@ -1,31 +1,27 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { CurrentUserProvider } from "@/lib/context/CurrentUserContext";
-import { QueryProvider } from "@/lib/context/QueryContext";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SocketProvider } from "@/lib/context/SocketContext";
-import { LanguageProvider } from "@/lib/context/LanguageContext";
-import type { Dictionary } from '@/lib/i18n/types';
-import type { Locale } from '@/lib/i18n/i18n-config';
+import { CurrentUserProvider } from "@/lib/context/CurrentUserContext";
+import { createContext, useContext } from 'react';
 
 interface RootContextProps {
   children: React.ReactNode;
-  lang: Locale;
-  dict: Dictionary;
 }
 
-export function RootProvider({ children, lang, dict }: RootContextProps) {
+const queryClient = new QueryClient();
+
+export function RootProvider({ children }: RootContextProps) {
   return (
-    <SessionProvider>
-      <CurrentUserProvider>
-        <QueryProvider>
-          <LanguageProvider initialLang={lang} initialDict={dict}>
-            <SocketProvider>
-              {children}
-            </SocketProvider>
-          </LanguageProvider>
-        </QueryProvider>
-      </CurrentUserProvider>
-    </SessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <SessionProvider>
+        <CurrentUserProvider>
+          <SocketProvider>
+            {children}
+          </SocketProvider>
+        </CurrentUserProvider>
+      </SessionProvider>
+    </QueryClientProvider>
   );
 } 

@@ -4,8 +4,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { useChatHistory } from "@/lib/hooks/useChatHistory";
 import { useCurrentUser } from "@/lib/context/CurrentUserContext";
-import {  MessageContent } from "@/lib/types/chat";
-import { useLanguage } from '@/lib/context/LanguageContext';
+import { MessageContent } from "@/lib/types/chat";
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
 import { useQueryClient } from '@tanstack/react-query';
@@ -13,26 +12,25 @@ import { useContext, useEffect } from 'react';
 import { SocketContext } from '@/lib/context/SocketContext';
 
 export default function ChatHistoryClient() {
-  const { dict } = useLanguage();
   const { currentUser, loadingUser } = useCurrentUser();
   const { chats, loading, error, deleteMessages, markAsRead } = useChatHistory();
   const queryClient = useQueryClient();
   const socket = useContext(SocketContext);
 
-  // 添加实时更新支持
+  // Add real-time update support
   useEffect(() => {
-    // 当组件挂载时，确保聊天历史是最新的
+    // When component mounts, ensure chat history is up to date
     queryClient.invalidateQueries({ queryKey: ["chat-history"] });
 
-    // 可选：定期刷新以确保同步
+    // Optional: refresh periodically to ensure sync
     const interval = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: ["chat-history"] });
-    }, 30000); // 每30秒刷新一次
+    }, 30000); // Refresh every 30 seconds
 
     return () => clearInterval(interval);
   }, [queryClient]);
 
-  // 格式化日期
+  // Format date
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -43,42 +41,42 @@ export default function ChatHistoryClient() {
     }
   };
 
-  // 格式化消息内容
+  // Format message content
   const formatMessageContent = (content: MessageContent): string => {
     if (typeof content === 'string') {
       return content;
     }
     if (content.type === 'object_discussion') {
-      // 返回更有意义的消息预览
-      return `[${content.description.slice(0, 20)}${content.description.length > 20 ? '...' : ''} - ${dict.objectDiscussion.price}: ${content.suggestedPrice}]`;
+      // Return more meaningful message preview
+      return `[${content.description.slice(0, 20)}${content.description.length > 20 ? '...' : ''} - Price: ${content.suggestedPrice}]`;
     }
     return '';
   };
 
   // Loading states
   if (loadingUser) {
-    return <Loading text={dict.chatHistory.loading} />;
+    return <Loading text="Loading chat history..." />;
   }
 
   if (!currentUser) {
     return (
       <div className="text-center text-white">
-        <p>{dict.chatHistory.signIn.message}</p>
+        <p>Please sign in to view your chat history</p>
         <Link href="/signin" className="text-blue-400 hover:text-blue-300">
-          {dict.chatHistory.signIn.action}
+          Sign In
         </Link>
       </div>
     );
   }
 
   if (loading) {
-    return <Loading text={dict.chatHistory.loading} />;
+    return <Loading text="Loading chat history..." />;
   }
 
   if (error) {
     return (
       <div className="text-red-500 p-4 text-center">
-        {dict.chatHistory.error}: {error.message}
+        Error: {error.message}
       </div>
     );
   }
@@ -86,12 +84,12 @@ export default function ChatHistoryClient() {
   if (!chats?.length) {
     return (
       <div className="text-white text-center p-8">
-        <p className="mb-4">{dict.chatHistory.findPeople.message}</p>
+        <p className="mb-4">Find people to chat with!</p>
         <Link
           href="/explore"
           className="inline-block bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-500 transition-colors"
         >
-          {dict.chatHistory.findPeople.action}
+          Explore
         </Link>
       </div>
     );
@@ -99,7 +97,7 @@ export default function ChatHistoryClient() {
 
   return (
     <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold text-white mb-6">{dict.chatHistory.title}</h1>
+      <h1 className="text-2xl font-bold text-white mb-6">Chat History</h1>
       <div className="space-y-4">
         {chats.map(chat => {
           const otherParticipant = chat.participants.find(
@@ -145,21 +143,21 @@ export default function ChatHistoryClient() {
                       )}
                       <button
                         onClick={async (e) => {
-                          e.preventDefault(); // 阻止链接跳转
-                          if (window.confirm(dict.chatHistory.deleteConfirm.message)) {
+                          e.preventDefault(); // Prevent link navigation
+                          if (window.confirm('Are you sure you want to delete this conversation?')) {
                             try {
                               await deleteMessages(chat._id);
-                              // 清除该对话的消息缓存
+                              // Clear this conversation's message cache
                               queryClient.removeQueries({ queryKey: ["chat-messages", chat._id] });
-                              alert(dict.chatHistory.toast.deleteSuccess);
+                              alert('Conversation deleted successfully');
                             } catch (error) {
                               console.error("Failed to delete messages:", error);
-                              alert(error instanceof Error ? error.message : dict.chatHistory.toast.deleteError);
+                              alert(error instanceof Error ? error.message : 'Failed to delete conversation');
                             }
                           }
                         }}
                         className="p-1.5 hover:bg-red-600 rounded-lg transition-colors text-sm text-gray-400 hover:text-white"
-                        title={dict.chatHistory.deleteConfirm.title}
+                        title="Delete conversation"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

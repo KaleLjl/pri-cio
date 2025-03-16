@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import ImageWithFallback from './ImageWithFallback';
 import { CURRENCIES } from '@/components/main/CreatePost';
-import { useLanguage } from '@/lib/context/LanguageContext';
 import { useObjectDiscussion } from '@/lib/hooks/chat/useObjectDiscussion';
 import { ObjectDiscussionProps } from '@/lib/types/objectDiscussion';
 
@@ -11,8 +10,6 @@ export default function ObjectDiscussion({
   onClose, 
   onSubmit 
 }: ObjectDiscussionProps) {
-  const { dict } = useLanguage();
-  
   const {
     price,
     location,
@@ -61,7 +58,7 @@ export default function ObjectDiscussion({
             {/* Price */}
             <div className="flex items-center space-x-2">
               <span className="text-gray-400 text-sm">
-                {dict.objectDiscussion.price}:
+                Price:
               </span>
               <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -73,7 +70,7 @@ export default function ObjectDiscussion({
                   value={price}
                   onChange={handlePriceChange}
                   className="w-full bg-gray-700/50 rounded-lg pl-8 pr-3 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder={dict.objectDiscussion.enterPrice}
+                  placeholder="Enter price"
                 />
               </div>
             </div>
@@ -81,14 +78,14 @@ export default function ObjectDiscussion({
             {/* Location */}
             <div className="flex items-center space-x-2">
               <span className="text-gray-400 text-sm">
-                {dict.objectDiscussion.location}:
+                Location:
               </span>
               <input
                 type="text"
                 value={location}
                 onChange={handleLocationChange}
                 className="flex-1 bg-gray-700/50 rounded-lg px-3 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder={dict.objectDiscussion.enterLocation}
+                placeholder="Enter location"
                 required
               />
             </div>
@@ -96,7 +93,7 @@ export default function ObjectDiscussion({
             {/* Meeting Time */}
             <div className="flex items-center space-x-2">
               <span className="text-gray-400 text-sm">
-                {dict.objectDiscussion.meetingTime}:
+                Meeting Time:
               </span>
               <input
                 type="datetime-local"
@@ -115,13 +112,13 @@ export default function ObjectDiscussion({
                 onClick={onClose}
                 className="px-3 py-1 text-sm text-gray-300 hover:text-white transition-colors"
               >
-                {dict.objectDiscussion.cancel}
+                Cancel
               </button>
               <button
                 type="submit"
                 className="px-3 py-1 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors"
               >
-                {dict.objectDiscussion.send}
+                Send
               </button>
             </div>
           </form>

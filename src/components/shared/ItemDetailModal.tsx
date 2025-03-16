@@ -2,7 +2,6 @@ import React, { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import ImageWithFallback from './ImageWithFallback';
 import { CURRENCIES } from '@/components/main/CreatePost';
-import { useLanguage } from '@/lib/context/LanguageContext';
 
 interface ItemDetailModalProps {
   item: {
@@ -49,7 +48,6 @@ export default function ItemDetailModal({
   currentUserId,
   onUpdate,
 }: ItemDetailModalProps) {
-  const { dict } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
   const [editPrice, setEditPrice] = useState(item.price);
   const [editDescription, setEditDescription] = useState(item.description);
@@ -125,7 +123,7 @@ export default function ItemDetailModal({
                       ? item.images[currentImageIndex]?.url
                       : item.imageUrl
                   }
-                  alt={item.description || dict.explore.noDescription}
+                  alt={item.description || 'No description available'}
                   fill
                   style={{ objectFit: 'contain', backgroundColor: 'black' }}
                 />
@@ -140,7 +138,7 @@ export default function ItemDetailModal({
                     </button>
                     <button
                       onClick={onNextImage}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-l hover:bg-black/70"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-r hover:bg-black/70"
                     >
                       ▶
                     </button>
@@ -165,14 +163,14 @@ export default function ItemDetailModal({
                 >
                   <ImageWithFallback
                     src={item.userProfile?.avatarUrl || ''}
-                    alt={item.userProfile?.name || dict.explore.anonymous}
+                    alt={item.userProfile?.name || 'Anonymous'}
                     layout="fill"
                     objectFit="cover"
                     isAvatar
                   />
                 </div>
                 <span className="font-semibold text-white">
-                  {item.userProfile?.name || dict.explore.anonymous}
+                  {item.userProfile?.name || 'Anonymous'}
                 </span>
               </div>
               {isOwnItem && onUpdate && !item.exploreId && (
@@ -228,15 +226,15 @@ export default function ItemDetailModal({
                   {item.price || ''}
                 </p>
                 <h2 className="text-lg text-white">
-                  {item.description || dict.explore.noDescription}
+                  {item.description || 'No description available'}
                 </h2>
                 <p className="text-gray-600 text-sm">
-                  {dict.explore.createdAt}:{' '}
+                  Created at:{' '}
                   {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
                 </p>
                 {item?.location && (
                   <p className="text-gray-600">
-                    {dict.explore.locationLabel}: {item.location.city}, {item.location.country}
+                    Location: {item.location.city}, {item.location.country}
                   </p>
                 )}
               </>

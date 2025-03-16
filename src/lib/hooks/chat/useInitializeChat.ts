@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ChatUser } from '@/lib/types/chat';
-import { useLanguage } from '@/lib/context/LanguageContext';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface UseInitializeChatProps {
@@ -18,7 +17,6 @@ interface UseInitializeChatResult {
 }
 
 export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitializeChatResult {
-  const { dict } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -29,7 +27,7 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
   const [error, setError] = useState<string | null>(null);
   const hasInitialized = useRef(false);
 
-  // 身份验证检查
+  // Authentication check
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/signin');
@@ -57,7 +55,7 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || dict.chat.error.fetch);
+          throw new Error(errorData.error || 'Failed to fetch chat data');
         }
 
         const data = await response.json();
@@ -81,15 +79,15 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
           setOtherUser(otherUserData);
         }
 
-        // 更新chat history缓存
+        // Update chat history cache
         queryClient.setQueryData(['chat-history'], (oldChats: any[] = []) => {
-          // 检查聊天是否已存在
+          // Check if chat already exists
           const chatExists = oldChats.some(chat => chat._id === data._id);
           if (chatExists) {
             return oldChats;
           }
 
-          // 添加新的聊天
+          // Add new chat
           const newChat = {
             _id: data._id,
             participants: data.participants,
@@ -103,7 +101,7 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
 
       } catch (error) {
         console.error('Error initializing chat:', error);
-        setError(error instanceof Error ? error.message : dict.chat.error.fetch);
+        setError(error instanceof Error ? error.message : 'Failed to fetch chat data');
         hasInitialized.current = false;  // Reset if there was an error
       } finally {
         setIsInitializing(false);
@@ -113,7 +111,7 @@ export function useInitializeChat({ userId }: UseInitializeChatProps): UseInitia
     if (userId) {
       initializeChat();
     }
-  }, [userId, status, session?.user?.name, dict.chat.error.fetch, queryClient]);
+  }, [userId, status, session?.user?.name, queryClient]);
 
   return {
     currentUserId,
