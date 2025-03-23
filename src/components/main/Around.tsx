@@ -576,10 +576,10 @@ const Around = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -100 }}
             transition={{ duration: 0.5 }}
-            className="absolute top-[75px] left-0 h-[calc(100vh-60px)] w-[500px] bg-white shadow-lg z-50 rounded-lg"
+            className="absolute top-[75px] left-0 h-[calc(100vh-60px)] md:w-[500px] w-full bg-white shadow-lg z-50 rounded-lg"
           >
             <div
-              className="relative bg-black w-[500px] h-full overflow-y-auto shadow-lg rounded-2xl"
+              className="relative bg-black w-full md:w-[500px] h-full overflow-y-auto shadow-lg rounded-2xl"
               style={{ zIndex: 500, top: 0 }}
             >
               <div className="p-4">
@@ -589,6 +589,14 @@ const Around = () => {
                     {/* Header: Avatar & Close */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
+                        <button 
+                          onClick={handleCloseModal}
+                          className="md:hidden p-2 rounded-full bg-black/40 text-white hover:bg-black/60"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
                         <div
                           className="relative w-10 h-10 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-600"
                           onClick={(e) => {
@@ -620,29 +628,27 @@ const Around = () => {
                     </div>
 
                     {/* Swipable Images */}
-                    <div className="relative w-full h-[400px] overflow-hidden rounded-lg">
+                    <div className="relative w-full h-[400px] md:h-[400px] h-[60vh] overflow-hidden rounded-lg">
                       {selectedPost.images && selectedPost.images.length > 0 ? (
                         <>
                           <Image
                             src={selectedPost.images[currentImageIndex]?.url}
                             alt="Post"
                             fill
-                            style={{ objectFit: 'cover' }}
+                            style={{ objectFit: 'contain', backgroundColor: 'black' }}
                             className="rounded-lg"
                           />
                           {selectedPost.images.length > 1 && (
                             <>
-                              {/* Left Arrow */}
                               <button
                                 onClick={handlePrevImage}
-                                className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-r hover:bg-black/70"
+                                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-r hover:bg-black/70 text-xl md:text-base"
                               >
                                 ◀
                               </button>
-                              {/* Right Arrow */}
                               <button
                                 onClick={handleNextImage}
-                                className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-l hover:bg-black/70"
+                                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/40 text-white p-2 rounded-l hover:bg-black/70 text-xl md:text-base"
                               >
                                 ▶
                               </button>
@@ -657,7 +663,7 @@ const Around = () => {
                     </div>
 
                     {/* Details */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 px-4 md:px-0">
                       <h2 className="text-xl font-bold text-white">
                         {selectedPost.description || 'No description available'}
                       </h2>
@@ -756,7 +762,7 @@ const Around = () => {
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
-                              className="h-8 w-8"
+                              className="h-6 w-6 md:h-8 md:w-8"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"

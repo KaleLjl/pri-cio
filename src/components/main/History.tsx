@@ -369,7 +369,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
         <p className="text-sm text-gray-400 mt-2">{userId || 'N/A'}</p>
         <button
           onClick={() => {
-            window.location.href = '/editprofile';
+            router.push('/editprofile');
           }}
           className="mt-4 px-4 py-2 bg-white text-black rounded-full font-semibold hover:bg-gray-300 transition duration-200"
         >
