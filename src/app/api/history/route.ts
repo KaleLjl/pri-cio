@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         if (!image.url) {
           throw new Error('Image URL is required for each image');
         }
-        const fileName = `history-${session.user.email}-${Date.now()}-${image.id}.jpg`;
+        const fileName = `history-${session.user?.email || 'unknown'}-${Date.now()}-${image.id}.jpg`;
         const s3ImageUrl = await uploadToS3(image.url, fileName);
         return {
           ...image,

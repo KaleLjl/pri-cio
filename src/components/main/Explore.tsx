@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useExplore } from '@/lib/hooks/useExplore';
 import { ExploreItem } from '@/lib/types/explore';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -81,7 +81,8 @@ const RadiusDropdown = ({
   );
 };
 
-export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
+// Client component that uses useSearchParams
+function ExploreContent({ explores: initialExplores }: DisplayExploreProps) {
   const { explores, isLoading, error } = useExplore(initialExplores);
 
   // Which card is open:
@@ -492,5 +493,14 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
         />
       )}
     </div>
+  );
+}
+
+// Main component that wraps the content in Suspense
+export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
+  return (
+    <Suspense fallback={<Loading text="Loading..." />}>
+      <ExploreContent explores={initialExplores} />
+    </Suspense>
   );
 }

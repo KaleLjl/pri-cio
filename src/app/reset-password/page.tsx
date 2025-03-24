@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import LogoImage from '/public/image/logo.png';
 import Loading from '@/components/shared/Loading';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -198,16 +198,19 @@ export default function ResetPasswordPage() {
               >
                 Reset Password
               </button>
-              
-              <div className="text-center mt-4">
-                <Link href="/signin" className="text-purple-600 hover:underline">
-                  Return to Sign In
-                </Link>
-              </div>
             </form>
           </>
         )}
       </div>
     </div>
+  );
+}
+
+// Main component that wraps the content in Suspense
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<Loading text="Loading..." />}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

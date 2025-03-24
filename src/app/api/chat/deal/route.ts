@@ -172,7 +172,7 @@ export async function POST(request: Request) {
           dealCompleted: true,
           buyerId: new ObjectId(buyerId),
           sellerId: new ObjectId(sellerId),
-          meetingTime: meetingDate,
+          meetingTime: meetingTime,
           meetingLocation: location,
           dealCompletedAt: new Date(),
         },
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
           isSold: true,
           soldTo: new ObjectId(buyerId),
           soldAt: new Date(),
-          meetingTime: meetingDate,
+          meetingTime: meetingTime,
           meetingLocation: location,
         },
       }
@@ -247,4 +247,4 @@ export async function PATCH(req: Request) {
       { status: 500 }
     );
   }
-} 
+}

@@ -8,13 +8,14 @@ interface Profile {
   about: string;
   website: string;
   avatarUrl: string | null;
-  updatedAt: Date;
+  updatedAt: string;
 }
 
 export function useHistory(initialData: HistoryItem[] = []) {
   const { data: session } = useSession();
   const [histories, setHistories] = useState<HistoryItem[]>(initialData);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locationPermission, setLocationPermission] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
@@ -28,7 +29,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
     about: "",
     website: "",
     avatarUrl: null,
-    updatedAt: new Date(),
+    updatedAt: new Date().toISOString(),
   });
 
   const deleteHistory = async (historyId: string) => {
@@ -61,6 +62,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
       throw new Error('User not authenticated');
     }
 
+    setIsSaving(true);
     try {
       const response = await fetch('/api/history', {
         method: 'POST',
@@ -87,6 +89,8 @@ export function useHistory(initialData: HistoryItem[] = []) {
       console.error('Save to history failed:', error);
       setError(error instanceof Error ? error.message : 'Failed to save to history');
       throw error;
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -153,6 +157,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
     histories,
     setHistories,
     isLoading,
+    isSaving,
     error,
     formData,
     deleteHistory,

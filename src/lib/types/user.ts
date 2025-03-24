@@ -1,5 +1,5 @@
 export interface UserProfile {
-  _id: string;
+  _id?: string;
   email?: string;
   name?: string;
   about?: string;
@@ -17,4 +17,4 @@ export interface UseProfilePage {
   resetForm: () => void;
   saveProfile: () => Promise<void>;
   fetchProfileData: () => Promise<UserProfile>;
-} 
+}

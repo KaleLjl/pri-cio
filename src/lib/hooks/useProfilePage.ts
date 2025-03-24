@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useSession } from 'next-auth/react';
-import { Profile, UseProfilePage } from '../types/users';
+import { UserProfile as Profile, UseProfilePage } from '../types/user';
 
 export const useProfilePage = (userId: string): UseProfilePage => {
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -11,7 +11,7 @@ export const useProfilePage = (userId: string): UseProfilePage => {
     about: "",
     website: "",
     avatarUrl: null,
-    updatedAt: new Date(),
+    updatedAt: new Date().toISOString(),
   });
 
   const handleAvatarChange = async (file: File) => {
@@ -44,7 +44,7 @@ export const useProfilePage = (userId: string): UseProfilePage => {
       about: "",
       website: "",
       avatarUrl: null,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     });
     setAvatar(null);
     setAvatarUrl(null);
@@ -62,7 +62,7 @@ export const useProfilePage = (userId: string): UseProfilePage => {
           ...formData,
           avatar: avatar,
           currentAvatarUrl: formData.avatarUrl,
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         }),
       });
 
@@ -98,7 +98,7 @@ export const useProfilePage = (userId: string): UseProfilePage => {
           about: "",
           website: "",
           avatarUrl: null,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         };
       }
   
@@ -111,7 +111,7 @@ export const useProfilePage = (userId: string): UseProfilePage => {
           about: userProfile.about || "",
           website: userProfile.website || "",
           avatarUrl: userProfile.avatarUrl || null,
-          updatedAt: userProfile.updatedAt || new Date(),
+          updatedAt: userProfile.updatedAt || new Date().toISOString(),
         });
         setAvatarUrl(userProfile.avatarUrl || null);
   
@@ -123,7 +123,7 @@ export const useProfilePage = (userId: string): UseProfilePage => {
         about: "",
         website: "",
         avatarUrl: null,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       };
     } catch (error) {
       console.error("Error fetching profile data:", error);
