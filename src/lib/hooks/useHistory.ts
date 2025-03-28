@@ -1,15 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState} from 'react';
 import { useSession } from 'next-auth/react';
 import { HistoryItem, DealingItem } from '@/lib/types/history';
-import { socketService } from '@/lib/socket';
 
-interface Profile {
-  name: string;
-  about: string;
-  website: string;
-  avatarUrl: string | null;
-  updatedAt: Date;
-}
 
 export function useHistory(initialData: HistoryItem[] = []) {
   const { data: session } = useSession();
@@ -22,14 +14,14 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
     return null;
   });
+
+  // User profile states
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Profile>({
-    name: "",
-    about: "",
-    website: "",
-    avatarUrl: null,
-    updatedAt: new Date(),
-  });
+  const [userName, setUserName] = useState<string | null>(null);
+  
+  // Dealing items states
+  const [dealingHistories, setDealingHistories] = useState<DealingItem[]>([]);
+  const [isDealingLoading, setIsDealingLoading] = useState(false);
 
   const deleteHistory = async (historyId: string) => {
     if (!session?.user?.email) {
@@ -144,9 +136,48 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  const handleLocationPermission = (permission: 'granted' | 'denied') => {
-    localStorage.setItem('locationPermission', permission);
-    setLocationPermission(permission);
+  // User profile fetch function
+  const fetchUserProfile = async () => {
+    if (!session?.user?.email) return;
+    
+    try {
+      const response = await fetch(`/api/editprofile`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user profile: ${response.statusText}`);
+      }
+      const profiles = await response.json();
+      const userProfile = profiles.find(
+        (profile: { email: string }) => profile.email === session.user?.email
+      );
+      
+      setAvatarUrl(userProfile?.avatarUrl || null);
+      setUserName(userProfile?.name || null);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setAvatarUrl(null);
+      setUserName(null);
+      setError(error instanceof Error ? error.message : 'Failed to fetch user profile');
+    }
+  };
+
+  // Dealing items fetch function
+  const fetchDealingItems = async () => {
+    if (!session?.user?.email) return;
+    
+    setIsDealingLoading(true);
+    try {
+      const response = await fetch('/api/chat/deal');
+      if (!response.ok) {
+        throw new Error('Failed to fetch dealing items');
+      }
+      const data = await response.json();
+      setDealingHistories(data);
+    } catch (error) {
+      console.error('Error fetching dealing items:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch dealing items');
+    } finally {
+      setIsDealingLoading(false);
+    }
   };
 
   return {
@@ -154,12 +185,18 @@ export function useHistory(initialData: HistoryItem[] = []) {
     setHistories,
     isLoading,
     error,
-    formData,
     deleteHistory,
     refreshHistories,
     saveToHistory,
     updateHistory,
     locationPermission,
-    handleLocationPermission,
+    setLocationPermission,
+    avatarUrl,
+    userName,
+    fetchUserProfile,
+    dealingHistories,
+    setDealingHistories,
+    isDealingLoading,
+    fetchDealingItems,
   };
 }

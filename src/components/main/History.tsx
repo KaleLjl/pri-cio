@@ -1,12 +1,11 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useHistory } from '@/lib/hooks/useHistory';
-import { HistoryItem, DealingItem } from '@/lib/types/history';
+import { HistoryItem } from '@/lib/types/history';
 import { useSession } from 'next-auth/react'; // To fetch user session data
 import Image from 'next/image';
 import { AnimatePresence } from 'framer-motion';
 import Toast from '@/components/shared/Toast';
-import { useProfilePage } from '@/lib/hooks/useProfilePage'; // Import the custom hook
 import { CURRENCIES, Currency } from '@/components/main/CreatePost'; // Import types and data
 import ImageWithFallback from '@/components/shared/ImageWithFallback';
 import Loading from '@/components/shared/Loading';
@@ -25,14 +24,20 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     setHistories,
     isLoading,
     error,
-    formData,
     deleteHistory,
     updateHistory,
     locationPermission,
-    handleLocationPermission,
+    setLocationPermission,
+    avatarUrl,
+    userName,
+    fetchUserProfile,
+    dealingHistories,
+    setDealingHistories,
+    isDealingLoading,
+    fetchDealingItems,
   } = useHistory(initialHistories);
-
-  const { unpublishFromExplore, isSaving: isUnpublishing } = useToExplore();
+const { unpublishFromExplore } = useToExplore();
+  
 
   // Toast state
   const [showToast, setShowToast] = useState(false);
@@ -43,22 +48,13 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   const userId = session?.user?.id || '';
   const userEmail = session?.user?.email || '';
   const emailInitial = userEmail.charAt(0).toUpperCase();
-  const [isAvatarLoading, setIsAvatarLoading] = useState(true);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
-  const { fetchProfileData } = useProfilePage(userId);
   const [activeTab, setActiveTab] = useState<'saved' | 'posted' | 'dealing'>('saved');
   const [transitionDirection, setTransitionDirection] = useState<'left' | 'right'>('right');
-  const [savedItemsHeight, setSavedItemsHeight] = useState<number>(0);
-  const [postedItemsHeight, setPostedItemsHeight] = useState<number>(0);
-  const [dealingItemsHeight, setDealingItemsHeight] = useState<number>(0);
   const [containerHeight, setContainerHeight] = useState<number>(0);
   const savedItemsRef = useRef<HTMLDivElement>(null);
   const postedItemsRef = useRef<HTMLDivElement>(null);
   const dealingItemsRef = useRef<HTMLDivElement>(null);
   const [postedHistories, setPostedHistories] = useState<HistoryItem[]>([]);
-  const [dealingHistories, setDealingHistories] = useState<DealingItem[]>([]);
-  const [isDealingLoading, setIsDealingLoading] = useState(false);
   const savedItemsCount = histories.filter(history => {
     const isPosted = history.exploreId !== undefined;
     const isDealing = dealingHistories.some(deal => deal._id === history._id);
@@ -68,110 +64,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   const router = useRouter();
   const currentUserId = session?.user?.id || '';
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (session?.user?.email) {
-        try {
-          const response = await fetch(`/api/editprofile`);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch user profile: ${response.statusText}`);
-          }
-          const profiles = await response.json();
-          const userProfile = profiles.find(
-            (profile: { email: string }) => profile.email === session.user?.email
-          );
-          
-          // Set avatar URL
-          if (userProfile?.avatarUrl) {
-            setAvatarUrl(userProfile.avatarUrl);
-          } else {
-            setAvatarUrl(null);
-          }
-          
-          // Set user name in state
-          if (userProfile?.name) {
-            setUserName(userProfile.name);
-          } else {
-            setUserName(null);
-          }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-          setAvatarUrl(null);
-          setUserName(null);
-        }
-      }
-    };
-    fetchUserProfile();
-  }, [session?.user?.email]);
-
-  useEffect(() => {
-    // Measure the height of the active tab's content
-    const updateHeight = () => {
-      if (activeTab === 'saved' && savedItemsRef.current) {
-        setContainerHeight(savedItemsRef.current.offsetHeight);
-      } else if (activeTab === 'posted' && postedItemsRef.current) {
-        setContainerHeight(postedItemsRef.current.offsetHeight);
-      } else if (activeTab === 'dealing' && dealingItemsRef.current) {
-        setContainerHeight(dealingItemsRef.current.offsetHeight);
-      }
-    };
-
-    // Add a small delay to ensure the content has rendered
-    const timer = setTimeout(updateHeight, 100);
-
-    // Recalculate height on window resize
-    window.addEventListener('resize', updateHeight);
-    
-    return () => {
-      window.removeEventListener('resize', updateHeight);
-      clearTimeout(timer);
-    };
-  }, [activeTab, histories]);
-
-  useEffect(() => {
-    const posted = histories.filter(history => history.exploreId);
-    setPostedHistories(posted);
-  }, [histories]);
-
-  useEffect(() => {
-    const fetchDealingItems = async () => {
-      if (!session?.user?.email) return;
-      
-      setIsDealingLoading(true);
-      try {
-        const response = await fetch('/api/chat/deal');
-        if (!response.ok) {
-          throw new Error('Failed to fetch dealing items');
-        }
-        const data = await response.json();
-        setDealingHistories(data);
-      } catch (error) {
-        console.error('Error fetching dealing items:', error);
-        showNewToast(
-          error instanceof Error ? error.message : 'Failed to fetch dealing items',
-          'error'
-        );
-      } finally {
-        setIsDealingLoading(false);
-      }
-    };
-
-    fetchDealingItems();
-  }, [session?.user?.email]);
-
-  const handleTabChange = (tab: 'saved' | 'posted' | 'dealing') => {
-    if (tab !== activeTab) {
-      setTransitionDirection(
-        tab === 'saved' ? 'left' : 
-        tab === 'posted' ? (activeTab === 'dealing' ? 'left' : 'right') : 
-        tab === 'dealing' ? 'right' : 
-        'right'
-      );
-      setActiveTab(tab);
-    }
-  };
-
-  // Define the action with toast 
+  // Toast management function
   const showNewToast = (message: string, type: 'success' | 'error' | 'info') => {
     setShowToast(false);
     setTimeout(() => {
@@ -181,6 +74,57 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     }, 100);
   };
 
+  // Tab management function
+  const handleTabChange = (tab: 'saved' | 'posted' | 'dealing') => {
+    if (tab !== activeTab) {
+      setTransitionDirection(
+        tab === 'saved' ? 'left' : 
+        tab === 'posted' ? (activeTab === 'dealing' ? 'left' : 'right') : 
+        'right'
+      );
+      setActiveTab(tab);
+    }
+  };
+
+  // Container height management functions
+  const updateContainerHeight = () => {
+    if (activeTab === 'saved' && savedItemsRef.current) {
+      setContainerHeight(savedItemsRef.current.offsetHeight);
+    } else if (activeTab === 'posted' && postedItemsRef.current) {
+      setContainerHeight(postedItemsRef.current.offsetHeight);
+    } else if (activeTab === 'dealing' && dealingItemsRef.current) {
+      setContainerHeight(dealingItemsRef.current.offsetHeight);
+    }
+  };
+
+  // Posted histories management function
+  const updatePostedHistories = () => {
+    const posted = histories.filter(history => history.exploreId);
+    setPostedHistories(posted);
+  };
+
+  // Initialize all data
+  useEffect(() => {
+    // Initialize user profile
+    fetchUserProfile();
+
+    // Initialize container height with delay
+    const heightTimer = setTimeout(updateContainerHeight, 100);
+    window.addEventListener('resize', updateContainerHeight);
+
+    // Initialize posted histories
+    updatePostedHistories();
+
+    // Initialize dealing items
+    fetchDealingItems();
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('resize', updateContainerHeight);
+      clearTimeout(heightTimer);
+    };
+  }, [session?.user?.email, activeTab, histories]);
+  
   const [actionInProgress, setActionInProgress] = useState<{[key: string]: string}>({});
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<HistoryItem | null>(null);
@@ -329,6 +273,12 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     }
   };
 
+  // Location permission management
+  const handleLocationPermission = (permission: 'granted' | 'denied') => {
+    localStorage.setItem('locationPermission', permission);
+    setLocationPermission(permission);
+  };
+
   if (error) {
     return <div className="text-center py-10 text-red-500">Error loading history</div>;
   }
@@ -337,7 +287,7 @@ export default function History({ histories: initialHistories }: HistoryProps) {
     return <Loading text="Loading history..." />;
   }
 
-  console.log('Avatar URL:', formData.avatarUrl);
+  console.log('Avatar URL:', avatarUrl);
 
   return (
     <div className="p-6 max-w-6xl mx-auto">

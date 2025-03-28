@@ -2,25 +2,84 @@ import { useState, FormEvent, ChangeEvent } from 'react';
 import { ObjectDiscussionData } from '@/lib/types/chat';
 import { ExploreItem } from '@/lib/types/explore';
 import { v4 as uuidv4 } from 'uuid';
-import { priceValidation, meetingValidation, dealingValidation } from '@/lib/utils/ObjectDiscussionValidation';
 import { UseObjectDiscussionProps, ObjectDiscussionFormData } from '@/lib/types/objectDiscussion';
+
+// Validation logic
+const priceValidation = {
+  isValidFormat: (price: string): boolean => {
+    return /^\d+(\.\d{0,2})?$/.test(price);
+  },
+
+  isPositive: (price: string): boolean => {
+    const numericPrice = parseFloat(price);
+    return numericPrice > 0;
+  },
+
+  validate: (price: string): { isValid: boolean; error?: string } => {
+    if (!price) {
+      return { isValid: false, error: 'Price is required' };
+    }
+    if (!priceValidation.isValidFormat(price)) {
+      return { isValid: false, error: 'Invalid price format. Price must be a number with at most 2 decimal places.' };
+    }
+    if (!priceValidation.isPositive(price)) {
+      return { isValid: false, error: 'Price must be greater than 0' };
+    }
+    return { isValid: true };
+  }
+};
+
+const meetingValidation = {
+  isValidTime: (time: string): boolean => {
+    if (!time) return false;
+    const meetingDate = new Date(time);
+    const now = new Date();
+    return meetingDate > now;
+  },
+
+  isValidLocation: (location: string): boolean => {
+    return Boolean(location && location.trim().length > 0);
+  },
+
+  validate: (data: { meetingTime: string; location: string }): { isValid: boolean; error?: string } => {
+    if (!data.meetingTime) {
+      return { isValid: false, error: 'Meeting time is required' };
+    }
+    if (!meetingValidation.isValidTime(data.meetingTime)) {
+      return { isValid: false, error: 'Meeting time must be in the future' };
+    }
+    if (!meetingValidation.isValidLocation(data.location)) {
+      return { isValid: false, error: 'Location is required' };
+    }
+    return { isValid: true };
+  }
+};
+
+const dealingValidation = (content: ObjectDiscussionData): { isValid: boolean; errorMessage?: string } => {
+  if (!content?.suggestedPrice) {
+    return {
+      isValid: false,
+      errorMessage: 'Please set a price before completing the deal'
+    };
+  }
+
+  if (!content?.meetingTime || !content?.location) {
+    return {
+      isValid: false,
+      errorMessage: 'Please set meeting time and location before completing the deal'
+    };
+  }
+
+  return {
+    isValid: true
+  };
+};
 
 export const useObjectDiscussion = ({
   currentUserId,
   messages,
   sendMessage,
   queryClient,
-  dict = { 
-    objectDiscussion: { 
-      dealError: 'Failed to complete deal. Please try again.',
-      alreadyInDiscussion: 'This item is already in discussion.',
-      inDiscussion: 'In Discussion',
-      invalidMeetingTime: 'Meeting time must be set and in the future',
-      invalidLocation: 'Meeting location must be specified',
-      validationError: 'Invalid meeting details. Please ensure meeting time and location are properly set.',
-      invalidPrice: 'Price must be a valid number greater than 0',
-    } 
-  },
 }: UseObjectDiscussionProps) => {
   // Discussion state
   const [selectedPost, setSelectedPost] = useState<ExploreItem | null>(null);
@@ -171,21 +230,21 @@ export const useObjectDiscussion = ({
   const handleDiscussionSubmit = async (data: ObjectDiscussionFormData) => {
     const priceValidationResult = priceValidation.validate(data.price);
     if (!priceValidationResult.isValid) {
-      const errorMessage = priceValidationResult.error || dict?.objectDiscussion?.invalidPrice;
+      const errorMessage = priceValidationResult.error || 'Price must be a valid number greater than 0';
       if (typeof window !== 'undefined') alert(errorMessage);
       throw new Error(errorMessage);
     }
     
     const locationValidationResult = meetingValidation.isValidLocation(data.location);
     if (!locationValidationResult) {
-      const errorMessage = dict?.objectDiscussion?.invalidLocation || 'Meeting location must be specified';
+      const errorMessage = 'Meeting location must be specified';
       if (typeof window !== 'undefined') alert(errorMessage);
       throw new Error(errorMessage);
     }
     
     const timeValidationResult = meetingValidation.isValidTime(data.meetingTime);
     if (!timeValidationResult) {
-      const errorMessage = dict?.objectDiscussion?.invalidMeetingTime || 'Meeting time must be set and in the future';
+      const errorMessage = 'Meeting time must be set and in the future';
       if (typeof window !== 'undefined') alert(errorMessage);
       throw new Error(errorMessage);
     }
@@ -247,9 +306,16 @@ export const useObjectDiscussion = ({
   ) => {
     if (currentContent.status !== 'discussing') return;
 
+    // Validate required fields
+    if (!currentContent.postId || !currentContent.historyId) {
+      const errorMessage = 'Invalid deal data: missing required fields';
+      if (typeof window !== 'undefined') alert(errorMessage);
+      throw new Error(errorMessage);
+    }
+
     const validation = dealingValidation(currentContent);
     if (!validation.isValid) {
-      const errorMessage = validation.errorMessage || dict?.objectDiscussion?.validationError;
+      const errorMessage = validation.errorMessage || 'Invalid meeting details. Please ensure meeting time and location are properly set.';
       if (typeof window !== 'undefined') alert(errorMessage);
       throw new Error(errorMessage);
     }
@@ -257,24 +323,38 @@ export const useObjectDiscussion = ({
     try {
       setIsSending(true);
       
-      if (currentContent.postId && currentContent.historyId) {
-        const response = await fetch(`/api/chat/deal`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            historyId: currentContent.historyId,
-            exploreId: currentContent.postId,
-            buyerId: senderId === currentUserId ? currentUserId : messages[0].senderId,
-            sellerId: senderId === currentUserId ? messages[0].senderId : currentUserId,
-            meetingTime: currentContent.meetingTime,
-            location: currentContent.location
-          }),
-        });
+      // Find the other party's ID from messages
+      const otherPartyMessage = messages.find(msg => 
+        typeof msg.content !== 'string' && 
+        msg.content.type === 'object_discussion' && 
+        msg.senderId !== currentUserId
+      );
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to complete deal');
-        }
+      if (!otherPartyMessage) {
+        throw new Error('Could not find the other party in the discussion');
+      }
+
+      // Ensure IDs are strings
+      const buyerIdStr = senderId === currentUserId ? currentUserId : otherPartyMessage.senderId;
+      const sellerIdStr = senderId === currentUserId ? otherPartyMessage.senderId : currentUserId;
+
+      const response = await fetch(`/api/chat/deal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          historyId: currentContent.historyId,
+          exploreId: currentContent.postId,
+          buyerId: buyerIdStr,
+          sellerId: sellerIdStr,
+          meetingTime: currentContent.meetingTime,
+          location: currentContent.location,
+          suggestedPrice: currentContent.suggestedPrice
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to complete deal');
       }
 
       await sendMessage({
@@ -282,9 +362,7 @@ export const useObjectDiscussion = ({
         status: 'completed' as const
       });
     } catch (error) {
-      console.error('Error completing deal:', error);
-      const DEFAULT_ERROR = 'Failed to complete deal. Please try again.';
-      const errorMessage = error instanceof Error ? error.message : dict?.objectDiscussion?.dealError ?? DEFAULT_ERROR;
+      const errorMessage = error instanceof Error ? error.message : 'Failed to complete deal. Please try again.';
       if (typeof window !== 'undefined') alert(errorMessage);
       throw error;
     } finally {
@@ -303,9 +381,7 @@ export const useObjectDiscussion = ({
         status: 'canceled' as const
       });
     } catch (error) {
-      console.error('Error canceling discussion:', error);
-      const DEFAULT_ERROR = 'Failed to cancel deal. Please try again.';
-      const errorMessage = dict?.objectDiscussion?.dealError ?? DEFAULT_ERROR;
+      const errorMessage = 'Failed to cancel deal. Please try again.';
       if (typeof window !== 'undefined') alert(errorMessage);
       throw error;
     } finally {

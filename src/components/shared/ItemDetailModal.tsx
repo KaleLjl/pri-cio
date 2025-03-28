@@ -37,7 +37,6 @@ interface ItemDetailModalProps {
 }
 
 export default function ItemDetailModal({
-
   item,
   currentImageIndex,
   onClose,
@@ -49,8 +48,6 @@ export default function ItemDetailModal({
   currentUserId,
   onUpdate,
 }: ItemDetailModalProps) {
-  const { dict } = useLanguage();
-  
   // Format date to show either 'X days ago' or DD/MM/YYYY
   const formatDate = (dateString?: string) => {
     if (!dateString) return '';
@@ -61,9 +58,9 @@ export default function ItemDetailModal({
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays < 7) {
-      if (diffDays === 0) return dict.explore.today;
-      if (diffDays === 1) return dict.explore.yesterday;
-      return `${diffDays} ${dict.explore.daysAgo}`;
+      if (diffDays === 0) return 'Today';
+      if (diffDays === 1) return 'Yesterday';
+      return `${diffDays} days ago`;
     } else {
       return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
     }
@@ -153,14 +150,14 @@ export default function ItemDetailModal({
                 >
                   <ImageWithFallback
                     src={item.userProfile?.avatarUrl || ''}
-                    alt={item.userProfile?.name || dict.explore.anonymous}
+                    alt={item.userProfile?.name || 'Anonymous'}
                     layout="fill"
                     objectFit="cover"
                     isAvatar
                   />
                 </div>
                 <span className="font-semibold text-white text-xl md:text-2xl">
-                  {item.userProfile?.name || dict.explore.anonymous}
+                  {item.userProfile?.name || 'Anonymous'}
                 </span>
               </div>
             )}

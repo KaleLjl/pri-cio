@@ -2,7 +2,57 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { auth } from '@/lib/auth';
 import { ObjectId } from 'mongodb';
-import { priceValidation, meetingValidation } from '@/lib/utils/ObjectDiscussionValidation';
+
+// Validation logic
+const priceValidation = {
+  isValidFormat: (price: string): boolean => {
+    return /^\d+(\.\d{0,2})?$/.test(price);
+  },
+
+  isPositive: (price: string): boolean => {
+    const numericPrice = parseFloat(price);
+    return numericPrice > 0;
+  },
+
+  validate: (price: string): { isValid: boolean; error?: string } => {
+    if (!price) {
+      return { isValid: false, error: 'Price is required' };
+    }
+    if (!priceValidation.isValidFormat(price)) {
+      return { isValid: false, error: 'Invalid price format. Price must be a number with at most 2 decimal places.' };
+    }
+    if (!priceValidation.isPositive(price)) {
+      return { isValid: false, error: 'Price must be greater than 0' };
+    }
+    return { isValid: true };
+  }
+};
+
+const meetingValidation = {
+  isValidTime: (time: string): boolean => {
+    if (!time) return false;
+    const meetingDate = new Date(time);
+    const now = new Date();
+    return meetingDate > now;
+  },
+
+  isValidLocation: (location: string): boolean => {
+    return Boolean(location && location.trim().length > 0);
+  },
+
+  validate: (data: { meetingTime: string; location: string }): { isValid: boolean; error?: string } => {
+    if (!data.meetingTime) {
+      return { isValid: false, error: 'Meeting time is required' };
+    }
+    if (!meetingValidation.isValidTime(data.meetingTime)) {
+      return { isValid: false, error: 'Meeting time must be in the future' };
+    }
+    if (!meetingValidation.isValidLocation(data.location)) {
+      return { isValid: false, error: 'Location is required' };
+    }
+    return { isValid: true };
+  }
+};
 
 export async function GET(req: Request) {
   try {
@@ -59,7 +109,7 @@ export async function GET(req: Request) {
           $project: {
             _id: '$historyDetails._id',
             imageUrl: '$historyDetails.imageUrl',
-            price: '$historyDetails.price',
+            suggestedPrice: '$historyDetails.suggestedPrice',
             description: '$historyDetails.description',
             createdAt: '$historyDetails.createdAt',
             currency: '$historyDetails.currency',
@@ -116,6 +166,15 @@ export async function POST(request: Request) {
       suggestedPrice,
     } = await request.json();
 
+    // Validate IDs
+    if (!ObjectId.isValid(historyId) || !ObjectId.isValid(exploreId) || 
+        !ObjectId.isValid(buyerId) || !ObjectId.isValid(sellerId)) {
+      return NextResponse.json(
+        { message: 'Invalid ID format' },
+        { status: 400 }
+      );
+    }
+
     // Validate price
     const priceValidationResult = priceValidation.validate(suggestedPrice);
     if (!priceValidationResult.isValid) {
@@ -135,68 +194,116 @@ export async function POST(request: Request) {
     }
     
     // Make sure both parties are involved in this deal
-    const currentUserId = session.user.id;
-    if (currentUserId !== buyerId && currentUserId !== sellerId) {
+    const client = await clientPromise;
+    const db = client.db('pri-cio');
+    const user = await db.collection('users').findOne(
+      { email: session.user.email },
+      { projection: { _id: 1 } }
+    );
+
+    if (!user) {
+      return NextResponse.json(
+        { message: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const currentUserId = user._id.toString();
+    const buyerIdStr = buyerId.toString();
+    const sellerIdStr = sellerId.toString();
+    
+    if (currentUserId !== buyerIdStr && currentUserId !== sellerIdStr) {
       return NextResponse.json(
         { message: 'You are not authorized to complete this deal' },
         { status: 403 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db('pri-cio');
-    const historyCollection = db.collection('history');
+    const historiesCollection = db.collection('histories');
     const exploreCollection = db.collection('explore');
 
     // Check if historyId and exploreId exist
-    const historyItem = await historyCollection.findOne({
+    let historyItem = await historiesCollection.findOne({
       _id: new ObjectId(historyId),
     });
 
+    // If not found, try to find by other fields
+    if (!historyItem) {
+      const alternativeHistoryItem = await historiesCollection.findOne({
+        $or: [
+          { _id: new ObjectId(historyId) },
+          { historyId: historyId },
+          { 'content.historyId': historyId }
+        ]
+      });
+      
+      if (alternativeHistoryItem) {
+        historyItem = alternativeHistoryItem;
+      }
+    }
+
     const exploreItem = await exploreCollection.findOne({
       _id: new ObjectId(exploreId),
+      isSold: { $ne: true }
     });
 
-    if (!historyItem || !exploreItem) {
+    if (!historyItem) {
       return NextResponse.json(
-        { message: 'History or item not found' },
+        { message: 'History item not found' },
         { status: 404 }
       );
     }
 
-    // Update the history item with deal information
-    await historyCollection.updateOne(
-      { _id: new ObjectId(historyId) },
-      {
-        $set: {
-          dealCompleted: true,
-          buyerId: new ObjectId(buyerId),
-          sellerId: new ObjectId(sellerId),
-          meetingTime: meetingDate,
-          meetingLocation: location,
-          dealCompletedAt: new Date(),
-        },
-      }
-    );
+    if (!exploreItem) {
+      return NextResponse.json(
+        { message: 'Explore item not found or already sold' },
+        { status: 404 }
+      );
+    }
 
-    // Update the explore item to mark it as sold
-    await exploreCollection.updateOne(
-      { _id: new ObjectId(exploreId) },
-      {
-        $set: {
-          isSold: true,
-          soldTo: new ObjectId(buyerId),
-          soldAt: new Date(),
-          meetingTime: meetingDate,
-          meetingLocation: location,
-        },
-      }
-    );
+    try {
+      // Update the history item with deal information
+      await historiesCollection.updateOne(
+        { _id: new ObjectId(historyId) },
+        {
+          $set: {
+            dealCompleted: true,
+            buyerId: new ObjectId(buyerId),
+            sellerId: new ObjectId(sellerId),
+            meetingTime: meetingTime,
+            location: location,
+            suggestedPrice: suggestedPrice,
+            dealCompletedAt: new Date(),
+          },
+        }
+      );
 
-    return NextResponse.json(
-      { message: 'Deal completed successfully' },
-      { status: 200 }
-    );
+      // Update the explore item to mark it as sold
+      await exploreCollection.updateOne(
+        { _id: new ObjectId(exploreId) },
+        {
+          $set: {
+            isSold: true,
+            soldTo: new ObjectId(buyerId),
+            soldAt: new Date(),
+            meetingTime: meetingTime,
+            location: location,
+            suggestedPrice: suggestedPrice,
+          },
+        }
+      );
+
+      return NextResponse.json(
+        { message: 'Deal completed successfully' },
+        { status: 200 }
+      );
+    } catch (error) {
+      console.error('Error updating database:', error);
+      return NextResponse.json(
+        { message: 'Failed to update database' },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('Error completing deal:', error);
     return NextResponse.json(
