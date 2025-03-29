@@ -39,7 +39,7 @@ export default function ImageCapture() {
   const { generateShareCard, handleShareCardGeneration, isGenerating } = useShareCard();
   const [showChatAI, setShowChatAI] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
   const { 
