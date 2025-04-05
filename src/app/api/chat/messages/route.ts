@@ -1,8 +1,18 @@
 // pages/api/chat/messages/route.ts
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+import clientPromise from "@/lib/mongodb"; // Keep clientPromise import for user lookup
 import { ObjectId } from "mongodb";
 import { auth } from "@/lib/auth";
+// Import ALL service functions used in this file
+import {
+  getMessages,
+  sendMessage,
+  markMessagesRead,
+  deleteConversation,
+  updateMessageStatus, // Import updateMessageStatus service function
+} from "@/services/message.service";
+// Remove MessageDBSchema import if only used for problematic type annotations
+// import { MessageDBSchema } from "@/lib/types/chat";
 
 export const revalidate = 30;
 
@@ -34,51 +44,15 @@ export async function GET(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
     const userId = user._id.toString();
 
-    await db
-      .collection("messages")
-      .createIndex({ conversationId: 1, createdAt: -1 });
+    // Call the service function
+    const result = await getMessages({ conversationId, userId, page, limit });
 
-    const skip = (page - 1) * limit;
-    const messages = await db
-      .collection("messages")
-      .find({
-        conversationId: new ObjectId(conversationId),
-        $or: [
-          { deletedBy: { $exists: false } },
-          { deletedBy: { $ne: userId } },
-        ],
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .toArray();
-
-    const total = await db.collection("messages").countDocuments({
-      conversationId: new ObjectId(conversationId),
-      $or: [{ deletedBy: { $exists: false } }, { deletedBy: { $ne: userId } }],
-    });
-
-    const formattedMessages = messages.map((msg) => ({
-      ...msg,
-      _id: msg._id.toString(),
-      conversationId: msg.conversationId.toString(),
-      senderId: msg.senderId.toString(),
-      createdAt: msg.createdAt || new Date().toISOString(),
-      status: msg.status || "sent",
-    }));
-
-    return NextResponse.json({
-      messages: formattedMessages.reverse(),
-      total,
-      page,
-      limit,
-      hasMore: total > skip + limit,
-    });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("Error fetching messages:", error);
+    // Log error from service or other issues
+    console.error("Error in GET /api/chat/messages:", error);
     return NextResponse.json(
       { error: "Failed to fetch messages" },
       { status: 500 }
@@ -113,128 +87,14 @@ export async function POST(req: Request) {
     }
     const senderId = sender._id.toString();
 
-    // 首先尝试查找现有的对话，不管是否提供了conversationId
-    let conversation = await db.collection("conversations").findOne({
-      participants: {
-        $all: [senderId, receiverId],
-        $size: 2,
-      },
-    });
+    // Call the service function to handle message sending and related logic
+    const createdMessage = await sendMessage({ senderId, receiverId, content });
 
-    // 如果没有找到现有对话，则创建新对话
-    if (!conversation) {
-      conversation = {
-        _id: new ObjectId(),
-        participants: [senderId, receiverId],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      await db.collection("conversations").insertOne(conversation);
-    } else {
-      // 如果对话存在，恢复被删除的对话（如果被删除了的话）
-      await db.collection("conversations").updateOne(
-        { _id: conversation._id },
-        {
-          $set: { updatedAt: new Date() },
-          $unset: { deletedBy: "" }, // 移除 deletedBy 字段，恢复对话
-        }
-      );
-    }
-
-    const newMessage = {
-      conversationId: conversation._id,
-      senderId,
-      receiverId,
-      content,
-      createdAt: new Date(),
-      read: false,
-      status: "sent",
-    };
-
-    const result = await db.collection("messages").insertOne(newMessage);
-    await db.collection("conversations").updateOne(
-      { _id: conversation._id },
-      {
-        $set: { updatedAt: new Date() },
-        $inc: { unreadCount: 1 },
-      }
-    );
-
-    // --- BEGIN ADDITION: Create/Update dealing record ---
-    if (
-      content?.type === "object_discussion" &&
-      content.historyId &&
-      ObjectId.isValid(content.historyId)
-    ) {
-      try {
-        const historyId = content.historyId; // Assuming historyId is passed in content
-        const historiesCollection = db.collection("histories");
-        const usersCollection = db.collection("users");
-        const dealingCollection = db.collection("dealing");
-
-        // Find the item owner (seller) from histories
-        const historyItem = await historiesCollection.findOne(
-          { _id: new ObjectId(historyId) },
-          { projection: { userEmail: 1 } }
-        );
-
-        if (historyItem?.userEmail) {
-          const sellerUser = await usersCollection.findOne(
-            { email: historyItem.userEmail },
-            { projection: { _id: 1 } }
-          );
-
-          if (sellerUser) {
-            const sellerId = sellerUser._id.toString();
-            // Determine buyerId based on who is NOT the seller
-            const buyerId = senderId === sellerId ? receiverId : senderId;
-
-            // Upsert the dealing record: Insert if not exists, update timestamp if exists
-            const filter = { historyId: historyId }; // Match by historyId (string)
-            const update = {
-              $set: { updatedAt: new Date() }, // Always update timestamp
-              $setOnInsert: {
-                // Fields to set only on insert
-                historyId: historyId,
-                buyerId: buyerId,
-                sellerId: sellerId,
-                status: "pending", // Initial status
-                createdAt: new Date(),
-              },
-            };
-            const options = { upsert: true };
-
-            await dealingCollection.updateOne(filter, update, options);
-            console.log(
-              `[POST /api/chat/messages] Upserted dealing record for historyId: ${historyId}`
-            );
-          } else {
-            console.error(
-              `[POST /api/chat/messages] Seller user not found for email: ${historyItem.userEmail}`
-            );
-          }
-        } else {
-          console.error(
-            `[POST /api/chat/messages] History item not found for ID: ${historyId}`
-          );
-        }
-      } catch (dealError) {
-        // Log error but don't fail the message sending
-        console.error(
-          `[POST /api/chat/messages] Error upserting dealing record for historyId ${content.historyId}:`,
-          dealError
-        );
-      }
-    }
-    // --- END ADDITION ---
-
-    return NextResponse.json({
-      _id: result.insertedId,
-      ...newMessage,
-      conversationId: conversation._id.toString(),
-    });
+    // Return the created message (already formatted by the service)
+    return NextResponse.json(createdMessage);
   } catch (error) {
-    console.error("Error sending message:", error);
+    // Log error from service or other issues
+    console.error("Error in POST /api/chat/messages:", error);
     return NextResponse.json(
       { error: "Failed to send message" },
       { status: 500 }
@@ -267,33 +127,18 @@ export async function PATCH(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    const userId = user._id.toString();
 
-    // 更新所有未读消息为已读
-    const result = await db.collection("messages").updateMany(
-      {
-        conversationId: new ObjectId(conversationId),
-        receiverId: user._id.toString(),
-        read: false,
-      },
-      {
-        $set: { read: true },
-      }
-    );
-
-    // 更新会话的未读消息计数
-    await db
-      .collection("conversations")
-      .updateOne(
-        { _id: new ObjectId(conversationId) },
-        { $set: { unreadCount: 0 } }
-      );
+    // Call the service function
+    const modifiedCount = await markMessagesRead({ conversationId, userId });
 
     return NextResponse.json({
       success: true,
-      modifiedCount: result.modifiedCount,
+      modifiedCount, // Return the count from the service
     });
   } catch (error) {
-    console.error("Error marking messages as read:", error);
+    // Log error from service or other issues
+    console.error("Error in PATCH /api/chat/messages:", error);
     return NextResponse.json(
       { error: "Failed to mark messages as read" },
       { status: 500 }
@@ -326,142 +171,22 @@ export async function DELETE(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
     const userId = user._id.toString();
 
-    // 检查是否有正在进行的讨论
-    const messages = await db
-      .collection("messages")
-      .find({
-        conversationId: new ObjectId(conversationId),
-        "content.type": "object_discussion",
-        "content.discussingId": { $exists: true },
-      })
-      .sort({ createdAt: -1 })
-      .toArray();
+    // Call the service function to handle deletion logic
+    await deleteConversation({ conversationId, userId });
 
-    // 按discussingId分组，找出每个讨论的最后一条消息
-    const discussionGroups = new Map();
-    messages.forEach((msg) => {
-      const discussingId = msg.content.discussingId;
-      if (
-        !discussionGroups.has(discussingId) ||
-        new Date(msg.createdAt) >
-          new Date(discussionGroups.get(discussingId).createdAt)
-      ) {
-        discussionGroups.set(discussingId, msg);
-      }
-    });
-
-    // 检查是否有任何讨论的最后状态是"discussing"
-    for (const [_, lastMessage] of discussionGroups) {
-      if (lastMessage.content.status === "discussing") {
-        return NextResponse.json(
-          {
-            error:
-              "Cannot delete conversation with ongoing discussions. Please complete or cancel all discussions first.",
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Start a session for transaction
-    const mongoSession = client.startSession();
-    try {
-      await mongoSession.withTransaction(async () => {
-        // 1. 获取对话信息和消息状态
-        const conversation = await db
-          .collection("conversations")
-          .findOne(
-            { _id: new ObjectId(conversationId) },
-            { session: mongoSession }
-          );
-
-        if (!conversation) {
-          throw new Error("Conversation not found");
-        }
-
-        // 2. 检查消息的删除状态
-        const messages = await db
-          .collection("messages")
-          .find({ conversationId: new ObjectId(conversationId) })
-          .toArray();
-
-        // 3. 判断是否所有参与者都已删除消息
-        const otherParticipantId = conversation.participants.find(
-          (p: string) => p !== userId
-        );
-        const allMessagesDeletedByOther = messages.every((msg) =>
-          msg.deletedBy?.includes(otherParticipantId)
-        );
-
-        if (allMessagesDeletedByOther) {
-          // 如果对方已经删除了所有消息，直接进行硬删除
-          await db
-            .collection("messages")
-            .deleteMany(
-              { conversationId: new ObjectId(conversationId) },
-              { session: mongoSession }
-            );
-
-          await db
-            .collection("conversations")
-            .deleteOne(
-              { _id: new ObjectId(conversationId) },
-              { session: mongoSession }
-            );
-        } else {
-          // 否则只进行软删除
-          await db.collection("messages").updateMany(
-            {
-              conversationId: new ObjectId(conversationId),
-              $or: [
-                { deletedBy: { $exists: false } },
-                { deletedBy: { $ne: userId } },
-              ],
-            },
-            {
-              $addToSet: { deletedBy: userId },
-            },
-            { session: mongoSession }
-          );
-
-          await db.collection("conversations").updateOne(
-            { _id: new ObjectId(conversationId) },
-            {
-              $addToSet: { deletedBy: userId },
-              $set: {
-                updatedAt: new Date(),
-                unreadCount: 0,
-              },
-            },
-            { session: mongoSession }
-          );
-        }
-
-        // 4. 标记消息为已读（无论是软删除还是硬删除）
-        await db.collection("messages").updateMany(
-          {
-            conversationId: new ObjectId(conversationId),
-            receiverId: userId,
-            read: false,
-          },
-          {
-            $set: { read: true },
-          },
-          { session: mongoSession }
-        );
-      });
-    } finally {
-      await mongoSession.endSession();
-    }
-
-    return NextResponse.json({
-      success: true,
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting messages:", error);
+    // Log error from service or other issues
+    console.error("Error in DELETE /api/chat/messages:", error);
+    // Return specific error message if thrown by service
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Cannot delete conversation")
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       {
         error:
@@ -495,20 +220,13 @@ export async function PUT(req: Request) {
       .collection("users")
       .findOne({ email: session.user.email }, { projection: { _id: 1 } });
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      // User lookup might not be strictly necessary here unless authorization rules depend on it
+      // For now, we assume the service handles finding the message by ID
+      // return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Update message status
-    const result = await db
-      .collection("messages")
-      .updateOne(
-        { _id: new ObjectId(messageId) },
-        { $set: { status, updatedAt: new Date() } }
-      );
-
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ error: "Message not found" }, { status: 404 });
-    }
+    // Call the service function
+    await updateMessageStatus({ messageId, status });
 
     return NextResponse.json({
       success: true,
@@ -516,7 +234,17 @@ export async function PUT(req: Request) {
       status,
     });
   } catch (error) {
-    console.error("Error updating message status:", error);
+    // Log error from service or other issues
+    console.error("Error in PUT /api/chat/messages:", error);
+    // Return specific error messages if available from the service
+    if (
+      error instanceof Error &&
+      (error.message === "Invalid message ID format." ||
+        error.message === "Invalid status provided." ||
+        error.message === "Message not found.")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 400 }); // Or 404 for not found
+    }
     return NextResponse.json(
       { error: "Failed to update message status" },
       { status: 500 }

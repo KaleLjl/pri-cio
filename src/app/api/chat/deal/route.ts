@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+// Removed duplicate import
+import clientPromise from "@/lib/mongodb"; // Keep for user check
 import { auth } from "@/lib/auth";
 import { ObjectId } from "mongodb";
+// Import ALL service functions
+import {
+  completeDeal,
+  getDealingItemsForUser,
+  updateDealingStatus,
+} from "@/services/deal.service";
+import { DealCompletionData } from "@/lib/types/history"; // Import the type
 
 // Validation logic
 const priceValidation = {
@@ -75,93 +83,25 @@ export async function GET(_req: Request) {
     // Get user's ID from users collection
     const user = await db
       .collection("users")
-      .findOne({ email: session.user.email });
+      // Need user's ID and email for the service function
+      .findOne(
+        { email: session.user.email },
+        { projection: { _id: 1, email: 1 } }
+      );
     if (!user) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Find all dealing items where user is either buyer or seller
-    const dealingItems = await db
-      .collection("dealing")
-      .aggregate([
-        {
-          $match: {
-            $or: [
-              { buyerId: user._id.toString() },
-              { sellerId: user._id.toString() },
-            ],
-          },
-        },
-        {
-          $lookup: {
-            from: "histories",
-            // Use historyId string from dealing doc in the pipeline
-            let: { historyIdString: "$historyId" },
-            pipeline: [
-              {
-                $match: {
-                  // Convert the string ID from dealing to ObjectId for matching
-                  $expr: {
-                    $eq: ["$_id", { $toObjectId: "$$historyIdString" }],
-                  },
-                },
-              },
-            ],
-            as: "historyDetails",
-          },
-        },
-        {
-          $unwind: "$historyDetails",
-        },
-        {
-          $addFields: {
-            isSeller: {
-              $eq: ["$historyDetails.userEmail", session.user.email],
-            },
-          },
-        },
-        {
-          $project: {
-            // Use history item's _id
-            _id: "$historyDetails._id",
-            // Extract first image URL from the images array in historyDetails
-            imageUrl: {
-              $ifNull: [
-                { $arrayElemAt: ["$historyDetails.images.url", 0] },
-                null,
-              ],
-            },
-            // Use 'price' field from historyDetails
-            price: "$historyDetails.price",
-            description: "$historyDetails.description",
-            createdAt: "$historyDetails.createdAt",
-            currency: "$historyDetails.currency",
-            dealingId: { $toString: "$_id" },
-            status: 1,
-            role: {
-              $cond: {
-                if: "$isSeller",
-                then: "selling",
-                else: "buying",
-              },
-            },
-            buyerId: 1,
-            sellerId: 1,
-            otherPartyEmail: {
-              $cond: {
-                if: "$isSeller",
-                then: { $toString: "$buyerEmail" },
-                else: { $toString: "$sellerEmail" },
-              },
-            },
-          },
-        },
-      ])
-      .toArray();
+    // Call the service function to get dealing items
+    const dealingItems = await getDealingItemsForUser(
+      user._id.toString(),
+      user.email
+    );
 
     return NextResponse.json(dealingItems);
   } catch (error) {
-    console.error("Error in deal API:", error);
+    // Log error from service or other issues
+    console.error("Error fetching dealing items via service:", error);
     return NextResponse.json(
       {
         message: "Failed to fetch dealing items",
@@ -289,66 +229,41 @@ export async function POST(request: Request) {
       );
     }
 
+    // Prepare data for the service function
+    const dealData: DealCompletionData = {
+      historyId,
+      exploreId,
+      buyerId,
+      sellerId,
+      meetingTime,
+      location,
+      suggestedPrice,
+    };
+
     try {
-      // Update the history item with deal information
-      await historiesCollection.updateOne(
-        { _id: new ObjectId(historyId) },
-        {
-          $set: {
-            dealCompleted: true,
-            buyerId: new ObjectId(buyerId),
-            sellerId: new ObjectId(sellerId),
-            meetingTime: meetingTime,
-            location: location,
-            suggestedPrice: suggestedPrice,
-            dealCompletedAt: new Date(),
-          },
-        }
-      );
+      // Call the service function to handle database updates
+      await completeDeal(dealData);
 
-      // Update the explore item to mark it as sold
-      await exploreCollection.updateOne(
-        { _id: new ObjectId(exploreId) },
-        {
-          $set: {
-            isSold: true,
-            soldTo: new ObjectId(buyerId),
-            soldAt: new Date(),
-            meetingTime: meetingTime,
-            location: location,
-            suggestedPrice: suggestedPrice,
-          },
-        }
-      );
-
-      // ADD THIS: Update the dealing item status
-      const dealingCollection = db.collection("dealing");
-      const updateDealingResult = await dealingCollection.updateOne(
-        // Assign result here
-        { historyId: historyId.toString() }, // Match based on historyId string
-        { $set: { status: "completed", updatedAt: new Date() } }
-        // We assume historyId is unique enough to identify the dealing record.
-        // If not, we might need to match on buyerId/sellerId as well.
-      );
-      console.log(
-        `[POST /api/chat/deal] Update dealing collection result for historyId ${historyId}:`,
-        updateDealingResult
-      ); // ADD LOGGING
-      // END ADDITION
-
+      // Return success response
       return NextResponse.json(
         { message: "Deal completed successfully" },
         { status: 200 }
       );
     } catch (error) {
-      console.error("Error updating database:", error);
+      // Log the error from the service or other issues
+      console.error("Error completing deal via service:", error);
+      // Return a generic error response
       return NextResponse.json(
-        { message: "Failed to update database" },
+        {
+          message:
+            error instanceof Error ? error.message : "Failed to complete deal",
+        },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error("Error completing deal:", error);
+    // Catch errors from auth, JSON parsing, validation etc.
+    console.error("Error in POST /api/chat/deal handler:", error);
     return NextResponse.json(
       { message: "Failed to complete deal" },
       { status: 500 }
@@ -377,33 +292,35 @@ export async function PATCH(req: Request) {
     const { status } = body;
 
     if (!status || !["completed", "cancelled"].includes(status)) {
-      return NextResponse.json({ message: "Invalid status" }, { status: 400 });
+      // Validate status type more strictly for the service function
+      if (status !== "completed" && status !== "cancelled") {
+        return NextResponse.json(
+          { message: "Invalid status value" },
+          { status: 400 }
+        );
+      }
     }
 
-    const client = await clientPromise;
-    const db = client.db("pri-cio");
-
-    const result = await db
-      .collection("dealing")
-      .updateOne(
-        { _id: new ObjectId(dealingId) },
-        { $set: { status, updatedAt: new Date() } }
-      );
-
-    if (result.matchedCount === 0) {
-      return NextResponse.json(
-        { message: "Dealing item not found" },
-        { status: 404 }
-      );
-    }
+    // Call the service function to update the status
+    await updateDealingStatus(dealingId, status);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error in deal API:", error);
+    // Log error from service or other issues
+    console.error("Error updating dealing status via service:", error);
+    // Return specific error messages if available from the service
+    if (
+      error instanceof Error &&
+      (error.message === "Invalid dealing ID format." ||
+        error.message === "Invalid status provided." ||
+        error.message === "Dealing item not found.")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 400 }); // Or 404 for not found
+    }
     return NextResponse.json(
       {
         message: "Failed to update dealing status",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : "Unknown error", // Keep original fallback
       },
       { status: 500 }
     );

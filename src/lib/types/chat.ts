@@ -4,10 +4,10 @@ export interface ChatUser {
   avatarUrl?: string;
 }
 
-export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'error';
+export type MessageStatus = "sending" | "sent" | "delivered" | "read" | "error";
 
 export interface ObjectDiscussionData {
-  type: 'object_discussion';
+  type: "object_discussion";
   postId: string;
   images: Array<{
     id: string;
@@ -21,13 +21,29 @@ export interface ObjectDiscussionData {
   currency: string;
   location: string;
   meetingTime: string;
-  status: 'discussing' | 'completed' | 'canceled';
+  status: "discussing" | "completed" | "canceled";
   historyId: string;
   discussingId?: string;
 }
 
+import { ObjectId } from "mongodb"; // Add ObjectId import
+
 export type MessageContent = string | ObjectDiscussionData;
 
+// Interface representing the schema stored in MongoDB
+export interface MessageDBSchema {
+  _id: ObjectId;
+  conversationId: ObjectId;
+  content: MessageContent;
+  senderId: ObjectId; // Assuming senderId is stored as ObjectId
+  receiverId: ObjectId; // Assuming receiverId is stored as ObjectId
+  createdAt: Date;
+  status?: MessageStatus;
+  read?: boolean;
+  deletedBy?: string[]; // Assuming deletedBy stores user IDs as strings
+}
+
+// Interface representing the data structure used in the application code
 export interface ChatMessage {
   _id: string;
   conversationId: string;
@@ -106,4 +122,4 @@ export interface ChatHookResult {
   sendMessage: (content: MessageContent) => Promise<void>;
   loadMoreMessages: () => Promise<void>;
   deleteMessages: () => Promise<void>;
-} 
+}

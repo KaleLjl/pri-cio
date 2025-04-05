@@ -10,29 +10,29 @@
     - Fetching own basic profile via `GET /api/users/me`.
     - Fetching other users' basic public profile via `GET /api/users/[userId]`.
   - **Explore Page (`/explore` & `/api/explore`):**
-    - `GET /api/explore`: Fetches published items from `explore` collection, filters by search/userId, joins basic user data from `users`.
-    - `POST /api/explore`: Publishes an item - creates `explore` record, updates `histories` record with `exploreId`. Uses OpenCage for geocoding location.
-    - `DELETE /api/explore`: Unpublishes an item - deletes from `explore`, removes `exploreId` from `histories`.
+    - `GET /api/explore`: API route calls `exploreService.getExploreItems`.
+    - `POST /api/explore`: API route calls `exploreService.publishItem`.
+    - `DELETE /api/explore`: API route calls `exploreService.unpublishItem`.
     - Frontend (`Explore.tsx`, `useExplore` hook) displays items, handles filtering.
   - **Item History (`histories` collection):**
-    - `POST /api/history`: Creates initial item record in `histories`, uploads images to S3. Triggered from `/createpost`.
-    - `GET /api/history`: Fetches all history items for the logged-in user.
+    - `POST /api/history`: API route calls `historyService.createHistoryItem`.
+    - `GET /api/history`: API route calls `historyService.getHistoryForUser` to fetch items.
   - **Chat System (`conversations`, `messages` collections):**
     - Real-time via dedicated Socket.IO server (`src/server/socket.ts` - no DB interaction).
     - `POST /api/chat/conversations/initialize`: Finds or creates a conversation record in `conversations`.
     - `GET /api/chat/conversations/list`: Fetches user's conversation list with last message preview and unread count (aggregates `conversations`, `messages`, `users`).
     - `PATCH /api/chat/conversations/settings` (or `/initialize`): Updates settings field in `conversations`.
-    - `POST /api/chat/messages`: Saves new message to `messages`, creates/updates `conversations`.
-    - `GET /api/chat/messages`: Fetches messages for a conversation from `messages`.
-    - `PATCH /api/chat/messages`: Marks messages as read in `messages`, updates `unreadCount` in `conversations`.
-    - `PUT /api/chat/messages`: Updates message status field in `messages`.
-    - `DELETE /api/chat/messages`: Soft/hard deletes messages and conversation (uses transaction, checks for ongoing `ObjectDiscussion`).
+    - `POST /api/chat/messages`: API route calls `messageService.sendMessage`.
+    - `GET /api/chat/messages`: API route calls `messageService.getMessages`.
+    - `PATCH /api/chat/messages`: API route calls `messageService.markMessagesRead`.
+    - `PUT /api/chat/messages`: API route calls `messageService.updateMessageStatus`.
+    - `DELETE /api/chat/messages`: API route calls `messageService.deleteConversation`.
     - Structured "Object Discussion" feature within messages (`ObjectDiscussionData` type).
   - **Item Dealing (`dealing` collection & related APIs):**
     - **Initiation:** `POST /api/chat/messages` now upserts a record into `dealing` (status: 'pending') when the first `object_discussion` message for an item is sent.
-    - `GET /api/chat/deal`: Fetches items for the "Dealing Items" tab in History (reads from `dealing`, joins `histories` to include item details like image, price, description - logic corrected).
-    - `PATCH /api/chat/deal`: Updates dealing status from History page (updates `dealing` record).
-    - `POST /api/chat/deal`: Triggered by chat completion. Updates `histories` (`dealCompleted`), `explore` (`isSold`), and `dealing` (`status: 'completed'`).
+    - `GET /api/chat/deal`: API route calls `dealService.getDealingItemsForUser` to fetch items for the "Dealing Items" tab in History (reads from `dealing`, joins `histories`).
+    - `PATCH /api/chat/deal`: API route calls `dealService.updateDealingStatus` to update dealing status from History page.
+    - `POST /api/chat/deal`: API route calls `dealService.completeDeal` upon chat completion to update `histories`, `explore`, and `dealing` collections.
   - **AI Integration (`/api/ai/chat`):**
     - Proxies requests to OpenAI API (GPT-4 Vision/GPT-4).
     - Handles image upload/URL for initial analysis, continues conversation for refinement.
@@ -52,8 +52,14 @@
   - **Analytics:** Vercel Analytics & Speed Insights integrated.
 - **What's Left to Build:** (Outline remaining features or tasks - Requires manual update/verification, e.g., specific functionality of Around page, transaction handling if any, Share Card API/UI details)
 - **Known Issues:** (Document any bugs or problems - Requires manual update)
-  - **Chat Deal Completion:** The update to the `dealing` collection via `POST /api/chat/deal` was reported as ineffective even after adding the logic. Further testing with the new initiation logic in `POST /api/chat/messages` is needed.
+  - (Previous dealing issues resolved by implementing initiation logic and correcting GET API).
 - **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
   - Implemented `dealing` record creation (upsert) within `POST /api/chat/messages` to resolve the missing initiation step.
+  - Corrected aggregation pipeline in `GET /api/chat/deal` (now in `DealService`) to properly fetch dealing item details.
+  - Initiated Service Layer refactoring:
+    - Created `DealService` (`src/services/deal.service.ts`) and refactored `/api/chat/deal/route.ts` handlers (GET, POST, PATCH).
+    - Created `MessageService` (`src/services/message.service.ts`) and refactored `/api/chat/messages/route.ts` handlers (GET, POST, PATCH, DELETE, PUT).
+    - Created `HistoryService` (`src/services/history.service.ts`) and refactored `/api/history/route.ts` handlers (GET, POST).
+    - Created `ExploreService` (`src/services/explore.service.ts`) and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated based on code analysis - functional status requires verification)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after Explore service refactoring)._

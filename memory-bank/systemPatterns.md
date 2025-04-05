@@ -19,9 +19,9 @@
   - **Styling:** Tailwind CSS for utility-first styling, potentially augmented by Material UI/Headless UI components.
   - **State Management:** React Query for server state management (fetching, caching, synchronizing).
 - **Design Patterns:**
-  - **MVC/MVVM-like (Next.js):** Pages/Layouts act as Controllers/ViewModels, Components as Views, API routes/lib functions as Models/Services.
+  - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, etc.) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs.
   - **Context API:** Used for managing global state (`src/lib/context/`).
-  - **Custom Hooks:** Extensive use for encapsulating logic (`src/lib/hooks/`). Key examples:
+  - **Custom Hooks:** Extensive use for encapsulating frontend logic (`src/lib/hooks/`). Key examples:
     - `useExplore`: Handles fetching and caching of explore items.
     - `useUpload...` series (`useUploadMetaData`, `useUploadImageProcess`, `useUploadAI`, `useUploadAIChat`, `useUploadUI`, `useUploadActions`): Manages the complex state and logic for the item creation/AI estimation process.
     - `useHistory`: Interacts with the history feature (likely saving items).
@@ -39,35 +39,35 @@
 - **Critical Implementation Paths:**
   - **Authentication Flow:** `/signin`, `/signup` -> `api/auth/*` -> `NextAuth.js` -> MongoDB (`users`, `accounts`, `sessions`, etc.).
   - **Chat Messaging:**
-    - Frontend (`Chat.tsx`, hooks) -> `Socket.IO Server` (for broadcasting) & `POST /api/chat/messages` (for persistence).
-    - `POST /api/chat/messages`: Creates/updates `conversations` document, inserts message into `messages` collection. **Additionally, if the message is of type `object_discussion`, it upserts a record into the `dealing` collection (status: 'pending', links `historyId`, `buyerId`, `sellerId`).**
-    - `GET /api/chat/messages`: Retrieves messages from `messages` collection for a conversation.
-    - `PATCH /api/chat/messages`: Marks messages as read in `messages` collection, updates `unreadCount` in `conversations`.
-    - `PUT /api/chat/messages`: Updates message status in `messages` collection.
+    - Frontend (`Chat.tsx`, hooks) -> `Socket.IO Server` (for broadcasting) & API routes (`/api/chat/messages`) for persistence.
+    - `POST /api/chat/messages`: API route calls `messageService.sendMessage`, which handles creating/updating `conversations`, inserting into `messages`, and upserting into `dealing` if applicable.
+    - `GET /api/chat/messages`: API route calls `messageService.getMessages` to retrieve messages.
+    - `PATCH /api/chat/messages`: API route calls `messageService.markMessagesRead` to update `messages` and `conversations`.
+    - `PUT /api/chat/messages`: API route calls `messageService.updateMessageStatus` to update `messages`.
     - Messages (`ChatMessage`) can be plain text or structured `ObjectDiscussionData`.
     - `ObjectDiscussionData` messages have a `status` field (`discussing`, `completed`, `canceled`).
   - **Item Dealing Flow:**
     - **Initiation:** When the first `object_discussion` type message for a specific item (`historyId`) is sent, the `POST /api/chat/messages` handler **upserts** a record into the `dealing` collection (status: 'pending', links `historyId`, `buyerId`, `sellerId`).
-    - **Display in History:** `/history` page (Dealing tab) calls `GET /api/chat/deal`. This API reads from the `dealing` collection and uses an aggregation pipeline (`$lookup`) to join the corresponding item details (including image URL, price, description) from the `histories` collection based on `historyId`. **(Pipeline logic corrected to ensure proper joining and field projection).**
-    - **Completion in Chat:** `Chat.tsx` -> `useObjectDiscussion.ts` -> `POST /api/chat/deal`. This API updates `histories` (`dealCompleted: true`), `explore` (`isSold: true`), and `dealing` (`status: 'completed'`).
-    - **Completion/Cancellation from History:** `/history` page calls `PATCH /api/chat/deal` to update the status in the `dealing` collection directly.
+    - **Display in History:** `/history` page (Dealing tab) calls `GET /api/chat/deal`. This API route now calls `dealService.getDealingItemsForUser(...)` which reads from the `dealing` collection and uses an aggregation pipeline (`$lookup`) to join item details from the `histories` collection.
+    - **Completion in Chat:** `Chat.tsx` -> `useObjectDiscussion.ts` -> `POST /api/chat/deal`. This API route now calls `dealService.completeDeal({ ... })`, which handles updating the `histories`, `explore`, and `dealing` collections.
+    - **Completion/Cancellation from History:** `/history` page calls `PATCH /api/chat/deal`. This API route now calls `dealService.updateDealingStatus(...)` to update the status in the `dealing` collection.
   - **Data Fetching (General):** Frontend Components/Pages -> React Query Hooks (`useExplore`, `useHistory`, etc.) -> API Routes (`src/app/api/*`) -> MongoDB (`pri-cio` database) / External APIs (OpenAI, OpenCage).
     - `explore` collection: Publicly listed items. Linked to `histories` via `historyId`. Contains embedded user profile subset.
     - `histories` collection: Initial item records created by users. Linked to `explore` via `exploreId`. Stores deal completion details.
     - `users` collection: User profile data.
     - `conversations` collection: Metadata for chat conversations (participants, timestamps, settings, unread counts, soft-delete markers).
     - `messages` collection: Individual chat messages. Linked to `conversations`. Stores content, sender/receiver, read status, soft-delete markers.
-    - `dealing` collection: Tracks negotiation state (links `historyId`, `buyerId`, `sellerId`, status). Read/updated by `/api/chat/deal`.
-  - **File Uploads:** Frontend -> S3 (via presigned URLs or direct uploads handled by API routes like `POST /api/history` and `POST /api/editprofile`). Uses `lib/s3.ts`.
-  - **Item Creation/AI Flow:** `/createpost` -> `useUpload...` hooks -> Image Upload (to S3 via `POST /api/history`) -> Save initial record to `histories` collection (`POST /api/history`) -> Optional AI Analysis (`POST /api/ai/chat` - interacts with OpenAI, no DB writes).
-  - **Publishing Flow:** Item exists in `histories` -> User publishes via `POST /api/explore` -> Record created in `explore`, `histories` record updated with `exploreId`.
-  - **Unpublishing Flow:** User unpublishes via `DELETE /api/explore` -> Record deleted from `explore`, `exploreId` removed from `histories` record.
-  - **Profile Editing Flow:** Frontend -> `POST /api/editprofile` -> Uploads new avatar to S3 (if provided), deletes old avatar from S3 -> Updates user document in `users` collection.
+    - `dealing` collection: Tracks negotiation state (links `historyId`, `buyerId`, `sellerId`, status). Read/updated by `DealService` (called by `/api/chat/deal`).
+  - **File Uploads:** Frontend -> S3 (via presigned URLs or direct uploads handled by API routes like `POST /api/history` (via `HistoryService`) and `POST /api/editprofile`). Uses `lib/s3.ts`.
+  - **Item Creation/AI Flow:** `/createpost` -> `useUpload...` hooks -> Prepare data -> Call `POST /api/history` (which calls `historyService.createHistoryItem`) -> Optional AI Analysis (`POST /api/ai/chat` - interacts with OpenAI, no DB writes).
+  - **Publishing Flow:** Item exists in `histories` -> User publishes via `POST /api/explore` (which calls `exploreService.publishItem`).
+  - **Unpublishing Flow:** User unpublishes via `DELETE /api/explore` (which calls `exploreService.unpublishItem`).
+  - **Profile Editing Flow:** Frontend -> `POST /api/editprofile` -> Uploads new avatar to S3 (if provided), deletes old avatar from S3 -> Updates user document in `users` collection. (Candidate for User Service).
   - **Conversation Management Flow:**
     - **Initialization:** Frontend -> `POST /api/chat/conversations/initialize` -> Finds or creates document in `conversations`.
     - **Listing:** Frontend -> `GET /api/chat/conversations/list` -> Aggregates data from `conversations`, `messages`, `users`.
-    - **Deletion:** Frontend -> `DELETE /api/chat/messages` (handles conversationId) -> Soft/hard deletes from `messages` and `conversations` using a transaction. Prevents deletion if active `ObjectDiscussion` exists.
-    - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` (or `initialize`) -> Updates `settings` field in `conversations`.
+    - **Deletion:** Frontend -> `DELETE /api/chat/messages`. API route calls `messageService.deleteConversation` which handles the transaction logic for soft/hard deleting from `messages` and `conversations`, including the check for active `ObjectDiscussion`.
+    - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` (or `initialize`) -> Updates `settings` field in `conversations`. (This could be moved to a ConversationService later).
   - **Share Card Flow:** (Details still limited) Frontend (`useShareCard`) -> API call (`/api/share-card`?) -> Generates shareable card/link.
 
-_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated based on detailed backend analysis)._
+_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after Explore service refactoring)._

@@ -1,28 +1,27 @@
 # Active Context
 
-- **Current Focus:** Testing the implemented fix for the "Complete Deal" workflow bug.
+- **Current Focus:** Continuing codebase cleanup by refactoring API routes to use a Service Layer.
 - **Recent Changes:**
-  - Attempted a fix for the "Complete Deal" workflow bug by modifying `POST /api/chat/deal` to update the `dealing` collection; this was ineffective as the `dealing` record didn't exist yet.
-  - Added logging to `POST /api/chat/deal` for diagnosis.
-  - Completed a comprehensive investigation of backend data logic and updated the Memory Bank.
-  - **Implemented the missing `dealing` record creation logic:** Modified `POST /api/chat/messages` to upsert a `dealing` record (status: 'pending') when the first `object_discussion` message for an item is sent.
-  - Cleaned up an ESLint warning in `POST /api/chat/messages`.
-  - **Corrected `GET /api/chat/deal`:** Fixed the aggregation pipeline to correctly join `histories` data and project the `imageUrl`, `price`, and `description` for the "Dealing Items" tab.
-  - Updated all relevant Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect both the creation and fetching fixes.
+  - Fixed bugs related to the "Complete Deal" workflow and display of dealing items.
+  - Completed a comprehensive investigation of backend data logic.
+  - **Continued Service Layer Refactoring:**
+    - Created `src/services/` directory.
+    - Defined relevant types in `src/lib/types/`.
+    - Created `src/services/deal.service.ts` and refactored `/api/chat/deal/route.ts` handlers (GET, POST, PATCH).
+    - Created `src/services/message.service.ts` and refactored `/api/chat/messages/route.ts` handlers (GET, POST, PATCH, DELETE, PUT).
+    - Created `src/services/history.service.ts` and refactored `/api/history/route.ts` handlers (GET, POST).
+    - **Created `src/services/explore.service.ts` and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).**
+  - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress.
 - **Next Steps:**
-  - User to test the complete workflow:
-    1. Start a new negotiation (send/receive the first `object_discussion` message).
-    2. Verify the item appears correctly (with image) in the History "Dealing Items" tab.
-    3. Complete the deal via the chat interface.
-    4. Verify the item status is correctly updated in the History page (Dealing tab should reflect completion, or the item should move out of this tab).
-  - Provide feedback on whether both fixes (dealing record creation and dealing item display) are successful.
+  - Continue refactoring other API routes by creating and implementing corresponding service files (e.g., `user.service.ts`, `conversation.service.ts`).
+  - Update Memory Bank documentation as refactoring progresses.
 - **Active Decisions/Considerations:**
-  - The implemented fixes address both the missing `dealing` record and the incorrect display of dealing items. Awaiting test results to confirm resolution.
-- **Key Patterns/Preferences:** (Confirmed/Expanded during analysis)
+  - Proceeding with service layer refactoring incrementally.
+- **Key Patterns/Preferences:** (Updated)
+  - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access, separating concerns from API route handlers.
   - Next.js App Router structure.
   - TypeScript throughout.
-  - Heavy reliance on custom hooks for state management and feature logic.
-  - Separation of concerns (components, lib, api, server).
+  - Heavy reliance on custom hooks for frontend state management and feature logic.
   - Use of Tailwind CSS for styling, augmented by Headless UI and potentially Material UI.
   - React Query for server state management.
   - Socket.IO (dedicated server) for real-time features (chat, presence, explore updates) - no direct DB interaction.
@@ -32,6 +31,6 @@
   - AWS S3 for file storage (avatars, item images).
   - Clear distinction between item creation/history (`histories`) and published items (`explore`).
   - Structured data types for core entities.
-- **Learnings/Insights:** The backend relies heavily on specific API routes for CRUD operations on distinct MongoDB collections. Real-time aspects are handled separately by Socket.IO. Understanding the specific roles and interactions of each collection (`histories`, `explore`, `dealing`, `conversations`, `messages`) is crucial for debugging data flow issues. The initiation logic for `dealing` records (via upsert in `POST /api/chat/messages`) has now been implemented.
+- **Learnings/Insights:** The backend relies heavily on specific API routes for CRUD operations on distinct MongoDB collections, which is being addressed by the Service Layer refactoring. Real-time aspects are handled separately by Socket.IO. Understanding the specific roles and interactions of each collection (`histories`, `explore`, `dealing`, `conversations`, `messages`) is crucial for debugging data flow issues. The initiation logic for `dealing` records (via upsert in `POST /api/chat/messages`) has now been implemented.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after comprehensive backend analysis and dealing initiation fix)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after Explore service refactoring)._
