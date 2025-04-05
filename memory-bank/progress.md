@@ -1,0 +1,42 @@
+# Progress
+
+- **Current Status:** (High-level summary of project completion - Requires manual update)
+- **What Works (Implemented Features - Functional Status Requires Verification):**
+  - **Core Structure:** Next.js App Router setup, Layout Wrapper, Navigation, Footer.
+  - **Authentication:** Google & Email/Password providers via NextAuth.js, MongoDB adapter, JWT sessions, email verification check. API routes for signup, reset password, verify email/code.
+  - **User Profiles:** Data structure (`UserProfile`) defined, API endpoint for editing (`/api/editprofile`), profile data fetched for Navigation display.
+  - **Explore Page (`/explore`):**
+    - Fetches posts (`ExploreItem`) via `useExplore` hook (React Query) from `/api/explore`.
+    - Client-side search filtering.
+    - Location-based radius filtering (using Geolocation API, OpenCage API, Haversine formula).
+    - Item detail modal (`ItemDetailModal`).
+    - Link to `/around` page.
+  - **Chat System:**
+    - Real-time messaging via dedicated Socket.IO server (presence, rooms, messages, typing, read receipts).
+    - Chat history page (`/chathistory`).
+    - Direct chat page (`/chat/[userId]`).
+    - Structured "Object Discussion" feature within chat messages (`ObjectDiscussionData`).
+    - API endpoint for chat messages (`/api/chat/messages`).
+    - API endpoints for conversation management (`/api/chat/conversations/...`).
+  - **AI Integration:**
+    - AI Chat API (`/api/ai/chat`) using OpenAI GPT-4 Vision (image analysis) and GPT-4 (conversational pricing/description generation).
+    - Handles image uploads (`formidable`) or image URLs for analysis.
+  - **Post Creation (`/createpost` using `ImageCapture` component):**
+    - UI for image upload, currency selection (GBP, USD, EUR, CNY), manual price/description input.
+    - Integrates multiple custom hooks (`useUpload...` series) for managing state.
+    - Button to trigger AI analysis (`ChatAIModal`).
+    - Button to save item to history (`useHistory`).
+    - Button to clear/delete current item.
+  - **History Page (`/history`):** Page exists, linked from user avatar. Likely displays items from `histories` collection.
+  - **Around Page (`/around`):** Page exists, linked from Explore. Functionality TBD.
+  - **Share Card Feature:** Implemented via `useShareCard` hook, likely generates a shareable representation of an item.
+  - **Database:** MongoDB (`pri-cio` database) with collections: `explore`, `users`, `histories` (and others for NextAuth). Connection management implemented.
+  - **File Uploads:** AWS S3 integration likely used (SDKs present, profile avatar upload mentioned in `user.ts`).
+  - **API Endpoints:** Defined for most core features (AI, Auth, Chat, Profile, Explore, History, Users, Share Card). Explore API includes GET, POST (publish), DELETE (unpublish).
+  - **Utilities:** Context providers (`RootProvider`), various custom hooks, type definitions.
+  - **Analytics:** Vercel Analytics & Speed Insights integrated.
+- **What's Left to Build:** (Outline remaining features or tasks - Requires manual update/verification, e.g., specific functionality of History/Around pages, transaction handling if any, UI for unpublishing, Share Card API/UI details)
+- **Known Issues:** (Document any bugs or problems - Requires manual update)
+- **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
+
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated based on code analysis - functional status requires verification)._

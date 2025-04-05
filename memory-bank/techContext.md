@@ -1,0 +1,57 @@
+# Tech Context
+
+- **Technologies Used:**
+  - **Framework:** Next.js (v15.2.4)
+  - **Language:** TypeScript
+  - **UI:**
+    - Core: React (v18.3.1)
+    - Components/Styling: Material UI, Headless UI (Switch, Menu), Tailwind CSS, Lucide Icons, React Icons
+    - Animation: Framer Motion
+    - Modals: `react-modal`, Custom (`ChatAIModal`)
+    - Notifications: Custom `Toast` component
+  - **State Management:**
+    - Server State: `@tanstack/react-query` (Used extensively, e.g., in `useExplore` hook with specific caching/refetching strategies: 30s staleTime, 5m gcTime, 1m refetchInterval).
+    - Global Client State: React Context API (`src/lib/context/` - specifically `RootProvider`).
+    - Local Client State: `useState`, managed heavily within custom hooks (`useUpload...` series).
+  - **Layout:** `LayoutWrapper` component (`src/components/layout/LayoutWrapper.tsx`) provides consistent structure.
+  - **Custom Hooks:** Extensive use, notably for upload/AI process (`useUploadMetaData`, `useUploadImageProcess`, `useUploadAI`, `useUploadAIChat`, `useUploadUI`, `useUploadActions`), history (`useHistory`), sharing (`useShareCard`), explore (`useExplore`), etc.
+  - **Authentication:** NextAuth.js (v5 beta)
+    - **Providers:** Google, Credentials (Email/Password)
+    - **Adapter:** MongoDB (`@auth/mongodb-adapter`)
+    - **Session Strategy:** JWT
+  - **Database:** MongoDB
+    - **Name:** `pri-cio`
+    - **Collections Used:** `explore`, `users`, `histories` (others likely used by NextAuth adapter)
+    - **Connection:** Managed via `src/lib/mongodb.ts` using `MONGODB_URI` env var, includes dev environment connection reuse strategy.
+  - **API/Backend:** Node.js (via Next.js), Axios, Zod (validation)
+  - **Real-time:** Socket.IO
+  - **Cloud Services:** AWS S3
+  - **Mapping/Location:**
+    - Browser Geolocation API (`navigator.geolocation`)
+    - OpenCage Geocoding API (for location names from coordinates)
+    - Google Maps (for directions links)
+    - Mapbox GL (Dependency listed, usage context TBD)
+  - **AI/External APIs:**
+    - OpenAI: GPT-4 Vision (`gpt-4o-2024-08-06` for image analysis), GPT-4 (for chat/description generation, used in `ChatAIModal`)
+    - SerpApi
+  - **Utilities:** Lodash, date-fns, nanoid, classnames, Haversine formula (for distance), Currency definitions (GBP, USD, EUR, CNY)
+  - **Image Processing:** Sharp, browser-image-compression
+  - **Email:** Nodemailer
+  - **Security:** bcryptjs (Password comparison)
+  - **Testing:** Jest, ts-jest
+  - **Analytics:** Vercel Analytics, Vercel Speed Insights (Integrated in `layout.tsx`)
+  - **External Libraries:** Font Awesome (Icons), Lottie Player (Animations)
+- **Development Setup:**
+  - Requires `npm install`.
+  - Requires environment variables in `.env.local` (e.g., `AUTH_GOOGLE_CLIENT_ID`, `AUTH_GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `MONGODB_URI`, AWS credentials, OpenAI key, etc.).
+- **Technical Constraints:** (Any limitations, e.g., browser compatibility, performance targets)
+- **Dependencies:** (Key external services or systems - AWS S3, Google Maps, OpenAI, SerpApi, MongoDB Atlas, Google Cloud Platform for OAuth)
+- **Tool Usage Patterns:**
+  - **Linting:** ESLint (`npm run lint`)
+  - **Build:** Next.js (`npm run build`)
+  - **Development Server:** Next.js + Socket.IO server (`npm run dev` using `concurrently`)
+  - **Socket Server:** ts-node (`npm run socket`)
+  - **Patching:** `patch-package` (used postinstall)
+  - **CSS:** PostCSS, Tailwind CSS
+
+_This file details the technologies used, development setup, technical constraints, dependencies, and tool usage patterns._

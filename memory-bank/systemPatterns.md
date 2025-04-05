@@ -1,0 +1,54 @@
+# System Patterns
+
+- **Architecture Overview:**
+  - **Primary:** Next.js App Router based application (Client-Server). Combines frontend rendering (React Server Components & Client Components) and backend API routes within the same framework.
+  - **Real-time:** Separate Socket.IO server (`src/server/socket.ts`) running on a dedicated port (default 3001), managed via `npm run socket`. Handles WebSocket connections for:
+    - User presence (mapping userId to socketId).
+    - Conversation room management (joining/leaving).
+    - Message broadcasting (`send-message`, `new-message`).
+    - Typing indicators (`typing`, `user-typing`).
+    - Read receipts (`mark-read`, `message-read`, `conversation-read`).
+    - New conversation notifications (`new-conversation`).
+    - Explore feed updates (`explore-posts-update`).
+- **Key Technical Decisions:**
+  - **Framework:** Next.js (App Router) for full-stack development.
+  - **Database:** MongoDB (Adapter used with NextAuth, likely primary DB).
+  - **Authentication:** NextAuth.js for handling user sessions.
+  - **Real-time Communication:** Socket.IO (dedicated server) for chat and potentially other live updates.
+  - **File Storage:** AWS S3 for storing user uploads or other assets.
+  - **Styling:** Tailwind CSS for utility-first styling, potentially augmented by Material UI/Headless UI components.
+  - **State Management:** React Query for server state management (fetching, caching, synchronizing).
+- **Design Patterns:**
+  - **MVC/MVVM-like (Next.js):** Pages/Layouts act as Controllers/ViewModels, Components as Views, API routes/lib functions as Models/Services.
+  - **Context API:** Used for managing global state (`src/lib/context/`).
+  - **Custom Hooks:** Extensive use for encapsulating logic (`src/lib/hooks/`). Key examples:
+    - `useExplore`: Handles fetching and caching of explore items.
+    - `useUpload...` series (`useUploadMetaData`, `useUploadImageProcess`, `useUploadAI`, `useUploadAIChat`, `useUploadUI`, `useUploadActions`): Manages the complex state and logic for the item creation/AI estimation process.
+    - `useHistory`: Interacts with the history feature (likely saving items).
+    - `useShareCard`: Manages the "Share Card" generation feature.
+  - **API Routes (Next.js):** Backend logic exposed via defined API endpoints.
+  - **Serverless Functions:** API routes likely deployed as serverless functions (Vercel default).
+- **Component Relationships:**
+  - **Layout:** `src/app/layout.tsx` wraps all pages with `RootProvider` and `LayoutWrapper`.
+    - `LayoutWrapper` (`src/components/layout/LayoutWrapper.tsx`) conditionally renders:
+      - `Navigation` component (`src/components/layout/Navigation.tsx`) on most pages (hidden on `/signin`, `/signup`, `/reset-password`).
+      - `Footer` component (`src/components/layout/Footer.tsx`) on most pages (hidden on `/signin`, `/signup`, `/reset-password`, `/around`).
+  - **Pages:** Located in `src/app/*` directories, composing various components from `src/components/`.
+  - **Components:** Organized by scope (features, layout, main, shared).
+  - **Core Logic:** `src/lib/` contains shared utilities, hooks, context, types (`chat.ts`, `explore.ts`, etc.), and managers (`ChatCacheManager`, `SocketEventManager`).
+- **Critical Implementation Paths:**
+  - **Authentication Flow:** `signin` -> `api/auth` -> `NextAuth.js` -> `MongoDB`.
+  - **Chat:** `src/app/chat` -> `Socket.IO Server` / `src/app/api/chat` -> `MongoDB`.
+    - Messages (`ChatMessage`) can be plain text or structured `ObjectDiscussionData` for item negotiation.
+    - Message statuses tracked: `sending`, `sent`, `delivered`, `read`, `error`.
+  - **Data Fetching:** Components/Pages -> React Query Hooks (`useExplore`, etc.) -> API Routes (`src/app/api/`) -> `MongoDB`/External APIs.
+    - Explore items (`ExploreItem`) fetched from `explore` collection, containing images, price, description, currency, location, and embedded user profile data (`UserProfile` subset: \_id, avatarUrl, name). Items in `explore` are linked to records in the `histories` collection via `historyId` and `exploreId`.
+    - User profiles (`UserProfile`) fetched from `users` collection, contain `_id`, `email`, `name`, `about`, `website`, `avatarUrl`.
+    - History items (`histories` collection) track items, potentially before they are published to `explore`.
+  - **File Uploads:** Client -> `api/` route (e.g., for presigned URL) -> AWS S3.
+  - **Item Creation/AI Flow:** `/createpost` (using `ImageCapture` component) -> `useUpload...` hooks -> Image Upload -> Optional AI Analysis (`/api/ai/chat`) -> Save to `histories` (`useHistory`).
+  - **Publishing Flow:** Item exists in `histories` -> User publishes via `/api/explore` POST -> Record created in `explore`, `histories` record updated with `exploreId`.
+  - **Unpublishing Flow:** User unpublishes via `/api/explore` DELETE -> Record deleted from `explore`, `exploreId` removed from `histories` record.
+  - **Share Card Flow:** Triggered (likely from Create Post or History) -> `useShareCard` -> API call (`/api/share-card`?) -> Generates shareable card/link.
+
+_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths._
