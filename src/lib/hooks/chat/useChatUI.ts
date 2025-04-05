@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useContext } from 'react';
-import { useInView } from 'react-intersection-observer';
-import { ChatMessage } from '@/lib/types/chat';
-import { ExploreItem } from '@/lib/types/explore';
-import { SocketContext } from '@/lib/context/SocketContext';
+import { useState, useRef, useEffect, useContext } from "react";
+import { useInView } from "react-intersection-observer";
+import { ChatMessage } from "@/lib/types/chat";
+import { ExploreItem } from "@/lib/types/explore";
+import { SocketContext } from "@/lib/context/SocketContext";
 
 interface UseChatUIProps {
   messages: ChatMessage[];
@@ -26,6 +26,7 @@ export function useChatUI({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreDivRef = useRef<HTMLDivElement>(null); // Create a RefObject
 
   // States
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
@@ -38,12 +39,17 @@ export function useChatUI({
   const [inputMessage, setInputMessage] = useState("");
 
   // InView hook for infinite scroll
-  const { ref: loadMoreRef, inView } = useInView();
+  const { ref: loadMoreCallbackRef, inView } = useInView(); // Rename the callback ref
+
+  // Assign the callback ref to the RefObject
+  useEffect(() => {
+    loadMoreCallbackRef(loadMoreDivRef.current);
+  }, [loadMoreCallbackRef]);
 
   // Scroll to bottom function
   const scrollToBottom = () => {
     if (shouldScrollToBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -60,7 +66,7 @@ export function useChatUI({
 
     const lastMessage = messages[messages.length - 1];
     const isNewMessage = lastMessage._id !== lastMessageRef.current;
-    
+
     if (isNewMessage) {
       lastMessageRef.current = lastMessage._id;
       if (shouldScrollToBottom || lastMessage.senderId === currentUserId) {
@@ -68,11 +74,15 @@ export function useChatUI({
       }
 
       // Mark messages as read
-      if (conversationId && currentUserId && lastMessage.senderId !== currentUserId) {
-        fetch('/api/chat/messages', {
-          method: 'PATCH',
+      if (
+        conversationId &&
+        currentUserId &&
+        lastMessage.senderId !== currentUserId
+      ) {
+        fetch("/api/chat/messages", {
+          method: "PATCH",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ conversationId }),
         }).catch(console.error);
@@ -93,7 +103,7 @@ export function useChatUI({
     if (messagesContainerRef.current) {
       setScrollPosition(messagesContainerRef.current.scrollTop);
     }
-    setShowPosts(prev => !prev);
+    setShowPosts((prev) => !prev);
   };
 
   // Restore scroll position after toggling posts
@@ -115,12 +125,16 @@ export function useChatUI({
       if (!currentUserId) return;
       setIsLoadingMyPosts(true);
       try {
-        const response = await fetch('/api/explore');
-        if (!response.ok) throw new Error('Failed to fetch posts');
+        const response = await fetch("/api/explore");
+        if (!response.ok) throw new Error("Failed to fetch posts");
         const allPosts = await response.json();
-        setMyPosts(allPosts.filter((post: ExploreItem) => post.userProfile?._id === currentUserId));
+        setMyPosts(
+          allPosts.filter(
+            (post: ExploreItem) => post.userProfile?._id === currentUserId
+          )
+        );
       } catch (error) {
-        console.error('Error fetching my posts:', error);
+        console.error("Error fetching my posts:", error);
       } finally {
         setIsLoadingMyPosts(false);
       }
@@ -175,7 +189,7 @@ export function useChatUI({
     // Refs
     messagesEndRef,
     messagesContainerRef,
-    loadMoreRef,
+    loadMoreRef: loadMoreDivRef, // Return the RefObject
 
     // States
     inputMessage,
@@ -197,4 +211,4 @@ export function useChatUI({
     handleMessageSubmit,
     scrollToBottom,
   };
-} 
+}

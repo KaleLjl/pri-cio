@@ -28,6 +28,7 @@
     - `PUT /api/chat/messages`: API route calls `messageService.updateMessageStatus`.
     - `DELETE /api/chat/messages`: API route calls `messageService.deleteConversation`.
     - Structured "Object Discussion" feature within messages (`ObjectDiscussionData` type).
+    - **Frontend:** Refactored `Chat.tsx` into sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup` in `src/components/main/chat/`). Logic managed by custom hooks (`useInitializeChat`, `useChatData`, `useChatUI`, `useMessageActions`, `useObjectDiscussion`).
   - **Item Dealing (`dealing` collection & related APIs):**
     - **Initiation:** `POST /api/chat/messages` now upserts a record into `dealing` (status: 'pending') when the first `object_discussion` message for an item is sent.
     - `GET /api/chat/deal`: API route calls `dealService.getDealingItemsForUser` to fetch items for the "Dealing Items" tab in History (reads from `dealing`, joins `histories`).
@@ -61,5 +62,6 @@
     - Created `MessageService` (`src/services/message.service.ts`) and refactored `/api/chat/messages/route.ts` handlers (GET, POST, PATCH, DELETE, PUT).
     - Created `HistoryService` (`src/services/history.service.ts`) and refactored `/api/history/route.ts` handlers (GET, POST).
     - Created `ExploreService` (`src/services/explore.service.ts`) and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).
+  - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after Explore service refactoring)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after Chat component refactoring)._

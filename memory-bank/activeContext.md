@@ -10,7 +10,8 @@
     - Created `src/services/deal.service.ts` and refactored `/api/chat/deal/route.ts` handlers (GET, POST, PATCH).
     - Created `src/services/message.service.ts` and refactored `/api/chat/messages/route.ts` handlers (GET, POST, PATCH, DELETE, PUT).
     - Created `src/services/history.service.ts` and refactored `/api/history/route.ts` handlers (GET, POST).
-    - **Created `src/services/explore.service.ts` and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).**
+    - Created `src/services/explore.service.ts` and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).
+  - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
   - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress.
 - **Next Steps:**
   - Continue refactoring other API routes by creating and implementing corresponding service files (e.g., `user.service.ts`, `conversation.service.ts`).
@@ -21,7 +22,8 @@
   - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access, separating concerns from API route handlers.
   - Next.js App Router structure.
   - TypeScript throughout.
-  - Heavy reliance on custom hooks for frontend state management and feature logic.
+  - Heavy reliance on custom hooks for frontend state management and feature logic (e.g., `useChatData`, `useChatUI`, `useObjectDiscussion`).
+  - **Component Composition:** Breaking down large components (like `Chat.tsx`) into smaller, reusable sub-components for better maintainability.
   - Use of Tailwind CSS for styling, augmented by Headless UI and potentially Material UI.
   - React Query for server state management.
   - Socket.IO (dedicated server) for real-time features (chat, presence, explore updates) - no direct DB interaction.
@@ -33,4 +35,4 @@
   - Structured data types for core entities.
 - **Learnings/Insights:** The backend relies heavily on specific API routes for CRUD operations on distinct MongoDB collections, which is being addressed by the Service Layer refactoring. Real-time aspects are handled separately by Socket.IO. Understanding the specific roles and interactions of each collection (`histories`, `explore`, `dealing`, `conversations`, `messages`) is crucial for debugging data flow issues. The initiation logic for `dealing` records (via upsert in `POST /api/chat/messages`) has now been implemented.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after Explore service refactoring)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after Chat component refactoring)._

@@ -26,8 +26,10 @@
     - `useUpload...` series (`useUploadMetaData`, `useUploadImageProcess`, `useUploadAI`, `useUploadAIChat`, `useUploadUI`, `useUploadActions`): Manages the complex state and logic for the item creation/AI estimation process.
     - `useHistory`: Interacts with the history feature (likely saving items).
     - `useShareCard`: Manages the "Share Card" generation feature.
+    - `useChat...` series (`useInitializeChat`, `useChatData`, `useChatUI`, `useMessageActions`, `useObjectDiscussion`): Encapsulate complex chat logic.
   - **API Routes (Next.js):** Backend logic exposed via defined API endpoints.
   - **Serverless Functions:** API routes likely deployed as serverless functions (Vercel default).
+  - **Component Composition:** Breaking down complex UI (e.g., `Chat.tsx`) into smaller, focused sub-components.
 - **Component Relationships:**
   - **Layout:** `src/app/layout.tsx` wraps all pages with `RootProvider` and `LayoutWrapper`.
     - `LayoutWrapper` (`src/components/layout/LayoutWrapper.tsx`) conditionally renders:
@@ -35,7 +37,16 @@
       - `Footer` component (`src/components/layout/Footer.tsx`) on most pages (hidden on `/signin`, `/signup`, `/reset-password`, `/around`).
   - **Pages:** Located in `src/app/*` directories, composing various components from `src/components/`.
   - **Components:** Organized by scope (features, layout, main, shared).
-  - **Core Logic:** `src/lib/` contains shared utilities (DB connection `mongodb.ts`, S3 helpers `s3.ts`), hooks, context, types, and managers.
+    - **Chat Components (`src/components/main/chat/`):**
+      - `ChatHeader.tsx`: Displays user info, back button, toggle posts, delete conversation.
+      - `UserPostsDisplay.tsx`: Shows other user's posts.
+      - `MessageList.tsx`: Renders the list of messages, handles infinite scroll.
+      - `MessageItem.tsx`: Renders a single message (text or ObjectDiscussionCard).
+      - `ObjectDiscussionCard.tsx`: Renders the structured item discussion message.
+      - `MessageInput.tsx`: Handles text input, send button, and toggling MyPostsPopup.
+      - `MyPostsPopup.tsx`: Displays current user's posts for selection.
+    - **Main Chat Orchestrator:** `src/components/main/Chat.tsx` uses hooks and composes the above sub-components.
+  - **Core Logic:** `src/lib/` contains shared utilities (DB connection `mongodb.ts`, S3 helpers `s3.ts`, image utils `imageUtils.ts`), hooks, context, types, and managers.
 - **Critical Implementation Paths:**
   - **Authentication Flow:** `/signin`, `/signup` -> `api/auth/*` -> `NextAuth.js` -> MongoDB (`users`, `accounts`, `sessions`, etc.).
   - **Chat Messaging:**
@@ -70,4 +81,4 @@
     - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` (or `initialize`) -> Updates `settings` field in `conversations`. (This could be moved to a ConversationService later).
   - **Share Card Flow:** (Details still limited) Frontend (`useShareCard`) -> API call (`/api/share-card`?) -> Generates shareable card/link.
 
-_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after Explore service refactoring)._
+_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after Chat component refactoring)._
