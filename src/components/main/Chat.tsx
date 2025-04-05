@@ -12,7 +12,7 @@ import {
   useObjectDiscussion,
 } from "@/lib/hooks/chat";
 import { useChatHistory } from "@/lib/hooks/useChatHistory";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react"; // Import useMemo
 import ChatHeader from "./chat/ChatHeader";
 import UserPostsDisplay from "./chat/UserPostsDisplay";
 import MessageList from "./chat/MessageList";
@@ -21,7 +21,8 @@ import MessageInput from "./chat/MessageInput";
 export default function Chat({ userId }: ChatProps) {
   const router = useRouter(); // Keep router for back button/navigation
   const queryClient = useQueryClient(); // Keep queryClient for useObjectDiscussion
-  const { markAsRead } = useChatHistory();
+  // Destructure chats as well
+  const { markAsRead, chats } = useChatHistory();
 
   // --- Hooks ---
   // Use the initialization hook
@@ -107,14 +108,23 @@ export default function Chat({ userId }: ChatProps) {
   });
 
   // --- Effects ---
-  // Mark the message as read
+  // Memoize the current chat's unread status to prevent unnecessary effect runs
+  const hasUnreadMessages = useMemo(() => {
+    if (!conversationId || !chats) return false;
+    const currentChat = chats.find((chat) => chat._id === conversationId);
+    return !!currentChat && currentChat.unreadCount > 0;
+  }, [conversationId, chats]);
+
+  // Mark the message as read only if there are unread messages
   useEffect(() => {
-    if (conversationId) {
+    // Only run if conversationId is valid and there are unread messages
+    if (conversationId && hasUnreadMessages) {
       markAsRead(conversationId).catch((error) => {
         console.error("Failed to mark messages as read:", error);
       });
     }
-  }, [conversationId, markAsRead]);
+    // Depend on conversationId and the memoized unread status
+  }, [conversationId, hasUnreadMessages, markAsRead]);
 
   // --- Render Logic ---
   if (error) {

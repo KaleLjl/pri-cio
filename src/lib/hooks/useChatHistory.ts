@@ -35,6 +35,9 @@ export function useChatHistory(): UseChatHistoryReturn {
       return response.json();
     },
     enabled: !!session,
+    // Add options to make fetching less aggressive
+    staleTime: 30 * 1000, // Consider data fresh for 30 seconds
+    refetchOnWindowFocus: false, // Don't refetch just because the window gained focus
   });
 
   const refetch = async () => {
@@ -53,16 +56,16 @@ export function useChatHistory(): UseChatHistoryReturn {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || "Failed to delete messages");
       }
 
-
       socket.leaveRoom(conversationId);
-      
-  
-      queryClient.removeQueries({ queryKey: ["chat-messages", conversationId] });
+
+      queryClient.removeQueries({
+        queryKey: ["chat-messages", conversationId],
+      });
       await refetch();
     } catch (error) {
       console.error("Error deleting messages:", error);
@@ -76,10 +79,8 @@ export function useChatHistory(): UseChatHistoryReturn {
       // 1. 立即更新本地缓存以提供即时反馈
       queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
         if (!oldChats) return oldChats;
-        return oldChats.map(chat => 
-          chat._id === conversationId 
-            ? { ...chat, unreadCount: 0 }
-            : chat
+        return oldChats.map((chat) =>
+          chat._id === conversationId ? { ...chat, unreadCount: 0 } : chat
         );
       });
 
@@ -101,12 +102,14 @@ export function useChatHistory(): UseChatHistoryReturn {
         throw new Error("Failed to mark messages as read");
       }
 
-      // 4. 重新获取聊天列表以确保同步
-      await refetch();
+      // 4. (Removed) No longer automatically refetching the list here.
+      // The optimistic update and socket events should handle UI updates.
+      // await refetch();
     } catch (error) {
       console.error("Error marking messages as read:", error);
-      // 如果失败，回滚本地缓存
-      await refetch();
+      // Consider if a refetch is truly needed on error, or rely on cache invalidation elsewhere.
+      // For now, removing the automatic refetch on error as well to break the loop.
+      // await refetch();
       throw error;
     }
   };
