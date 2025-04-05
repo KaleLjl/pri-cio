@@ -21,7 +21,7 @@
     - **Session Strategy:** JWT
   - **Database:** MongoDB
     - **Name:** `pri-cio`
-    - **Collections Used:** `explore`, `users`, `histories` (others likely used by NextAuth adapter)
+    - **Collections Used:** `users`, `histories`, `explore`, `conversations`, `messages`, `dealing` (plus NextAuth collections like `accounts`, `sessions`, `verificationTokens`).
     - **Connection:** Managed via `src/lib/mongodb.ts` using `MONGODB_URI` env var, includes dev environment connection reuse strategy.
   - **API/Backend:** Node.js (via Next.js), Axios, Zod (validation)
   - **Real-time:** Socket.IO

@@ -1,42 +1,59 @@
 # Progress
 
 - **Current Status:** (High-level summary of project completion - Requires manual update)
-- **What Works (Implemented Features - Functional Status Requires Verification):**
-  - **Core Structure:** Next.js App Router setup, Layout Wrapper, Navigation, Footer.
-  - **Authentication:** Google & Email/Password providers via NextAuth.js, MongoDB adapter, JWT sessions, email verification check. API routes for signup, reset password, verify email/code.
-  - **User Profiles:** Data structure (`UserProfile`) defined, API endpoint for editing (`/api/editprofile`), profile data fetched for Navigation display.
-  - **Explore Page (`/explore`):**
-    - Fetches posts (`ExploreItem`) via `useExplore` hook (React Query) from `/api/explore`.
-    - Client-side search filtering.
-    - Location-based radius filtering (using Geolocation API, OpenCage API, Haversine formula).
-    - Item detail modal (`ItemDetailModal`).
-    - Link to `/around` page.
-  - **Chat System:**
-    - Real-time messaging via dedicated Socket.IO server (presence, rooms, messages, typing, read receipts).
-    - Chat history page (`/chathistory`).
-    - Direct chat page (`/chat/[userId]`).
-    - Structured "Object Discussion" feature within chat messages (`ObjectDiscussionData`).
-    - API endpoint for chat messages (`/api/chat/messages`).
-    - API endpoints for conversation management (`/api/chat/conversations/...`).
-  - **AI Integration:**
-    - AI Chat API (`/api/ai/chat`) using OpenAI GPT-4 Vision (image analysis) and GPT-4 (conversational pricing/description generation).
-    - Handles image uploads (`formidable`) or image URLs for analysis.
-  - **Post Creation (`/createpost` using `ImageCapture` component):**
-    - UI for image upload, currency selection (GBP, USD, EUR, CNY), manual price/description input.
-    - Integrates multiple custom hooks (`useUpload...` series) for managing state.
-    - Button to trigger AI analysis (`ChatAIModal`).
-    - Button to save item to history (`useHistory`).
-    - Button to clear/delete current item.
-  - **History Page (`/history`):** Page exists, linked from user avatar. Likely displays items from `histories` collection.
-  - **Around Page (`/around`):** Page exists, linked from Explore. Functionality TBD.
-  - **Share Card Feature:** Implemented via `useShareCard` hook, likely generates a shareable representation of an item.
-  - **Database:** MongoDB (`pri-cio` database) with collections: `explore`, `users`, `histories` (and others for NextAuth). Connection management implemented.
-  - **File Uploads:** AWS S3 integration likely used (SDKs present, profile avatar upload mentioned in `user.ts`).
-  - **API Endpoints:** Defined for most core features (AI, Auth, Chat, Profile, Explore, History, Users, Share Card). Explore API includes GET, POST (publish), DELETE (unpublish).
-  - **Utilities:** Context providers (`RootProvider`), various custom hooks, type definitions.
+- **What Works (Implemented Features - Functional Status & Details Verified via Code Analysis):**
+  - **Core Structure:** Next.js App Router setup, Layout Wrapper (`src/components/layout/LayoutWrapper.tsx`), Navigation (`Navigation.tsx`), Footer (`Footer.tsx`).
+  - **Authentication:** NextAuth.js setup (`/api/auth/[...nextauth]`) with Google & Credentials providers, MongoDB adapter (`@auth/mongodb-adapter`), JWT strategy. Includes API routes for signup, reset password, verify email/code.
+  - **User Profiles (`users` collection):**
+    - Data structure (`UserProfile` in `src/lib/types/user.ts`).
+    - Profile editing via `POST /api/editprofile` (updates `users`, handles S3 avatar upload/delete). `PUT` and `DELETE` also exist.
+    - Fetching own basic profile via `GET /api/users/me`.
+    - Fetching other users' basic public profile via `GET /api/users/[userId]`.
+  - **Explore Page (`/explore` & `/api/explore`):**
+    - `GET /api/explore`: Fetches published items from `explore` collection, filters by search/userId, joins basic user data from `users`.
+    - `POST /api/explore`: Publishes an item - creates `explore` record, updates `histories` record with `exploreId`. Uses OpenCage for geocoding location.
+    - `DELETE /api/explore`: Unpublishes an item - deletes from `explore`, removes `exploreId` from `histories`.
+    - Frontend (`Explore.tsx`, `useExplore` hook) displays items, handles filtering.
+  - **Item History (`histories` collection):**
+    - `POST /api/history`: Creates initial item record in `histories`, uploads images to S3. Triggered from `/createpost`.
+    - `GET /api/history`: Fetches all history items for the logged-in user.
+  - **Chat System (`conversations`, `messages` collections):**
+    - Real-time via dedicated Socket.IO server (`src/server/socket.ts` - no DB interaction).
+    - `POST /api/chat/conversations/initialize`: Finds or creates a conversation record in `conversations`.
+    - `GET /api/chat/conversations/list`: Fetches user's conversation list with last message preview and unread count (aggregates `conversations`, `messages`, `users`).
+    - `PATCH /api/chat/conversations/settings` (or `/initialize`): Updates settings field in `conversations`.
+    - `POST /api/chat/messages`: Saves new message to `messages`, creates/updates `conversations`.
+    - `GET /api/chat/messages`: Fetches messages for a conversation from `messages`.
+    - `PATCH /api/chat/messages`: Marks messages as read in `messages`, updates `unreadCount` in `conversations`.
+    - `PUT /api/chat/messages`: Updates message status field in `messages`.
+    - `DELETE /api/chat/messages`: Soft/hard deletes messages and conversation (uses transaction, checks for ongoing `ObjectDiscussion`).
+    - Structured "Object Discussion" feature within messages (`ObjectDiscussionData` type).
+  - **Item Dealing (`dealing` collection & related APIs):**
+    - **Initiation:** `POST /api/chat/messages` now upserts a record into `dealing` (status: 'pending') when the first `object_discussion` message for an item is sent.
+    - `GET /api/chat/deal`: Fetches items for the "Dealing Items" tab in History (reads from `dealing`, joins `histories` to include item details like image, price, description - logic corrected).
+    - `PATCH /api/chat/deal`: Updates dealing status from History page (updates `dealing` record).
+    - `POST /api/chat/deal`: Triggered by chat completion. Updates `histories` (`dealCompleted`), `explore` (`isSold`), and `dealing` (`status: 'completed'`).
+  - **AI Integration (`/api/ai/chat`):**
+    - Proxies requests to OpenAI API (GPT-4 Vision/GPT-4).
+    - Handles image upload/URL for initial analysis, continues conversation for refinement.
+    - No direct database interaction.
+  - **Post Creation (`/createpost`):**
+    - UI for item details, image upload.
+    - Uses `useUpload...` hooks extensively.
+    - Triggers `POST /api/history` to save item.
+    - Triggers `POST /api/ai/chat` for AI analysis.
+  - **History Page (`/history`):**
+    - Fetches data via `GET /api/history` and `GET /api/chat/deal`.
+    - Client-side logic categorizes items into Saved, Posted, Dealing tabs.
+    - Allows deal completion/cancellation via `PATCH /api/chat/deal`.
+  - **Database:** MongoDB (`pri-cio` database) connection via `lib/mongodb.ts`. Collections: `users`, `histories`, `explore`, `conversations`, `messages`, `dealing` (plus NextAuth).
+  - **File Uploads:** AWS S3 integration via `lib/s3.ts` used by `/api/history` and `/api/editprofile`.
+  - **Utilities:** Context providers, custom hooks, type definitions (`src/lib/types`).
   - **Analytics:** Vercel Analytics & Speed Insights integrated.
-- **What's Left to Build:** (Outline remaining features or tasks - Requires manual update/verification, e.g., specific functionality of History/Around pages, transaction handling if any, UI for unpublishing, Share Card API/UI details)
+- **What's Left to Build:** (Outline remaining features or tasks - Requires manual update/verification, e.g., specific functionality of Around page, transaction handling if any, Share Card API/UI details)
 - **Known Issues:** (Document any bugs or problems - Requires manual update)
+  - **Chat Deal Completion:** The update to the `dealing` collection via `POST /api/chat/deal` was reported as ineffective even after adding the logic. Further testing with the new initiation logic in `POST /api/chat/messages` is needed.
 - **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
+  - Implemented `dealing` record creation (upsert) within `POST /api/chat/messages` to resolve the missing initiation step.
 
 _This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated based on code analysis - functional status requires verification)._

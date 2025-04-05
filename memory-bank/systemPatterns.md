@@ -12,9 +12,9 @@
     - Explore feed updates (`explore-posts-update`).
 - **Key Technical Decisions:**
   - **Framework:** Next.js (App Router) for full-stack development.
-  - **Database:** MongoDB (Adapter used with NextAuth, likely primary DB).
-  - **Authentication:** NextAuth.js for handling user sessions.
-  - **Real-time Communication:** Socket.IO (dedicated server) for chat and potentially other live updates.
+  - **Database:** MongoDB (`pri-cio` database via `lib/mongodb.ts`). Collections identified: `users`, `histories`, `explore`, `conversations`, `messages`, `dealing` (plus NextAuth collections like `accounts`, `sessions`, `verificationTokens`).
+  - **Authentication:** NextAuth.js for handling user sessions (interacts with MongoDB via adapter).
+  - **Real-time Communication:** Socket.IO (dedicated server `src/server/socket.ts`) for chat events, presence, and explore updates. Does not directly interact with DB.
   - **File Storage:** AWS S3 for storing user uploads or other assets.
   - **Styling:** Tailwind CSS for utility-first styling, potentially augmented by Material UI/Headless UI components.
   - **State Management:** React Query for server state management (fetching, caching, synchronizing).
@@ -35,20 +35,39 @@
       - `Footer` component (`src/components/layout/Footer.tsx`) on most pages (hidden on `/signin`, `/signup`, `/reset-password`, `/around`).
   - **Pages:** Located in `src/app/*` directories, composing various components from `src/components/`.
   - **Components:** Organized by scope (features, layout, main, shared).
-  - **Core Logic:** `src/lib/` contains shared utilities, hooks, context, types (`chat.ts`, `explore.ts`, etc.), and managers (`ChatCacheManager`, `SocketEventManager`).
+  - **Core Logic:** `src/lib/` contains shared utilities (DB connection `mongodb.ts`, S3 helpers `s3.ts`), hooks, context, types, and managers.
 - **Critical Implementation Paths:**
-  - **Authentication Flow:** `signin` -> `api/auth` -> `NextAuth.js` -> `MongoDB`.
-  - **Chat:** `src/app/chat` -> `Socket.IO Server` / `src/app/api/chat` -> `MongoDB`.
-    - Messages (`ChatMessage`) can be plain text or structured `ObjectDiscussionData` for item negotiation.
-    - Message statuses tracked: `sending`, `sent`, `delivered`, `read`, `error`.
-  - **Data Fetching:** Components/Pages -> React Query Hooks (`useExplore`, etc.) -> API Routes (`src/app/api/`) -> `MongoDB`/External APIs.
-    - Explore items (`ExploreItem`) fetched from `explore` collection, containing images, price, description, currency, location, and embedded user profile data (`UserProfile` subset: \_id, avatarUrl, name). Items in `explore` are linked to records in the `histories` collection via `historyId` and `exploreId`.
-    - User profiles (`UserProfile`) fetched from `users` collection, contain `_id`, `email`, `name`, `about`, `website`, `avatarUrl`.
-    - History items (`histories` collection) track items, potentially before they are published to `explore`.
-  - **File Uploads:** Client -> `api/` route (e.g., for presigned URL) -> AWS S3.
-  - **Item Creation/AI Flow:** `/createpost` (using `ImageCapture` component) -> `useUpload...` hooks -> Image Upload -> Optional AI Analysis (`/api/ai/chat`) -> Save to `histories` (`useHistory`).
-  - **Publishing Flow:** Item exists in `histories` -> User publishes via `/api/explore` POST -> Record created in `explore`, `histories` record updated with `exploreId`.
-  - **Unpublishing Flow:** User unpublishes via `/api/explore` DELETE -> Record deleted from `explore`, `exploreId` removed from `histories` record.
-  - **Share Card Flow:** Triggered (likely from Create Post or History) -> `useShareCard` -> API call (`/api/share-card`?) -> Generates shareable card/link.
+  - **Authentication Flow:** `/signin`, `/signup` -> `api/auth/*` -> `NextAuth.js` -> MongoDB (`users`, `accounts`, `sessions`, etc.).
+  - **Chat Messaging:**
+    - Frontend (`Chat.tsx`, hooks) -> `Socket.IO Server` (for broadcasting) & `POST /api/chat/messages` (for persistence).
+    - `POST /api/chat/messages`: Creates/updates `conversations` document, inserts message into `messages` collection. **Additionally, if the message is of type `object_discussion`, it upserts a record into the `dealing` collection (status: 'pending', links `historyId`, `buyerId`, `sellerId`).**
+    - `GET /api/chat/messages`: Retrieves messages from `messages` collection for a conversation.
+    - `PATCH /api/chat/messages`: Marks messages as read in `messages` collection, updates `unreadCount` in `conversations`.
+    - `PUT /api/chat/messages`: Updates message status in `messages` collection.
+    - Messages (`ChatMessage`) can be plain text or structured `ObjectDiscussionData`.
+    - `ObjectDiscussionData` messages have a `status` field (`discussing`, `completed`, `canceled`).
+  - **Item Dealing Flow:**
+    - **Initiation:** When the first `object_discussion` type message for a specific item (`historyId`) is sent, the `POST /api/chat/messages` handler **upserts** a record into the `dealing` collection (status: 'pending', links `historyId`, `buyerId`, `sellerId`).
+    - **Display in History:** `/history` page (Dealing tab) calls `GET /api/chat/deal`. This API reads from the `dealing` collection and uses an aggregation pipeline (`$lookup`) to join the corresponding item details (including image URL, price, description) from the `histories` collection based on `historyId`. **(Pipeline logic corrected to ensure proper joining and field projection).**
+    - **Completion in Chat:** `Chat.tsx` -> `useObjectDiscussion.ts` -> `POST /api/chat/deal`. This API updates `histories` (`dealCompleted: true`), `explore` (`isSold: true`), and `dealing` (`status: 'completed'`).
+    - **Completion/Cancellation from History:** `/history` page calls `PATCH /api/chat/deal` to update the status in the `dealing` collection directly.
+  - **Data Fetching (General):** Frontend Components/Pages -> React Query Hooks (`useExplore`, `useHistory`, etc.) -> API Routes (`src/app/api/*`) -> MongoDB (`pri-cio` database) / External APIs (OpenAI, OpenCage).
+    - `explore` collection: Publicly listed items. Linked to `histories` via `historyId`. Contains embedded user profile subset.
+    - `histories` collection: Initial item records created by users. Linked to `explore` via `exploreId`. Stores deal completion details.
+    - `users` collection: User profile data.
+    - `conversations` collection: Metadata for chat conversations (participants, timestamps, settings, unread counts, soft-delete markers).
+    - `messages` collection: Individual chat messages. Linked to `conversations`. Stores content, sender/receiver, read status, soft-delete markers.
+    - `dealing` collection: Tracks negotiation state (links `historyId`, `buyerId`, `sellerId`, status). Read/updated by `/api/chat/deal`.
+  - **File Uploads:** Frontend -> S3 (via presigned URLs or direct uploads handled by API routes like `POST /api/history` and `POST /api/editprofile`). Uses `lib/s3.ts`.
+  - **Item Creation/AI Flow:** `/createpost` -> `useUpload...` hooks -> Image Upload (to S3 via `POST /api/history`) -> Save initial record to `histories` collection (`POST /api/history`) -> Optional AI Analysis (`POST /api/ai/chat` - interacts with OpenAI, no DB writes).
+  - **Publishing Flow:** Item exists in `histories` -> User publishes via `POST /api/explore` -> Record created in `explore`, `histories` record updated with `exploreId`.
+  - **Unpublishing Flow:** User unpublishes via `DELETE /api/explore` -> Record deleted from `explore`, `exploreId` removed from `histories` record.
+  - **Profile Editing Flow:** Frontend -> `POST /api/editprofile` -> Uploads new avatar to S3 (if provided), deletes old avatar from S3 -> Updates user document in `users` collection.
+  - **Conversation Management Flow:**
+    - **Initialization:** Frontend -> `POST /api/chat/conversations/initialize` -> Finds or creates document in `conversations`.
+    - **Listing:** Frontend -> `GET /api/chat/conversations/list` -> Aggregates data from `conversations`, `messages`, `users`.
+    - **Deletion:** Frontend -> `DELETE /api/chat/messages` (handles conversationId) -> Soft/hard deletes from `messages` and `conversations` using a transaction. Prevents deletion if active `ObjectDiscussion` exists.
+    - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` (or `initialize`) -> Updates `settings` field in `conversations`.
+  - **Share Card Flow:** (Details still limited) Frontend (`useShareCard`) -> API call (`/api/share-card`?) -> Generates shareable card/link.
 
-_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths._
+_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated based on detailed backend analysis)._

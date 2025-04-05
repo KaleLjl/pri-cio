@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
-import { auth } from '@/lib/auth';
-import { ObjectId } from 'mongodb';
+import { NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
+import { auth } from "@/lib/auth";
+import { ObjectId } from "mongodb";
 
 // Validation logic
 const priceValidation = {
@@ -16,16 +16,20 @@ const priceValidation = {
 
   validate: (price: string): { isValid: boolean; error?: string } => {
     if (!price) {
-      return { isValid: false, error: 'Price is required' };
+      return { isValid: false, error: "Price is required" };
     }
     if (!priceValidation.isValidFormat(price)) {
-      return { isValid: false, error: 'Invalid price format. Price must be a number with at most 2 decimal places.' };
+      return {
+        isValid: false,
+        error:
+          "Invalid price format. Price must be a number with at most 2 decimal places.",
+      };
     }
     if (!priceValidation.isPositive(price)) {
-      return { isValid: false, error: 'Price must be greater than 0' };
+      return { isValid: false, error: "Price must be greater than 0" };
     }
     return { isValid: true };
-  }
+  },
 };
 
 const meetingValidation = {
@@ -40,107 +44,129 @@ const meetingValidation = {
     return Boolean(location && location.trim().length > 0);
   },
 
-  validate: (data: { meetingTime: string; location: string }): { isValid: boolean; error?: string } => {
+  validate: (data: {
+    meetingTime: string;
+    location: string;
+  }): { isValid: boolean; error?: string } => {
     if (!data.meetingTime) {
-      return { isValid: false, error: 'Meeting time is required' };
+      return { isValid: false, error: "Meeting time is required" };
     }
     if (!meetingValidation.isValidTime(data.meetingTime)) {
-      return { isValid: false, error: 'Meeting time must be in the future' };
+      return { isValid: false, error: "Meeting time must be in the future" };
     }
     if (!meetingValidation.isValidLocation(data.location)) {
-      return { isValid: false, error: 'Location is required' };
+      return { isValid: false, error: "Location is required" };
     }
     return { isValid: true };
-  }
+  },
 };
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
+  // Prefix req with underscore
   try {
     const session = await auth();
     if (!session?.user?.email) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const client = await clientPromise;
-    const db = client.db('pri-cio');
+    const db = client.db("pri-cio");
 
     // Get user's ID from users collection
-    const user = await db.collection('users').findOne({ email: session.user.email });
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email });
     if (!user) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 });
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
     // Find all dealing items where user is either buyer or seller
-    const dealingItems = await db.collection('dealing')
+    const dealingItems = await db
+      .collection("dealing")
       .aggregate([
         {
           $match: {
             $or: [
               { buyerId: user._id.toString() },
-              { sellerId: user._id.toString() }
-            ]
-          }
+              { sellerId: user._id.toString() },
+            ],
+          },
         },
         {
           $lookup: {
-            from: 'histories',
-            let: { historyId: { $toObjectId: '$historyId' } },
+            from: "histories",
+            // Use historyId string from dealing doc in the pipeline
+            let: { historyIdString: "$historyId" },
             pipeline: [
               {
                 $match: {
-                  $expr: { $eq: ['$_id', '$$historyId'] }
-                }
-              }
+                  // Convert the string ID from dealing to ObjectId for matching
+                  $expr: {
+                    $eq: ["$_id", { $toObjectId: "$$historyIdString" }],
+                  },
+                },
+              },
             ],
-            as: 'historyDetails'
-          }
+            as: "historyDetails",
+          },
         },
         {
-          $unwind: '$historyDetails'
+          $unwind: "$historyDetails",
         },
         {
           $addFields: {
             isSeller: {
-              $eq: ['$historyDetails.userEmail', session.user.email]
-            }
-          }
+              $eq: ["$historyDetails.userEmail", session.user.email],
+            },
+          },
         },
         {
           $project: {
-            _id: '$historyDetails._id',
-            imageUrl: '$historyDetails.imageUrl',
-            suggestedPrice: '$historyDetails.suggestedPrice',
-            description: '$historyDetails.description',
-            createdAt: '$historyDetails.createdAt',
-            currency: '$historyDetails.currency',
-            dealingId: { $toString: '$_id' },
+            // Use history item's _id
+            _id: "$historyDetails._id",
+            // Extract first image URL from the images array in historyDetails
+            imageUrl: {
+              $ifNull: [
+                { $arrayElemAt: ["$historyDetails.images.url", 0] },
+                null,
+              ],
+            },
+            // Use 'price' field from historyDetails
+            price: "$historyDetails.price",
+            description: "$historyDetails.description",
+            createdAt: "$historyDetails.createdAt",
+            currency: "$historyDetails.currency",
+            dealingId: { $toString: "$_id" },
             status: 1,
             role: {
               $cond: {
-                if: '$isSeller',
-                then: 'selling',
-                else: 'buying'
-              }
+                if: "$isSeller",
+                then: "selling",
+                else: "buying",
+              },
             },
             buyerId: 1,
             sellerId: 1,
             otherPartyEmail: {
               $cond: {
-                if: '$isSeller',
-                then: { $toString: '$buyerEmail' },
-                else: { $toString: '$sellerEmail' }
-              }
-            }
-          }
-        }
+                if: "$isSeller",
+                then: { $toString: "$buyerEmail" },
+                else: { $toString: "$sellerEmail" },
+              },
+            },
+          },
+        },
       ])
       .toArray();
 
     return NextResponse.json(dealingItems);
   } catch (error) {
-    console.error('Error in deal API:', error);
+    console.error("Error in deal API:", error);
     return NextResponse.json(
-      { message: 'Failed to fetch dealing items', error: error instanceof Error ? error.message : 'Unknown error' },
+      {
+        message: "Failed to fetch dealing items",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
@@ -150,27 +176,30 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { 
-      historyId, 
-      exploreId, 
-      buyerId, 
-      sellerId, 
-      meetingTime, 
+    const {
+      historyId,
+      exploreId,
+      buyerId,
+      sellerId,
+      meetingTime,
       location,
       suggestedPrice,
     } = await request.json();
 
+    console.log(`[POST /api/chat/deal] Received historyId: ${historyId}`); // ADD LOGGING
+
     // Validate IDs
-    if (!ObjectId.isValid(historyId) || !ObjectId.isValid(exploreId) || 
-        !ObjectId.isValid(buyerId) || !ObjectId.isValid(sellerId)) {
+    if (
+      !ObjectId.isValid(historyId) ||
+      !ObjectId.isValid(exploreId) ||
+      !ObjectId.isValid(buyerId) ||
+      !ObjectId.isValid(sellerId)
+    ) {
       return NextResponse.json(
-        { message: 'Invalid ID format' },
+        { message: "Invalid ID format" },
         { status: 400 }
       );
     }
@@ -185,42 +214,41 @@ export async function POST(request: Request) {
     }
 
     // Validate meeting details
-    const meetingValidationResult = meetingValidation.validate({ meetingTime, location });
+    const meetingValidationResult = meetingValidation.validate({
+      meetingTime,
+      location,
+    });
     if (!meetingValidationResult.isValid) {
       return NextResponse.json(
         { message: meetingValidationResult.error },
         { status: 400 }
       );
     }
-    
+
     // Make sure both parties are involved in this deal
     const client = await clientPromise;
-    const db = client.db('pri-cio');
-    const user = await db.collection('users').findOne(
-      { email: session.user.email },
-      { projection: { _id: 1 } }
-    );
+    const db = client.db("pri-cio");
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
     const currentUserId = user._id.toString();
     const buyerIdStr = buyerId.toString();
     const sellerIdStr = sellerId.toString();
-    
+
     if (currentUserId !== buyerIdStr && currentUserId !== sellerIdStr) {
       return NextResponse.json(
-        { message: 'You are not authorized to complete this deal' },
+        { message: "You are not authorized to complete this deal" },
         { status: 403 }
       );
     }
 
-    const historiesCollection = db.collection('histories');
-    const exploreCollection = db.collection('explore');
+    const historiesCollection = db.collection("histories");
+    const exploreCollection = db.collection("explore");
 
     // Check if historyId and exploreId exist
     let historyItem = await historiesCollection.findOne({
@@ -233,10 +261,10 @@ export async function POST(request: Request) {
         $or: [
           { _id: new ObjectId(historyId) },
           { historyId: historyId },
-          { 'content.historyId': historyId }
-        ]
+          { "content.historyId": historyId },
+        ],
       });
-      
+
       if (alternativeHistoryItem) {
         historyItem = alternativeHistoryItem;
       }
@@ -244,19 +272,19 @@ export async function POST(request: Request) {
 
     const exploreItem = await exploreCollection.findOne({
       _id: new ObjectId(exploreId),
-      isSold: { $ne: true }
+      isSold: { $ne: true },
     });
 
     if (!historyItem) {
       return NextResponse.json(
-        { message: 'History item not found' },
+        { message: "History item not found" },
         { status: 404 }
       );
     }
 
     if (!exploreItem) {
       return NextResponse.json(
-        { message: 'Explore item not found or already sold' },
+        { message: "Explore item not found or already sold" },
         { status: 404 }
       );
     }
@@ -293,21 +321,36 @@ export async function POST(request: Request) {
         }
       );
 
+      // ADD THIS: Update the dealing item status
+      const dealingCollection = db.collection("dealing");
+      const updateDealingResult = await dealingCollection.updateOne(
+        // Assign result here
+        { historyId: historyId.toString() }, // Match based on historyId string
+        { $set: { status: "completed", updatedAt: new Date() } }
+        // We assume historyId is unique enough to identify the dealing record.
+        // If not, we might need to match on buyerId/sellerId as well.
+      );
+      console.log(
+        `[POST /api/chat/deal] Update dealing collection result for historyId ${historyId}:`,
+        updateDealingResult
+      ); // ADD LOGGING
+      // END ADDITION
+
       return NextResponse.json(
-        { message: 'Deal completed successfully' },
+        { message: "Deal completed successfully" },
         { status: 200 }
       );
     } catch (error) {
-      console.error('Error updating database:', error);
+      console.error("Error updating database:", error);
       return NextResponse.json(
-        { message: 'Failed to update database' },
+        { message: "Failed to update database" },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error('Error completing deal:', error);
+    console.error("Error completing deal:", error);
     return NextResponse.json(
-      { message: 'Failed to complete deal' },
+      { message: "Failed to complete deal" },
       { status: 500 }
     );
   }
@@ -317,41 +360,52 @@ export async function PATCH(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.email) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const url = new URL(req.url);
-    const dealingId = url.pathname.split('/').pop();
-    
+    const dealingId = url.pathname.split("/").pop();
+
     if (!dealingId) {
-      return NextResponse.json({ message: 'Dealing ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { message: "Dealing ID is required" },
+        { status: 400 }
+      );
     }
 
     const body = await req.json();
     const { status } = body;
 
-    if (!status || !['completed', 'cancelled'].includes(status)) {
-      return NextResponse.json({ message: 'Invalid status' }, { status: 400 });
+    if (!status || !["completed", "cancelled"].includes(status)) {
+      return NextResponse.json({ message: "Invalid status" }, { status: 400 });
     }
 
     const client = await clientPromise;
-    const db = client.db('pri-cio');
+    const db = client.db("pri-cio");
 
-    const result = await db.collection('dealing').updateOne(
-      { _id: new ObjectId(dealingId) },
-      { $set: { status, updatedAt: new Date() } }
-    );
+    const result = await db
+      .collection("dealing")
+      .updateOne(
+        { _id: new ObjectId(dealingId) },
+        { $set: { status, updatedAt: new Date() } }
+      );
 
     if (result.matchedCount === 0) {
-      return NextResponse.json({ message: 'Dealing item not found' }, { status: 404 });
+      return NextResponse.json(
+        { message: "Dealing item not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in deal API:', error);
+    console.error("Error in deal API:", error);
     return NextResponse.json(
-      { message: 'Failed to update dealing status', error: error instanceof Error ? error.message : 'Unknown error' },
+      {
+        message: "Failed to update dealing status",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
-} 
+}

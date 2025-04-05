@@ -4,7 +4,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { auth } from "@/lib/auth";
 
-export const revalidate = 30; 
+export const revalidate = 30;
 
 export async function GET(req: Request) {
   try {
@@ -14,7 +14,10 @@ export async function GET(req: Request) {
     const limit = parseInt(searchParams.get("limit") || "20");
 
     if (!conversationId || !ObjectId.isValid(conversationId)) {
-      return NextResponse.json({ error: "Invalid conversation ID" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid conversation ID" },
+        { status: 400 }
+      );
     }
 
     const session = await auth();
@@ -34,32 +37,29 @@ export async function GET(req: Request) {
 
     const userId = user._id.toString();
 
-    await db.collection("messages").createIndex({ conversationId: 1, createdAt: -1 });
+    await db
+      .collection("messages")
+      .createIndex({ conversationId: 1, createdAt: -1 });
 
     const skip = (page - 1) * limit;
     const messages = await db
       .collection("messages")
-      .find({ 
+      .find({
         conversationId: new ObjectId(conversationId),
         $or: [
           { deletedBy: { $exists: false } },
-          { deletedBy: { $ne: userId } }
-        ]
+          { deletedBy: { $ne: userId } },
+        ],
       })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .toArray();
 
-    const total = await db
-      .collection("messages")
-      .countDocuments({ 
-        conversationId: new ObjectId(conversationId),
-        $or: [
-          { deletedBy: { $exists: false } },
-          { deletedBy: { $ne: userId } }
-        ]
-      });
+    const total = await db.collection("messages").countDocuments({
+      conversationId: new ObjectId(conversationId),
+      $or: [{ deletedBy: { $exists: false } }, { deletedBy: { $ne: userId } }],
+    });
 
     const formattedMessages = messages.map((msg) => ({
       ...msg,
@@ -71,7 +71,7 @@ export async function GET(req: Request) {
     }));
 
     return NextResponse.json({
-      messages: formattedMessages.reverse(), 
+      messages: formattedMessages.reverse(),
       total,
       page,
       limit,
@@ -79,7 +79,10 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     console.error("Error fetching messages:", error);
-    return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch messages" },
+      { status: 500 }
+    );
   }
 }
 
@@ -91,9 +94,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { conversationId, content, receiverId } = await req.json();
+    const { content, receiverId } = await req.json(); // Removed unused conversationId
     if (!content || !receiverId) {
-      return NextResponse.json({ error: "Content and receiver ID are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Content and receiver ID are required" },
+        { status: 400 }
+      );
     }
 
     const client = await clientPromise;
@@ -111,8 +117,8 @@ export async function POST(req: Request) {
     let conversation = await db.collection("conversations").findOne({
       participants: {
         $all: [senderId, receiverId],
-        $size: 2
-      }
+        $size: 2,
+      },
     });
 
     // 如果没有找到现有对话，则创建新对话
@@ -128,9 +134,9 @@ export async function POST(req: Request) {
       // 如果对话存在，恢复被删除的对话（如果被删除了的话）
       await db.collection("conversations").updateOne(
         { _id: conversation._id },
-        { 
+        {
           $set: { updatedAt: new Date() },
-          $unset: { deletedBy: "" } // 移除 deletedBy 字段，恢复对话
+          $unset: { deletedBy: "" }, // 移除 deletedBy 字段，恢复对话
         }
       );
     }
@@ -142,16 +148,85 @@ export async function POST(req: Request) {
       content,
       createdAt: new Date(),
       read: false,
-      status: 'sent',
+      status: "sent",
     };
 
     const result = await db.collection("messages").insertOne(newMessage);
-    await db
-      .collection("conversations")
-      .updateOne({ _id: conversation._id }, { 
+    await db.collection("conversations").updateOne(
+      { _id: conversation._id },
+      {
         $set: { updatedAt: new Date() },
-        $inc: { unreadCount: 1 }
-      });
+        $inc: { unreadCount: 1 },
+      }
+    );
+
+    // --- BEGIN ADDITION: Create/Update dealing record ---
+    if (
+      content?.type === "object_discussion" &&
+      content.historyId &&
+      ObjectId.isValid(content.historyId)
+    ) {
+      try {
+        const historyId = content.historyId; // Assuming historyId is passed in content
+        const historiesCollection = db.collection("histories");
+        const usersCollection = db.collection("users");
+        const dealingCollection = db.collection("dealing");
+
+        // Find the item owner (seller) from histories
+        const historyItem = await historiesCollection.findOne(
+          { _id: new ObjectId(historyId) },
+          { projection: { userEmail: 1 } }
+        );
+
+        if (historyItem?.userEmail) {
+          const sellerUser = await usersCollection.findOne(
+            { email: historyItem.userEmail },
+            { projection: { _id: 1 } }
+          );
+
+          if (sellerUser) {
+            const sellerId = sellerUser._id.toString();
+            // Determine buyerId based on who is NOT the seller
+            const buyerId = senderId === sellerId ? receiverId : senderId;
+
+            // Upsert the dealing record: Insert if not exists, update timestamp if exists
+            const filter = { historyId: historyId }; // Match by historyId (string)
+            const update = {
+              $set: { updatedAt: new Date() }, // Always update timestamp
+              $setOnInsert: {
+                // Fields to set only on insert
+                historyId: historyId,
+                buyerId: buyerId,
+                sellerId: sellerId,
+                status: "pending", // Initial status
+                createdAt: new Date(),
+              },
+            };
+            const options = { upsert: true };
+
+            await dealingCollection.updateOne(filter, update, options);
+            console.log(
+              `[POST /api/chat/messages] Upserted dealing record for historyId: ${historyId}`
+            );
+          } else {
+            console.error(
+              `[POST /api/chat/messages] Seller user not found for email: ${historyItem.userEmail}`
+            );
+          }
+        } else {
+          console.error(
+            `[POST /api/chat/messages] History item not found for ID: ${historyId}`
+          );
+        }
+      } catch (dealError) {
+        // Log error but don't fail the message sending
+        console.error(
+          `[POST /api/chat/messages] Error upserting dealing record for historyId ${content.historyId}:`,
+          dealError
+        );
+      }
+    }
+    // --- END ADDITION ---
 
     return NextResponse.json({
       _id: result.insertedId,
@@ -160,7 +235,10 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Error sending message:", error);
-    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to send message" },
+      { status: 500 }
+    );
   }
 }
 
@@ -174,7 +252,10 @@ export async function PATCH(req: Request) {
 
     const { conversationId } = await req.json();
     if (!conversationId) {
-      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Conversation ID is required" },
+        { status: 400 }
+      );
     }
 
     const client = await clientPromise;
@@ -192,26 +273,31 @@ export async function PATCH(req: Request) {
       {
         conversationId: new ObjectId(conversationId),
         receiverId: user._id.toString(),
-        read: false
+        read: false,
       },
       {
-        $set: { read: true }
+        $set: { read: true },
       }
     );
 
     // 更新会话的未读消息计数
-    await db.collection("conversations").updateOne(
-      { _id: new ObjectId(conversationId) },
-      { $set: { unreadCount: 0 } }
-    );
+    await db
+      .collection("conversations")
+      .updateOne(
+        { _id: new ObjectId(conversationId) },
+        { $set: { unreadCount: 0 } }
+      );
 
     return NextResponse.json({
       success: true,
-      modifiedCount: result.modifiedCount
+      modifiedCount: result.modifiedCount,
     });
   } catch (error) {
     console.error("Error marking messages as read:", error);
-    return NextResponse.json({ error: "Failed to mark messages as read" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to mark messages as read" },
+      { status: 500 }
+    );
   }
 }
 
@@ -225,7 +311,10 @@ export async function DELETE(req: Request) {
 
     const { conversationId } = await req.json();
     if (!conversationId) {
-      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Conversation ID is required" },
+        { status: 400 }
+      );
     }
 
     const client = await clientPromise;
@@ -241,21 +330,25 @@ export async function DELETE(req: Request) {
     const userId = user._id.toString();
 
     // 检查是否有正在进行的讨论
-    const messages = await db.collection("messages")
-      .find({ 
+    const messages = await db
+      .collection("messages")
+      .find({
         conversationId: new ObjectId(conversationId),
         "content.type": "object_discussion",
-        "content.discussingId": { $exists: true }
+        "content.discussingId": { $exists: true },
       })
       .sort({ createdAt: -1 })
       .toArray();
 
     // 按discussingId分组，找出每个讨论的最后一条消息
     const discussionGroups = new Map();
-    messages.forEach(msg => {
+    messages.forEach((msg) => {
       const discussingId = msg.content.discussingId;
-      if (!discussionGroups.has(discussingId) || 
-          new Date(msg.createdAt) > new Date(discussionGroups.get(discussingId).createdAt)) {
+      if (
+        !discussionGroups.has(discussingId) ||
+        new Date(msg.createdAt) >
+          new Date(discussionGroups.get(discussingId).createdAt)
+      ) {
         discussionGroups.set(discussingId, msg);
       }
     });
@@ -263,9 +356,13 @@ export async function DELETE(req: Request) {
     // 检查是否有任何讨论的最后状态是"discussing"
     for (const [_, lastMessage] of discussionGroups) {
       if (lastMessage.content.status === "discussing") {
-        return NextResponse.json({ 
-          error: "Cannot delete conversation with ongoing discussions. Please complete or cancel all discussions first." 
-        }, { status: 400 });
+        return NextResponse.json(
+          {
+            error:
+              "Cannot delete conversation with ongoing discussions. Please complete or cancel all discussions first.",
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -274,49 +371,58 @@ export async function DELETE(req: Request) {
     try {
       await mongoSession.withTransaction(async () => {
         // 1. 获取对话信息和消息状态
-        const conversation = await db.collection("conversations").findOne(
-          { _id: new ObjectId(conversationId) },
-          { session: mongoSession }
-        );
+        const conversation = await db
+          .collection("conversations")
+          .findOne(
+            { _id: new ObjectId(conversationId) },
+            { session: mongoSession }
+          );
 
         if (!conversation) {
           throw new Error("Conversation not found");
         }
 
         // 2. 检查消息的删除状态
-        const messages = await db.collection("messages")
+        const messages = await db
+          .collection("messages")
           .find({ conversationId: new ObjectId(conversationId) })
           .toArray();
 
         // 3. 判断是否所有参与者都已删除消息
-        const otherParticipantId = conversation.participants.find((p: string) => p !== userId);
-        const allMessagesDeletedByOther = messages.every(msg => 
+        const otherParticipantId = conversation.participants.find(
+          (p: string) => p !== userId
+        );
+        const allMessagesDeletedByOther = messages.every((msg) =>
           msg.deletedBy?.includes(otherParticipantId)
         );
 
         if (allMessagesDeletedByOther) {
           // 如果对方已经删除了所有消息，直接进行硬删除
-          await db.collection("messages").deleteMany(
-            { conversationId: new ObjectId(conversationId) },
-            { session: mongoSession }
-          );
-          
-          await db.collection("conversations").deleteOne(
-            { _id: new ObjectId(conversationId) },
-            { session: mongoSession }
-          );
+          await db
+            .collection("messages")
+            .deleteMany(
+              { conversationId: new ObjectId(conversationId) },
+              { session: mongoSession }
+            );
+
+          await db
+            .collection("conversations")
+            .deleteOne(
+              { _id: new ObjectId(conversationId) },
+              { session: mongoSession }
+            );
         } else {
           // 否则只进行软删除
           await db.collection("messages").updateMany(
-            { 
+            {
               conversationId: new ObjectId(conversationId),
               $or: [
                 { deletedBy: { $exists: false } },
-                { deletedBy: { $ne: userId } }
-              ]
+                { deletedBy: { $ne: userId } },
+              ],
             },
             {
-              $addToSet: { deletedBy: userId }
+              $addToSet: { deletedBy: userId },
             },
             { session: mongoSession }
           );
@@ -325,10 +431,10 @@ export async function DELETE(req: Request) {
             { _id: new ObjectId(conversationId) },
             {
               $addToSet: { deletedBy: userId },
-              $set: { 
+              $set: {
                 updatedAt: new Date(),
-                unreadCount: 0
-              }
+                unreadCount: 0,
+              },
             },
             { session: mongoSession }
           );
@@ -339,10 +445,10 @@ export async function DELETE(req: Request) {
           {
             conversationId: new ObjectId(conversationId),
             receiverId: userId,
-            read: false
+            read: false,
           },
           {
-            $set: { read: true }
+            $set: { read: true },
           },
           { session: mongoSession }
         );
@@ -352,13 +458,17 @@ export async function DELETE(req: Request) {
     }
 
     return NextResponse.json({
-      success: true
+      success: true,
     });
   } catch (error) {
     console.error("Error deleting messages:", error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : "Failed to delete messages" 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to delete messages",
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -372,7 +482,10 @@ export async function PUT(req: Request) {
 
     const { messageId, status } = await req.json();
     if (!messageId || !status) {
-      return NextResponse.json({ error: "Message ID and status are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Message ID and status are required" },
+        { status: 400 }
+      );
     }
 
     const client = await clientPromise;
@@ -386,10 +499,12 @@ export async function PUT(req: Request) {
     }
 
     // Update message status
-    const result = await db.collection("messages").updateOne(
-      { _id: new ObjectId(messageId) },
-      { $set: { status, updatedAt: new Date() } }
-    );
+    const result = await db
+      .collection("messages")
+      .updateOne(
+        { _id: new ObjectId(messageId) },
+        { $set: { status, updatedAt: new Date() } }
+      );
 
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
@@ -398,10 +513,13 @@ export async function PUT(req: Request) {
     return NextResponse.json({
       success: true,
       messageId,
-      status
+      status,
     });
   } catch (error) {
     console.error("Error updating message status:", error);
-    return NextResponse.json({ error: "Failed to update message status" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update message status" },
+      { status: 500 }
+    );
   }
 }

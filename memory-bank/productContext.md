@@ -16,22 +16,31 @@
   - **Authentication:** User -> `/signin` or `/signup` -> Verification -> Signin -> Redirect to `/explore`.
   - **Price Estimation/Listing:**
     - User -> `/createpost` -> Select Currency -> Upload Photo(s).
-    - Option 1: Manually enter Price/Description -> Save to History.
-    - Option 2: Trigger AI Analysis (`/api/ai/chat`) -> Engage in Chat (`ChatAIModal`) to refine details -> AI suggests Price/Description -> Save to History.
-    - (From History?) -> Publish Item (`/api/explore` POST) -> Item appears in `/explore`.
+    - Option 1: Manually enter Price/Description -> Save to History (`POST /api/history` - uploads images to S3, creates `histories` record).
+    - Option 2: Trigger AI Analysis (`POST /api/ai/chat`) -> Engage in Chat (`ChatAIModal`) -> AI suggests Price/Description -> Save to History (`POST /api/history` - uploads images to S3, creates `histories` record).
+    - (From History?) -> Publish Item (`POST /api/explore`) -> Creates `explore` record, updates `histories` record with `exploreId` -> Item appears in `/explore`.
   - **Discovery:**
     - User -> `/explore` -> Browse/Search items -> Filter by Radius.
     - User -> `/explore` -> Click "Around" -> `/around` (Location-specific view).
-  - **Interaction:** User -> `/explore` or `/around` -> Click Item/User Avatar -> `/chat/[userId]` -> Real-time messaging.
-    - Chat includes a structured "Object Discussion" feature (`ObjectDiscussionData`) for negotiating specific items (price, location, time, status).
-  - **Profile Management:** User -> (Access via `/api/editprofile`, UI likely linked from History/Avatar) -> Update details/image.
+  - **Interaction & Dealing:**
+    - User -> `/explore` or `/around` -> Click Item/User Avatar -> `/chat/[userId]` -> Real-time messaging.
+    - Chat includes a structured "Object Discussion" feature (`ObjectDiscussionData`) for negotiating specific items (price, location, time).
+    - Discussion messages have a `status` ('discussing', 'completed', 'canceled').
+    - **Completion:** Receiver of the latest 'discussing' message can click "Complete". This triggers `POST /api/chat/deal` (updates `histories`, `explore`, and `dealing` collections) and sends a final chat message with `status: 'completed'`. _(Note: `dealing` update via POST reported ineffective)._
+  - **Profile Management:** User -> (UI likely linked from History/Avatar) -> `POST /api/editprofile` -> Updates `users` record (uploads/deletes avatar on S3).
   - **Item Lifecycle & History:**
-    - Item created/estimated -> Stored in `histories` collection (accessible via `/history` page?).
-    - User publishes item -> Item copied/linked to `explore` collection (visible on `/explore` page).
-    - User unpublishes item -> Item removed from `explore`, link removed from `histories`.
+    - Item created/estimated -> `POST /api/history` creates record in `histories` collection (images uploaded to S3).
+    - User publishes item -> `POST /api/explore` creates record in `explore` collection, updates `histories` record with `exploreId`.
+    - **Dealing State:** When the first `ObjectDiscussion` message for an item is sent (`POST /api/chat/messages`), a record is **upserted** into the `dealing` collection (status: 'pending', links `historyId`, `buyerId`, `sellerId`).
+    - Deal completed (via Chat) -> `POST /api/chat/deal` updates `histories` (`dealCompleted: true`), `explore` (`isSold: true`), and `dealing` (`status: 'completed'`).
+    - Deal completed/cancelled (via History page) -> `PATCH /api/chat/deal` updates `dealing` record status.
+    - User unpublishes item -> `DELETE /api/explore` removes record from `explore`, removes `exploreId` from `histories` record.
   - **History Review:**
-    - User -> `/chathistory` (Messages link) -> Review past conversations.
-    - User -> `/history` (Avatar link) -> Review items created/estimated (potentially including unpublished items).
+    - User -> `/chathistory` (Messages link) -> Review past conversations (`GET /api/chat/conversations/list` & `GET /api/chat/messages`).
+    - User -> `/history` (Avatar link) -> Review items:
+      - **Saved Items:** Fetched via `GET /api/history`, filtered client-side (items without `exploreId` and not actively dealing).
+      - **Posted Items:** Fetched via `GET /api/history`, filtered client-side (items with `exploreId` and not sold/dealing).
+      - **Dealing Items:** Fetched via `GET /api/chat/deal` (reads from `dealing`, joins with `histories` to get item details like image, price, description). Status can be updated ('completed'/'cancelled') directly via `PATCH /api/chat/deal`.
   - **Sharing:** User -> (From Create Post/History?) -> Generate Share Card -> Get shareable link/image.
   - **Sign Out:** User -> Click Sign Out -> Session terminated -> Redirect to `/`.
 
