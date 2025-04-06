@@ -9,6 +9,7 @@
     - Profile editing via `/api/editprofile` (GET, POST, PUT, DELETE) now uses `UserService`, which handles `users` collection updates and S3 avatar management.
     - Fetching own profile via `GET /api/users/me` now uses `UserService`.
     - Fetching other users' public profile via `GET /api/users/[userId]` now uses `UserService`.
+    - Frontend hooks (`useProfilePage`, `useHistory`) updated to align with API changes (FormData for POST, correct GET endpoint).
   - **Explore Page (`/explore` & `/api/explore` & `ExploreService`):**
     - `GET /api/explore`: API route calls `exploreService.getExploreItems`.
     - `POST /api/explore`: API route calls `exploreService.publishItem`.
@@ -63,6 +64,7 @@
     - Created `HistoryService` (`src/services/history.service.ts`) and refactored `/api/history/route.ts` handlers (GET, POST).
     - Created `ExploreService` (`src/services/explore.service.ts`) and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).
     - Created `UserService` (`src/services/user.service.ts`) and refactored `/api/editprofile/route.ts`, `/api/users/me/route.ts`, and `/api/users/[userId]/route.ts`.
+  - Updated frontend hooks (`useProfilePage`, `useHistory`) to align with `UserService` API refactoring.
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after UserService refactoring)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after frontend hook adjustments)._

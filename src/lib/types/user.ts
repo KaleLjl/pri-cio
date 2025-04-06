@@ -13,9 +13,10 @@ export interface UserProfile {
 // This interface seems related to a specific hook/page, not a general update type
 export interface UseProfilePage {
   avatarUrl: string | null;
-  formData: UserProfile;
+  formData: Partial<UserProfile>; // Changed to Partial<UserProfile>
   handleAvatarChange: (file: File) => Promise<void>;
   handleInputChange: (name: string, value: string) => void;
+  clearAvatar: () => void; // Added clearAvatar
   resetForm: () => void;
   saveProfile: () => Promise<void>;
   fetchProfileData: () => Promise<UserProfile>;

@@ -15,6 +15,10 @@
       - `/api/editprofile/route.ts` (GET, POST, PUT, DELETE) now uses `UserService`.
       - `/api/users/me/route.ts` (GET) now uses `UserService`.
       - `/api/users/[userId]/route.ts` (GET) now uses `UserService`.
+  - **Updated Frontend Hooks:** Modified hooks consuming user-related APIs to align with backend changes:
+    - `useProfilePage.ts`: Updated to use `FormData` for `POST /api/editprofile` and correct endpoint (`GET /api/users/me`) for fetching profile.
+    - `useHistory.ts`: Updated `fetchUserProfile` to use correct endpoint (`GET /api/users/me`).
+    - Checked `useInitializeChat.ts`, `useChatData.ts`, `useChatHistory.ts` - no direct changes needed, but noted potential UI impact from `/api/users/[userId]` response change.
   - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
   - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress.
 - **Next Steps:**
