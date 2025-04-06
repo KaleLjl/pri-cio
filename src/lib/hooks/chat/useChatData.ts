@@ -91,10 +91,15 @@ export function useChatData({
     enabled: !!otherUser?._id,
   });
 
-  // Get typing status from cache
-  const { data: isTyping = false } = useQuery({
+  // Get typing status from cache (managed via setQueryData elsewhere)
+  const { data: isTyping = false } = useQuery<boolean>({
     queryKey: ["chat-typing-status", otherUser?._id],
+    // Provide a dummy queryFn as it's only read from cache updated by setQueryData
+    queryFn: async () => false, // Does not fetch, just satisfies requirement
     initialData: false,
+    staleTime: Infinity, // Prevent automatic refetching
+    gcTime: Infinity, // Keep data in cache while component is mounted
+    enabled: !!otherUser?._id, // Ensure query is enabled only when otherUser ID exists
   });
 
   // 修改 uniqueMessages 的处理逻辑

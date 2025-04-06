@@ -38,9 +38,9 @@
     - `GET /api/chat/deal`: API route calls `dealService.getDealingItemsForUser` to fetch items for the "Dealing Items" tab in History (reads from `dealing`, joins `histories`).
     - `PATCH /api/chat/deal`: API route calls `dealService.updateDealingStatus` to update dealing status from History page.
     - `POST /api/chat/deal`: API route calls `dealService.completeDeal` upon chat completion to update `histories`, `explore`, and `dealing` collections.
-  - **AI Integration (`/api/ai/chat`):**
-    - Proxies requests to OpenAI API (GPT-4 Vision/GPT-4).
-    - Handles image upload/URL for initial analysis, continues conversation for refinement.
+  - **AI Integration (`/api/ai/chat` & `AIService`):**
+    - `POST /api/ai/chat`: API route now delegates logic to `aiService`.
+    - `AIService` (`src/services/ai.service.ts`) created to handle interactions with OpenAI API (GPT-4 Vision/GPT-4) for image analysis (via upload or URL) and chat continuation.
     - No direct database interaction.
   - **Post Creation (`/createpost`):**
     - UI for item details, image upload.
@@ -59,8 +59,10 @@
 - **Known Issues:** (Document any bugs or problems - Requires manual update)
   - **[RESOLVED] Chat Page Loading Forever (Attempt 4):** After previous fixes, identified a type mismatch issue in `ConversationService` when querying the `users` collection (typed as `UserProfile` with string `_id` but DB stores `ObjectId`). Refactored `ConversationService` to remove direct `users` collection access and instead use `UserService` (which correctly handles ID conversion) for user validation and fetching. This resolved the final underlying issue causing the loading problem.
   - **[RESOLVED] ChatHistory Authentication:** `/chathistory` page showed "Error: Failed to load user data" due to missing user ID in server-side JWT session. Fixed by adding callbacks to `lib/auth.ts`.
+  - **[RESOLVED] Chat Page React Query Error:** `No queryFn was passed...` for query key `["chat-typing-status", userId]`. Fixed by adding dummy `queryFn` and `staleTime: Infinity` to the `useQuery` call in `useChatData.ts`.
   - (Previous dealing issues resolved by implementing initiation logic and correcting GET API).
 - **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
+  - **Fixed Chat Page React Query Bug:** Identified the `useQuery` call for `["chat-typing-status", userId]` in `src/lib/hooks/chat/useChatData.ts` as the source of the "No queryFn" error. Corrected the `useQuery` call by adding a dummy `queryFn` and setting `staleTime: Infinity`.
   - **Fixed Chat Page Loading Issue (Attempt 4):** After Attempt 3 (adding pre-validation) still resulted in errors due to type mismatches (`string` vs `ObjectId` for user `_id`), refactored `ConversationService` to delegate all user lookups (validation and data fetching) to `UserService`. This centralizes the handling of the ID type conversion and resolves the conflict.
   - **Fixed Chat Page Loading Issue (Attempt 3):** After Attempt 2 (fixing participant ID logic in `useInitializeChat`) still resulted in a frontend error ("Other participant data not found..."), added pre-validation to `ConversationService.initializeConversation` using `usersCollection.countDocuments`. (Note: This failed due to the type mismatch resolved in Attempt 4).
   - **Fixed Chat Page Loading Issue (Attempt 2):** After the first fix (removing redundant fetch in `useChatData`) failed to resolve the infinite loading, re-investigated `useInitializeChat`. Found participant identification relied on comparing names. Refactored `useInitializeChat` to use `session.user.id` and the `userId` prop for robust ID-based identification. Also fixed a minor type issue in the React Query cache update logic within the hook. (Note: This revealed the underlying data issue fixed in Attempt 3/4).
@@ -76,7 +78,8 @@
     - Created `ExploreService` (`src/services/explore.service.ts`) and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).
     - Created `UserService` (`src/services/user.service.ts`) and refactored `/api/editprofile/route.ts`, `/api/users/me/route.ts`, and `/api/users/[userId]/route.ts`.
     - Created `ConversationService` (`src/services/conversation.service.ts`) and refactored `/api/chat/conversations/initialize/route.ts`, `/api/chat/conversations/list/route.ts`, and `/api/chat/conversations/settings/route.ts`.
+    - Created `AIService` (`src/services/ai.service.ts`) and refactored `/api/ai/chat/route.ts`.
   - Updated frontend hooks (`useProfilePage`, `useHistory`) and components (`CurrentUserContext`, `Navigation`, `ChatHistory`) to align with `UserService` API refactoring and improve auth handling.
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after fixing chat page loading issue - final attempt)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after fixing chat page queryFn bug)._

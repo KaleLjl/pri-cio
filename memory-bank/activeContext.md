@@ -1,7 +1,12 @@
 # Active Context
 
-- **Current Focus:** Continuing codebase cleanup by refactoring API routes to use a Service Layer.
+- **Current Focus:** Verifying the fix for the chat page React Query error and reviewing chat page structure.
 - **Recent Changes:**
+  - **Fixed Chat Page React Query Bug:**
+    - Identified the `useQuery` call for `["chat-typing-status", userId]` in `src/lib/hooks/chat/useChatData.ts` as the source of the "No queryFn" error.
+    - Corrected the `useQuery` call by adding a dummy `queryFn` (since the data is managed via `setQueryData`) and setting `staleTime: Infinity` to prevent refetches.
+  - **Paused API Refactoring:** Decided to temporarily halt further API route refactoring to address a chat page bug.
+  - **Investigated AI Routes:** Analyzed `/api/ai/quick/route.ts` and determined it provides unique market research functionality not present in `/api/ai/chat` (via `AIService`), so it should not be deleted for now.
   - Fixed bugs related to the "Complete Deal" workflow and display of dealing items.
   - Completed a comprehensive investigation of backend data logic.
   - **Continued Service Layer Refactoring:**
@@ -19,6 +24,8 @@
       - `/api/chat/conversations/initialize/route.ts` (POST) now uses `ConversationService`.
       - `/api/chat/conversations/list/route.ts` (GET) now uses `ConversationService`.
       - `/api/chat/conversations/settings/route.ts` (PATCH) now uses `ConversationService`. (Moved PATCH handler from `initialize` to `settings` route file).
+    - **Created `src/services/ai.service.ts` and refactored AI-related API routes:**
+      - `/api/ai/chat/route.ts` (POST) now uses `AIService` to handle both multipart/form-data (image upload) and application/json (chat continuation/image URL) requests.
   - **Fixed Chat Page Loading Issue (Attempt 1):**
     - Identified that `useChatData` hook was redundantly fetching other user's profile via `/api/users/[userId]`, likely causing a conflict after `ConversationService` refactoring.
     - Removed the redundant `useQuery` for `/api/users/[userId]` from `useChatData.ts`. The hook now relies on the `otherUser` prop passed from `useInitializeChat`.
@@ -50,14 +57,14 @@
   - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
   - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress and auth fix/standardization.
 - **Next Steps:**
-  - Continue refactoring other API routes into the Service Layer. Potential candidates:
-    - AI routes (`/api/ai/*`) -> `AIService`?
-    - Auth routes (`/api/auth/*`) -> `AuthService`? (Or leave as is, handled by NextAuth?)
-  - Update Memory Bank documentation as refactoring progresses.
+  - **Verify Chat Page Bug Fix:** Test the chat page to confirm the "No queryFn" error for `chat-typing-status` is resolved.
+  - **Review Chat Page Structure:** Evaluate chat page code (`Chat.tsx`, related hooks) for potential robustness improvements post-bugfix.
+  - **Resume API Refactoring:** (Paused) Continue refactoring remaining API routes (Auth, ShareCard) into the Service Layer once chat page bug is resolved and structure reviewed.
 - **Active Decisions/Considerations:**
-  - Service layer refactoring is proceeding incrementally. Next focus TBD (AI or Auth routes).
+  - Prioritized fixing the chat page bug over API refactoring.
+  - Decided to keep `/api/ai/quick` route separate from `AIService` for now due to its unique market research functionality.
 - **Key Patterns/Preferences:** (Updated)
-  - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access, separating concerns from API route handlers. Services created: `DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`.
+  - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access, separating concerns from API route handlers. Services created: `DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`, `AIService`.
   - Next.js App Router structure.
   - TypeScript throughout.
   - Heavy reliance on custom hooks for frontend state management and feature logic (e.g., `useChatData`, `useChatUI`, `useObjectDiscussion`).
@@ -80,5 +87,7 @@
   - **Data Flow Simplification:** Removing the redundant user profile fetch in `useChatData` simplifies the data flow for the chat page, relying on the initial data fetched during conversation initialization.
   - **Robust Participant Identification:** Using IDs instead of names in `useInitializeChat` makes identifying the current and other user more reliable.
   - **Service Pre-validation & Centralization:** Adding user existence checks via `UserService` at the start of `ConversationService.initializeConversation` prevents operations with invalid data. Centralizing user lookups in `UserService` ensures consistent handling of ID type conversions (string vs ObjectId).
+- **Known Issues:**
+  - **[RESOLVED]** React Query error on chat page: `No queryFn was passed...` for query key `["chat-typing-status", userId]`. Fixed by adding dummy `queryFn` and `staleTime: Infinity` to the `useQuery` call in `useChatData.ts`.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after fixing chat page loading issue - final attempt)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after fixing chat page queryFn bug)._

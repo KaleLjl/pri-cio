@@ -19,7 +19,7 @@
   - **Styling:** Tailwind CSS for utility-first styling, potentially augmented by Material UI/Headless UI components.
   - **State Management:** React Query for server state management (fetching, caching, synchronizing).
 - **Design Patterns:**
-  - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs (e.g., S3 within `UserService`).
+  - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`, `AIService`) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs (e.g., S3 within `UserService`, OpenAI within `AIService`).
   - **Context API:** Used for managing global state (`src/lib/context/`).
   - **Custom Hooks:** Extensive use for encapsulating frontend logic (`src/lib/hooks/`). Key examples:
     - `useExplore`: Handles fetching and caching of explore items.
@@ -70,8 +70,8 @@
     - `conversations` collection: Metadata for chat conversations (participants, timestamps, settings, unread counts, soft-delete markers).
     - `messages` collection: Individual chat messages. Linked to `conversations`. Stores content, sender/receiver, read status, soft-delete markers.
     - `dealing` collection: Tracks negotiation state (links `historyId`, `buyerId`, `sellerId`, status). Read/updated by `DealService` (called by `/api/chat/deal`).
-  - **File Uploads:** Frontend -> S3 (via presigned URLs or direct uploads handled by API routes like `POST /api/history` (via `HistoryService`) and `POST /api/editprofile`). Uses `lib/s3.ts`.
-  - **Item Creation/AI Flow:** `/createpost` -> `useUpload...` hooks -> Prepare data -> Call `POST /api/history` (which calls `historyService.createHistoryItem`) -> Optional AI Analysis (`POST /api/ai/chat` - interacts with OpenAI, no DB writes).
+  - **File Uploads:** Frontend -> S3 (via presigned URLs or direct uploads handled by API routes like `POST /api/history` (via `HistoryService`) and `POST /api/editprofile` (via `UserService`)). Uses `lib/s3.ts`.
+  - **Item Creation/AI Flow:** `/createpost` -> `useUpload...` hooks -> Prepare data -> Call `POST /api/history` (which calls `historyService.createHistoryItem`) -> Optional AI Analysis (`POST /api/ai/chat` - API route now calls `aiService.handleImageUploadAnalysis` or `aiService.handleJsonChat`, which interacts with OpenAI; no DB writes).
   - **Publishing Flow:** Item exists in `histories` -> User publishes via `POST /api/explore` (which calls `exploreService.publishItem`).
   - **Unpublishing Flow:** User unpublishes via `DELETE /api/explore` (which calls `exploreService.unpublishItem`).
   - **Profile Editing Flow:** Frontend (`useProfilePage` hook) -> `/api/editprofile` (POST/PUT) -> `UserService.updateUserProfile` -> Handles `users` collection updates and S3 avatar management.
@@ -86,4 +86,4 @@
     - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` -> `ConversationService.updateConversationSettings` -> Updates `settings` field in `conversations`.
   - **Share Card Flow:** (Details still limited) Frontend (`useShareCard`) -> API call (`/api/share-card`?) -> Generates shareable card/link.
 
-_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after ConversationService refactoring)._
+_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after AIService refactoring)._
