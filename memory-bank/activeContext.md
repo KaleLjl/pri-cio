@@ -26,13 +26,14 @@
     - **Code Review:**
       - `/api/users/me` uses `UserService.getCurrentUser`.
       - `UserService.getCurrentUser` uses `auth()` and checks for `session.user.id`.
-      - `/api/history` (which works) also uses `auth()` but checks for `session.user.email`.
-    - **Root Cause Identified:** The server-side session object retrieved via `auth()` contains `user.email` but is missing `user.id`. This is likely due to default JWT population behavior in NextAuth.js v5 beta.
+      - `/api/history` (which worked previously) also used `auth()` but checked for `session.user.email`.
+    - **Root Cause Identified:** The server-side session object retrieved via `auth()` contained `user.email` but was missing `user.id`. This was likely due to default JWT population behavior in NextAuth.js v5 beta.
+  - **Applied Fix:** Added `jwt` and `session` callbacks to `src/lib/auth.ts` to explicitly include the user ID in the JWT and session object. Resolved the `ChatHistory` loading issue.
+  - **Standardized Server-Side Auth Checks:** Refactored all relevant API routes (`/api/history`, `/api/ai/*`, `/api/explore`, `/api/chat/*`) to consistently use `!session?.user?.id` for authorization checks, instead of the previous mix of `!session?.user?.email` or `!session`.
+  - **Reviewed Auth Logic Consistency:** Confirmed that server-side checks are now standardized and client-side patterns are appropriate. No major redundancies found.
   - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
-  - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress.
+  - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress and auth fix/standardization.
 - **Next Steps:**
-  - **Fix ChatHistory Authentication:** Apply fix by adding `jwt` and `session` callbacks to `src/lib/auth.ts` to explicitly include the user ID in the JWT and session object.
-  - **Update Memory Bank:** Document the debugging process and fix (This step).
   - Continue refactoring other API routes (e.g., `ConversationService`).
     - Conversation routes (`/api/chat/conversations/*`) -> `ConversationService`.
     - AI routes (`/api/ai/*`) -> `AIService`? (Or keep separate?)
@@ -60,6 +61,6 @@
   - Real-time aspects are handled separately by Socket.IO.
   - Understanding the specific roles and interactions of each collection (`histories`, `explore`, `dealing`, `conversations`, `messages`) is crucial for debugging data flow issues.
   - The initiation logic for `dealing` records (via upsert in `POST /api/chat/messages`) has now been implemented.
-  - **NextAuth.js v5 beta JWT Defaults:** The default JWT population might not include the user ID (`sub` claim mapped to `session.user.id`) reliably server-side via `auth()`, necessitating explicit `jwt` and `session` callbacks to ensure its presence. Different API routes relying on different session properties (`email` vs `id`) can mask this issue initially.
+  - **NextAuth.js v5 beta JWT Defaults:** The default JWT population might not include the user ID (`sub` claim mapped to `session.user.id`) reliably server-side via `auth()` without explicit `jwt` and `session` callbacks. This was the root cause of the ChatHistory bug. Adding the callbacks resolved the issue.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after diagnosing ChatHistory auth issue)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after standardizing auth checks)._

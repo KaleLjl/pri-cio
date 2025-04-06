@@ -73,7 +73,8 @@ export async function GET(_req: Request) {
   // Prefix req with underscore
   try {
     const session = await auth();
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
+      // Check for ID instead of email
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -115,7 +116,8 @@ export async function GET(_req: Request) {
 export async function POST(request: Request) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
+      // Check for ID instead of user object
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -274,7 +276,8 @@ export async function POST(request: Request) {
 export async function PATCH(req: Request) {
   try {
     const session = await auth();
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
+      // Check for ID instead of email
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

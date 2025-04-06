@@ -6,13 +6,16 @@ import clientPromise from "@/lib/mongodb";
 export async function GET() {
   try {
     const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json("Unauthorized", { status: 401 });
+    if (!session?.user?.id) {
+      // Check for ID instead of email
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const client = await clientPromise;
     const db = client.db("pri-cio");
-    const user = await db.collection("users").findOne({ email: session.user.email }, { projection: { _id: 1 } });
+    const user = await db
+      .collection("users")
+      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -23,14 +26,14 @@ export async function GET() {
     const conversations = await db
       .collection("conversations")
       .aggregate([
-        { 
-          $match: { 
+        {
+          $match: {
             participants: userId,
             $or: [
               { deletedBy: { $exists: false } },
-              { deletedBy: { $ne: userId } }
-            ]
-          } 
+              { deletedBy: { $ne: userId } },
+            ],
+          },
         },
         {
           $lookup: {
@@ -39,7 +42,9 @@ export async function GET() {
             pipeline: [
               {
                 $match: {
-                  $expr: { $eq: [{ $toString: "$conversationId" }, "$$conversationId"] },
+                  $expr: {
+                    $eq: [{ $toString: "$conversationId" }, "$$conversationId"],
+                  },
                 },
               },
               { $sort: { createdAt: -1 } },
@@ -74,15 +79,15 @@ export async function GET() {
                     $and: [
                       { $eq: ["$conversationId", "$$conversationId"] },
                       { $eq: ["$receiverId", userId] },
-                      { $eq: ["$read", false] }
-                    ]
-                  }
-                }
+                      { $eq: ["$read", false] },
+                    ],
+                  },
+                },
               },
-              { $count: "unreadCount" }
+              { $count: "unreadCount" },
             ],
-            as: "unreadInfo"
-          }
+            as: "unreadInfo",
+          },
         },
         {
           $addFields: {
@@ -99,25 +104,34 @@ export async function GET() {
               },
             },
             unreadCount: {
-              $ifNull: [{ $arrayElemAt: ["$unreadInfo.unreadCount", 0] }, 0]
-            }
+              $ifNull: [{ $arrayElemAt: ["$unreadInfo.unreadCount", 0] }, 0],
+            },
           },
         },
         { $sort: { "lastMessage.createdAt": -1 } },
       ])
       .toArray();
 
+    // Define a simple type for the expected participant structure after lookup
+    interface Participant {
+      _id: { toString: () => string };
+      // Add other expected fields if needed, e.g., name: string;
+    }
+
     const conversationsWithStringIds = conversations.map((conv) => ({
       ...conv,
       _id: conv._id.toString(),
-      participants: conv.participants.map((p: any) => ({
+      participants: conv.participants.map((p: Participant) => ({
+        // Use the defined type
         ...p,
         _id: p._id.toString(),
       })),
       lastMessage: conv.lastMessage
         ? {
             ...conv.lastMessage,
-            createdAt: conv.lastMessage.createdAt?.toISOString() ?? new Date().toISOString(),
+            createdAt:
+              conv.lastMessage.createdAt?.toISOString() ??
+              new Date().toISOString(),
           }
         : null,
     }));
@@ -125,6 +139,9 @@ export async function GET() {
     return NextResponse.json(conversationsWithStringIds);
   } catch (err) {
     console.error("Error fetching conversations:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

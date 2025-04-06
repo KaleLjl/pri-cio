@@ -55,10 +55,11 @@
   - **Analytics:** Vercel Analytics & Speed Insights integrated.
 - **What's Left to Build:** (Outline remaining features or tasks - Requires manual update/verification, e.g., specific functionality of Around page, transaction handling if any, Share Card API/UI details)
 - **Known Issues:** (Document any bugs or problems - Requires manual update)
-  - **ChatHistory Authentication:** `/chathistory` page shows "Error: Failed to load user data" because the `GET /api/users/me` call fails with 401 Unauthorized, despite client session appearing authenticated. Root cause identified as missing user ID in the server-side JWT session object.
+  - **[RESOLVED] ChatHistory Authentication:** `/chathistory` page showed "Error: Failed to load user data" due to missing user ID in server-side JWT session. Fixed by adding callbacks to `lib/auth.ts`.
   - (Previous dealing issues resolved by implementing initiation logic and correcting GET API).
 - **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
-  - **Diagnosed ChatHistory Auth Issue:** Investigated `CurrentUserContext` and related components/API routes. Added logging, analyzed logs showing `GET /api/users/me` returning 401. Compared with working `/api/history` route. Identified that server-side `auth()` provides `session.user.email` but not `session.user.id`. Planned fix is to add `jwt` and `session` callbacks to `src/lib/auth.ts` to explicitly include the user ID.
+  - **Fixed ChatHistory Auth Issue:** Investigated `CurrentUserContext` and related components/API routes. Identified root cause as missing user ID in server-side JWT session object (NextAuth v5 beta default behavior). Added `jwt` and `session` callbacks to `src/lib/auth.ts` to explicitly include the user ID, resolving the issue.
+  - **Standardized Server-Side Auth Checks:** Refactored API routes (`/api/history`, `/api/ai/*`, `/api/explore`, `/api/chat/*`) to consistently use `!session?.user?.id` for authorization checks.
   - Implemented `dealing` record creation (upsert) within `POST /api/chat/messages` to resolve the missing initiation step.
   - Corrected aggregation pipeline in `GET /api/chat/deal` (now in `DealService`) to properly fetch dealing item details.
   - Initiated Service Layer refactoring:

@@ -49,7 +49,7 @@
   - **Core Logic:** `src/lib/` contains shared utilities (DB connection `mongodb.ts`, S3 helpers `s3.ts`, image utils `imageUtils.ts`), hooks, context, types, and managers.
 - **Critical Implementation Paths:**
   - **Authentication Flow:** `/signin`, `/signup` -> `api/auth/*` -> `NextAuth.js` -> MongoDB (`users`, `accounts`, `sessions`, etc.).
-    - **Note:** Observed inconsistency where server-side `auth()` helper retrieves `session.user.email` but not `session.user.id` by default (NextAuth.js v5 beta, JWT strategy). Requires explicit callbacks (`jwt`, `session`) in `lib/auth.ts` to ensure ID is present in the session object.
+    - **Note:** Explicit `jwt` and `session` callbacks added to `lib/auth.ts` to ensure user ID is consistently included in the JWT session object server-side. Server-side authorization checks now standardized to use `session.user.id`.
   - **Chat Messaging:**
     - Frontend (`Chat.tsx`, hooks) -> `Socket.IO Server` (for broadcasting) & API routes (`/api/chat/messages`) for persistence.
     - `POST /api/chat/messages`: API route calls `messageService.sendMessage`, which handles creating/updating `conversations`, inserting into `messages`, and upserting into `dealing` if applicable.

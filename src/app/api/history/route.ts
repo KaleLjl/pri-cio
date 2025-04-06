@@ -13,12 +13,13 @@ import { CreateHistoryData } from "@/lib/types/history"; // Import type
 export async function GET() {
   try {
     const session = await auth();
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
+      // Check for ID instead of email
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Call the service function
-    const histories = await getHistoryForUser(session.user.email);
+    // Call the service function - we know email exists if id does
+    const histories = await getHistoryForUser(session.user.email!);
 
     return NextResponse.json(histories);
   } catch (error) {
@@ -34,7 +35,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await auth();
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
+      // Check for ID instead of email
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -46,17 +48,18 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    // Add explicit check for session.user before accessing it in map
-    if (!session.user) {
-      return NextResponse.json(
-        { error: "Unauthorized - User data missing" },
-        { status: 401 }
-      );
-    }
+    // Add explicit check for session.user before accessing it
+    // This check is now redundant because we check session.user.id above
+    // if (!session.user) {
+    //   return NextResponse.json(
+    //     { error: "Unauthorized - User data missing" },
+    //     { status: 401 }
+    //   );
+    // }
 
     // Prepare data for the service function
     const historyData: CreateHistoryData = {
-      userEmail: session.user.email, // We know email exists from the check above
+      userEmail: session.user.email!, // We know email exists if id does
       price,
       description,
       images, // Pass raw image data (base64 URLs) to the service
