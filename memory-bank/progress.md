@@ -32,7 +32,7 @@
     - `PUT /api/chat/messages`: API route calls `messageService.updateMessageStatus`.
     - `DELETE /api/chat/messages`: API route calls `messageService.deleteConversation`.
     - Structured "Object Discussion" feature within messages (`ObjectDiscussionData` type).
-    - **Frontend:** Refactored `Chat.tsx` into sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup` in `src/components/main/chat/`). Logic managed by custom hooks (`useInitializeChat`, `useChatData`, `useChatUI`, `useMessageActions`, `useObjectDiscussion`).
+    - **Frontend:** Refactored `Chat.tsx` into sub-components. Logic managed by custom hooks. Socket interactions managed via `SocketContext` -> `SocketService` -> `ChatCacheManager`. Includes logic in `Chat.tsx` to mark incoming messages as read.
   - **Item Dealing (`dealing` collection & related APIs):**
     - **Initiation:** `POST /api/chat/messages` now upserts a record into `dealing` (status: 'pending') when the first `object_discussion` message for an item is sent.
     - `GET /api/chat/deal`: API route calls `dealService.getDealingItemsForUser` to fetch items for the "Dealing Items" tab in History (reads from `dealing`, joins `histories`).
@@ -57,12 +57,20 @@
   - **Analytics:** Vercel Analytics & Speed Insights integrated.
 - **What's Left to Build:** (Outline remaining features or tasks - Requires manual update/verification, e.g., specific functionality of Around page, transaction handling if any, Share Card API/UI details)
 - **Known Issues:** (Document any bugs or problems - Requires manual update)
-  - **[RESOLVED] Chat Page Loading Forever (Attempt 4):** After previous fixes, identified a type mismatch issue in `ConversationService` when querying the `users` collection (typed as `UserProfile` with string `_id` but DB stores `ObjectId`). Refactored `ConversationService` to remove direct `users` collection access and instead use `UserService` (which correctly handles ID conversion) for user validation and fetching. This resolved the final underlying issue causing the loading problem.
-  - **[RESOLVED] ChatHistory Authentication:** `/chathistory` page showed "Error: Failed to load user data" due to missing user ID in server-side JWT session. Fixed by adding callbacks to `lib/auth.ts`.
-  - **[RESOLVED] Chat Page React Query Error:** `No queryFn was passed...` for query key `["chat-typing-status", userId]`. Fixed by adding dummy `queryFn` and `staleTime: Infinity` to the `useQuery` call in `useChatData.ts`.
+  - **Socket Connection Failure:** Socket connection doesn't establish reliably when navigating directly to a chat page (`/chat/[userId]`). Suspected timing issue with `CurrentUserContext` loading. (Next investigation target)
+  - **[RESOLVED] Incorrect Unread Count (Bug 2):** Addressed by increasing `staleTime` in `useChatHistory` and removing immediate invalidation in `ChatHistory.tsx` to prevent fetching stale data on navigation. Previous fix attempt (removing redundant cache update in `useChatHistory.markAsRead`) was insufficient on its own but kept for code clarity.
+  - **[RESOLVED]** Messages stuck in "sending" state (Bug 1). Fixed by updating `ChatCacheManager.handleNewMessage` to update status to 'sent' for existing messages.
+  - **[RESOLVED]** Chat Page Loading Forever (Attempt 4). Fixed via multiple attempts involving `useChatData`, `useInitializeChat`, `ConversationService`, and `UserService` refactoring.
+  - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
+  - **[RESOLVED]** Chat Page React Query Error. Fixed by adding dummy `queryFn` and `staleTime: Infinity`.
   - (Previous dealing issues resolved by implementing initiation logic and correcting GET API).
 - **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
-  - **Fixed Chat Page React Query Bug:** Identified the `useQuery` call for `["chat-typing-status", userId]` in `src/lib/hooks/chat/useChatData.ts` as the source of the "No queryFn" error. Corrected the `useQuery` call by adding a dummy `queryFn` and setting `staleTime: Infinity`.
+  - **Fixed Unread Count Bug (Final Attempt):** Identified stale data fetch on navigation back to `/chathistory` as the likely cause. Increased `staleTime` in `useChatHistory` query options and removed immediate invalidation from `ChatHistory.tsx` to rely more on the real-time updated client cache.
+  - **Fixed Unread Count Bug (Initial Attempt):** Removed redundant cache update from `useChatHistory.markAsRead`. (Insufficient on its own).
+  - **Fixed "Sending" Status Bug:** Modified `ChatCacheManager.handleNewMessage` to update status to 'sent' for existing messages (sender's confirmation).
+  - **Fixed `useChatHistory` Bug:** Replaced incorrect `sendMessageRead` call with `markMessageRead`.
+  - **Refactored Socket/Cache Logic:** Removed `SocketEventManager`, simplified `SocketService`, updated `SocketContext` to use `SocketService` directly and manage listeners/cleanup.
+  - **Fixed Chat Page React Query Bug:** Corrected `useQuery` call for `["chat-typing-status", userId]` by adding dummy `queryFn` and `staleTime: Infinity`.
   - **Fixed Chat Page Loading Issue (Attempt 4):** After Attempt 3 (adding pre-validation) still resulted in errors due to type mismatches (`string` vs `ObjectId` for user `_id`), refactored `ConversationService` to delegate all user lookups (validation and data fetching) to `UserService`. This centralizes the handling of the ID type conversion and resolves the conflict.
   - **Fixed Chat Page Loading Issue (Attempt 3):** After Attempt 2 (fixing participant ID logic in `useInitializeChat`) still resulted in a frontend error ("Other participant data not found..."), added pre-validation to `ConversationService.initializeConversation` using `usersCollection.countDocuments`. (Note: This failed due to the type mismatch resolved in Attempt 4).
   - **Fixed Chat Page Loading Issue (Attempt 2):** After the first fix (removing redundant fetch in `useChatData`) failed to resolve the infinite loading, re-investigated `useInitializeChat`. Found participant identification relied on comparing names. Refactored `useInitializeChat` to use `session.user.id` and the `userId` prop for robust ID-based identification. Also fixed a minor type issue in the React Query cache update logic within the hook. (Note: This revealed the underlying data issue fixed in Attempt 3/4).
@@ -82,4 +90,4 @@
   - Updated frontend hooks (`useProfilePage`, `useHistory`) and components (`CurrentUserContext`, `Navigation`, `ChatHistory`) to align with `UserService` API refactoring and improve auth handling.
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after fixing chat page queryFn bug)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after Memory Bank sync)._

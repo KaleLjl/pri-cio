@@ -20,7 +20,9 @@
   - **State Management:** React Query for server state management (fetching, caching, synchronizing).
 - **Design Patterns:**
   - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`, `AIService`) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs (e.g., S3 within `UserService`, OpenAI within `AIService`).
-  - **Context API:** Used for managing global state (`src/lib/context/`).
+  - **Context API:** Used for managing global state (`src/lib/context/`). Includes `SocketContext` for managing WebSocket interactions.
+  - **Manager Pattern:** Used for client-side cache updates (`ChatCacheManager`).
+  - **Singleton Pattern:** Used for `SocketService`.
   - **Custom Hooks:** Extensive use for encapsulating frontend logic (`src/lib/hooks/`). Key examples:
     - `useExplore`: Handles fetching and caching of explore items.
     - `useUpload...` series (`useUploadMetaData`, `useUploadImageProcess`, `useUploadAI`, `useUploadAIChat`, `useUploadUI`, `useUploadActions`): Manages the complex state and logic for the item creation/AI estimation process.
@@ -46,16 +48,22 @@
       - `MessageInput.tsx`: Handles text input, send button, and toggling MyPostsPopup.
       - `MyPostsPopup.tsx`: Displays current user's posts for selection.
     - **Main Chat Orchestrator:** `src/components/main/Chat.tsx` uses hooks and composes the above sub-components.
-  - **Core Logic:** `src/lib/` contains shared utilities (DB connection `mongodb.ts`, S3 helpers `s3.ts`, image utils `imageUtils.ts`), hooks, context, types, and managers.
+  - **Core Logic:** `src/lib/` contains shared utilities (DB connection `mongodb.ts`, S3 helpers `s3.ts`, image utils `imageUtils.ts`), hooks, context (`SocketContext`, `CurrentUserContext`, etc.), types, and managers (`ChatCacheManager`).
 - **Critical Implementation Paths:**
   - **Authentication Flow:** `/signin`, `/signup` -> `api/auth/*` -> `NextAuth.js` -> MongoDB (`users`, `accounts`, `sessions`, etc.).
     - **Note:** Explicit `jwt` and `session` callbacks added to `lib/auth.ts` to ensure user ID is consistently included in the JWT session object server-side. Server-side authorization checks now standardized to use `session.user.id`.
-  - **Chat Messaging:**
-    - Frontend (`Chat.tsx`, hooks) -> `Socket.IO Server` (for broadcasting) & API routes (`/api/chat/messages`) for persistence.
+  - **Chat Messaging & Real-time Updates:**
+    - **Connection:** `SocketContext` initiates connection via `SocketService` upon user login.
+    - **Event Handling:** `SocketContext` sets up listeners via `SocketService`. Callbacks primarily delegate to `ChatCacheManager` to update React Query cache (`["chat-messages"]`, `["chat-history"]`, `["chat-typing-status"]`).
+    - **Sending:** UI components call methods exposed by `SocketContext` (e.g., `sendMessage`, `markMessageRead`). `sendMessage` performs optimistic UI update via `ChatCacheManager` before emitting via `SocketService`. `markMessageRead` does optimistic update and emits `mark-read` event.
+    - **Persistence:** `Socket.IO Server` broadcasts events (`new-message`, `message-read`, etc.). Separate API routes (`/api/chat/messages`) handle database persistence via `MessageService`.
+    - **Status Flow:**
+      - Send -> Optimistic 'sending' (Cache) -> `send-message` (Socket) -> Server Broadcast `new-message` -> Cache update to 'sent'.
+      - Read -> Optimistic 'read' (Cache) -> `mark-read` (Socket) -> Server Broadcast `message-read` / `conversation-read` -> Cache update (redundant?).
     - `POST /api/chat/messages`: API route calls `messageService.sendMessage`, which handles creating/updating `conversations`, inserting into `messages`, and upserting into `dealing` if applicable.
     - `GET /api/chat/messages`: API route calls `messageService.getMessages` to retrieve messages.
     - `PATCH /api/chat/messages`: API route calls `messageService.markMessagesRead` to update `messages` and `conversations`.
-    - `PUT /api/chat/messages`: API route calls `messageService.updateMessageStatus` to update `messages`.
+    - `PUT /api/chat/messages`: API route calls `messageService.updateMessageStatus` to update `messages`. (Note: Client-side API call for this was removed from `SocketService`).
     - Messages (`ChatMessage`) can be plain text or structured `ObjectDiscussionData`.
     - `ObjectDiscussionData` messages have a `status` field (`discussing`, `completed`, `canceled`).
   - **Item Dealing Flow:**
@@ -86,4 +94,4 @@
     - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` -> `ConversationService.updateConversationSettings` -> Updates `settings` field in `conversations`.
   - **Share Card Flow:** (Details still limited) Frontend (`useShareCard`) -> API call (`/api/share-card`?) -> Generates shareable card/link.
 
-_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after AIService refactoring)._
+_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after socket/cache refactor)._

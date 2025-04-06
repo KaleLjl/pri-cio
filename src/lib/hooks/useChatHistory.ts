@@ -36,8 +36,9 @@ export function useChatHistory(): UseChatHistoryReturn {
     },
     enabled: !!session,
     // Add options to make fetching less aggressive
-    staleTime: 30 * 1000, // Consider data fresh for 30 seconds
+    staleTime: 60 * 1000, // Consider data fresh for 60 seconds (Increased from 30)
     refetchOnWindowFocus: false, // Don't refetch just because the window gained focus
+    // refetchOnMount: false, // Keep default (true) for now, rely on staleTime
   });
 
   const refetch = async () => {
@@ -76,17 +77,13 @@ export function useChatHistory(): UseChatHistoryReturn {
   // 修改标记已读方法
   const markAsRead = async (conversationId: string, messageId?: string) => {
     try {
-      // 1. 立即更新本地缓存以提供即时反馈
-      queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldChats) => {
-        if (!oldChats) return oldChats;
-        return oldChats.map((chat) =>
-          chat._id === conversationId ? { ...chat, unreadCount: 0 } : chat
-        );
-      });
+      // 1. (Removed) Redundant optimistic cache update removed.
+      // Relying on ChatCacheManager triggered by socket events or markMessageRead.
 
-      // 2. 通过 Socket Context 发送消息已读状态
+      // 2. 通过 Socket Context 发送消息已读状态 (if messageId provided)
       if (messageId) {
-        socket.sendMessageRead(messageId);
+        // Replace incorrect call with the correct one from SocketContext
+        socket.markMessageRead({ messageId, conversationId });
       }
 
       // 3. 通过 HTTP API 更新服务器 - 使用 PATCH 方法

@@ -12,17 +12,19 @@ import {
   useObjectDiscussion,
 } from "@/lib/hooks/chat";
 import { useChatHistory } from "@/lib/hooks/useChatHistory";
-import { useEffect, useMemo } from "react"; // Import useMemo
+import { useEffect, useMemo, useContext, useRef } from "react"; // Import useContext, useRef
+import { SocketContext } from "@/lib/context/SocketContext"; // Import SocketContext
 import ChatHeader from "./chat/ChatHeader";
 import UserPostsDisplay from "./chat/UserPostsDisplay";
 import MessageList from "./chat/MessageList";
 import MessageInput from "./chat/MessageInput";
 
 export default function Chat({ userId }: ChatProps) {
-  const router = useRouter(); // Keep router for back button/navigation
-  const queryClient = useQueryClient(); // Keep queryClient for useObjectDiscussion
-  // Destructure chats as well
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  // Get markAsRead for initial conversation read marking, chats for unread check
   const { markAsRead, chats } = useChatHistory();
+  const socket = useContext(SocketContext); // Get socket context for marking individual messages
 
   // --- Hooks ---
   // Use the initialization hook
@@ -125,6 +127,27 @@ export default function Chat({ userId }: ChatProps) {
     }
     // Depend on conversationId and the memoized unread status
   }, [conversationId, hasUnreadMessages, markAsRead]);
+
+  // Effect to mark incoming messages as read when chat is active
+  const prevMessagesLengthRef = useRef(messages.length);
+  useEffect(() => {
+    if (!conversationId || !currentUserId || !socket?.markMessageRead) {
+      return;
+    }
+
+    // Check only new messages since the last render
+    const newMessages = messages.slice(prevMessagesLengthRef.current);
+
+    newMessages.forEach((msg) => {
+      // If message is from the other user and not already marked 'read' (optional check)
+      if (msg.senderId !== currentUserId && msg.status !== "read") {
+        socket.markMessageRead({ messageId: msg._id, conversationId });
+      }
+    });
+
+    // Update the ref for the next render
+    prevMessagesLengthRef.current = messages.length;
+  }, [messages, conversationId, currentUserId, socket?.markMessageRead]); // Depend on messages and context function
 
   // --- Render Logic ---
   if (error) {

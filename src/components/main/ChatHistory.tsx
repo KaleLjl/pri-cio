@@ -23,7 +23,7 @@ export default function ChatHistoryClient() {
   // Add real-time update support
   useEffect(() => {
     // When component mounts, ensure chat history is up to date
-    queryClient.invalidateQueries({ queryKey: ["chat-history"] });
+    // queryClient.invalidateQueries({ queryKey: ["chat-history"] }); // Removed immediate invalidation on mount
 
     // Optional: refresh periodically to ensure sync
     const interval = setInterval(() => {

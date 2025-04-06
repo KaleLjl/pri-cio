@@ -1,10 +1,25 @@
 # Active Context
 
-- **Current Focus:** Verifying the fix for the chat page React Query error and reviewing chat page structure.
+- **Current Focus:** Updating Memory Bank after applying the final fix for the unread count bug.
 - **Recent Changes:**
-  - **Fixed Chat Page React Query Bug:**
+  - **Fixed Unread Count Bug (Final Attempt):**
+    - Identified that the bug likely occurred due to stale data being fetched by `useQuery` in `useChatHistory` immediately upon navigating back to `/chathistory` (due to default `refetchOnMount: true` and immediate invalidation in `ChatHistory.tsx`), overwriting the correct client-side cache updated in real-time.
+    - Increased `staleTime` for `["chat-history"]` query in `useChatHistory.ts` from 30s to 60s.
+    - Removed the immediate `queryClient.invalidateQueries` call from the `useEffect` hook in `ChatHistory.tsx`.
+    - These changes make the query less aggressive, relying more on the `staleTime` and real-time cache updates via `ChatCacheManager`.
+  - **Fixed Unread Count Bug (Initial Attempt):** Removed redundant optimistic cache update for `unreadCount` from `useChatHistory.markAsRead`. Centralized cache update logic within `ChatCacheManager`. (This alone was insufficient).
+  - **Refactored Socket/Cache Logic & Fixed Bugs:** (Previous)
+    - Removed redundant `SocketEventManager`.
+    - Simplified `SocketService` (removed incorrect methods/state: `sendMessageDelivered`, `sendMessageRead`, `updateMessageStatus`, `eventHandlers` map).
+    - Updated `SocketContext` to use `SocketService` directly, manage listener cleanup, expose correct methods (`markMessageRead`), and pass `currentUserId` to `cacheManager.handleNewMessage`. Kept room joining logic based on chat history cache.
+    - Refined `ChatCacheManager`: Removed duplicate `handleOptimisticMessage`, fixed 'sent' status update logic in `handleNewMessage`, corrected unread count reset logic in `updateMessageStatus`. Addressed minor ESLint warning (unused `existingData`).
+    - Updated `Chat.tsx`: Added effect to call `socket.markMessageRead` for incoming messages when chat is active. Updated calls to `cacheManager.handleNewMessage`.
+    - Fixed bug where sent messages remained in "sending" state. (via `ChatCacheManager` update).
+    - Attempted fix for bug where unread count was incorrect after viewing messages in active chat (via `ChatCacheManager` and `Chat.tsx` updates - verification needed).
+    - Fixed bug where `useChatHistory` called incorrect `sendMessageRead` function (replaced with `markMessageRead`).
+  - **Fixed Chat Page React Query Bug:** (Previous fix)
     - Identified the `useQuery` call for `["chat-typing-status", userId]` in `src/lib/hooks/chat/useChatData.ts` as the source of the "No queryFn" error.
-    - Corrected the `useQuery` call by adding a dummy `queryFn` (since the data is managed via `setQueryData`) and setting `staleTime: Infinity` to prevent refetches.
+    - Corrected the `useQuery` call by adding a dummy `queryFn` and setting `staleTime: Infinity`.
   - **Paused API Refactoring:** Decided to temporarily halt further API route refactoring to address a chat page bug.
   - **Investigated AI Routes:** Analyzed `/api/ai/quick/route.ts` and determined it provides unique market research functionality not present in `/api/ai/chat` (via `AIService`), so it should not be deleted for now.
   - Fixed bugs related to the "Complete Deal" workflow and display of dealing items.
@@ -55,13 +70,15 @@
   - **Standardized Server-Side Auth Checks:** Refactored all relevant API routes (`/api/history`, `/api/ai/*`, `/api/explore`, `/api/chat/*`) to consistently use `!session?.user?.id` for authorization checks, instead of the previous mix of `!session?.user?.email` or `!session`.
   - **Reviewed Auth Logic Consistency:** Confirmed that server-side checks are now standardized and client-side patterns are appropriate. No major redundancies found.
   - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
-  - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress and auth fix/standardization.
+  - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress and auth fix/standardization. (Self-update)
 - **Next Steps:**
-  - **Verify Chat Page Bug Fix:** Test the chat page to confirm the "No queryFn" error for `chat-typing-status` is resolved.
-  - **Review Chat Page Structure:** Evaluate chat page code (`Chat.tsx`, related hooks) for potential robustness improvements post-bugfix.
-  - **Resume API Refactoring:** (Paused) Continue refactoring remaining API routes (Auth, ShareCard) into the Service Layer once chat page bug is resolved and structure reviewed.
+  - **Update Memory Bank:** Document the final unread count bug fix.
+  - **Verify Unread Count Fix:** Confirm the bug is resolved with the latest changes.
+  - **Investigate Socket Connection Issue:** (Next) Determine why socket connection fails on direct chat page load (likely related to `CurrentUserContext` timing).
+  - **Resume API Refactoring:** (Paused) Continue refactoring remaining API routes (Auth, ShareCard) into the Service Layer once chat issues are resolved.
 - **Active Decisions/Considerations:**
-  - Prioritized fixing the chat page bug over API refactoring.
+  - Addressed the unread count bug by adjusting React Query fetching behavior rather than solely focusing on cache update logic.
+  - Prioritized updating Memory Bank after applying the fix.
   - Decided to keep `/api/ai/quick` route separate from `AIService` for now due to its unique market research functionality.
 - **Key Patterns/Preferences:** (Updated)
   - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access, separating concerns from API route handlers. Services created: `DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`, `AIService`.
@@ -71,7 +88,11 @@
   - **Component Composition:** Breaking down large components (like `Chat.tsx`) into smaller, reusable sub-components for better maintainability.
   - Use of Tailwind CSS for styling, augmented by Headless UI and potentially Material UI.
   - React Query for server state management.
-  - Socket.IO (dedicated server) for real-time features (chat, presence, explore updates) - no direct DB interaction.
+  - **Socket/Cache Management:**
+    - Socket.IO (dedicated server) for real-time transport.
+    - Client-side `SocketService` (singleton) manages connection lifecycle and event abstraction.
+    - `SocketContext` provides connection management, listener setup (via `SocketService`), room management (based on history cache), and exposes actions.
+    - `ChatCacheManager` handles React Query cache updates based on socket events and optimistic UI actions.
   - MongoDB (`pri-cio` database) as the primary datastore with distinct collections for different data types (`users`, `histories`, `explore`, `conversations`, `messages`, `dealing`).
   - API routes delegate logic to the Service Layer, which handles database interactions.
   - OpenAI integration for AI features (no direct DB interaction).
@@ -87,7 +108,13 @@
   - **Data Flow Simplification:** Removing the redundant user profile fetch in `useChatData` simplifies the data flow for the chat page, relying on the initial data fetched during conversation initialization.
   - **Robust Participant Identification:** Using IDs instead of names in `useInitializeChat` makes identifying the current and other user more reliable.
   - **Service Pre-validation & Centralization:** Adding user existence checks via `UserService` at the start of `ConversationService.initializeConversation` prevents operations with invalid data. Centralizing user lookups in `UserService` ensures consistent handling of ID type conversions (string vs ObjectId).
+  - **Centralized Cache Updates:** Removing redundant cache manipulations (like the one in `useChatHistory.markAsRead`) and relying on a central manager (`ChatCacheManager`) triggered by appropriate events/actions prevents race conditions and ensures consistent state.
 - **Known Issues:**
-  - **[RESOLVED]** React Query error on chat page: `No queryFn was passed...` for query key `["chat-typing-status", userId]`. Fixed by adding dummy `queryFn` and `staleTime: Infinity` to the `useQuery` call in `useChatData.ts`.
+  - **Socket Connection Failure:** Socket connection doesn't establish reliably when navigating directly to a chat page (`/chat/[userId]`). Suspected timing issue with `CurrentUserContext` loading. (Next investigation target)
+  - **[RESOLVED] Incorrect Unread Count (Bug 2):** Addressed by increasing `staleTime` in `useChatHistory` and removing immediate invalidation in `ChatHistory.tsx` to prevent fetching stale data on navigation. Previous fix attempt (removing redundant cache update in `useChatHistory.markAsRead`) was insufficient on its own but kept for code clarity.
+  - **[RESOLVED]** Messages stuck in "sending" state (Bug 1). Fixed by updating `ChatCacheManager.handleNewMessage` to update status of existing messages.
+  - **[RESOLVED]** React Query error on chat page: `No queryFn was passed...` for query key `["chat-typing-status", userId]`. Fixed by adding dummy `queryFn` and `staleTime: Infinity`.
+  - **[RESOLVED]** Chat Page Loading Forever. Fixed via multiple attempts involving `useChatData`, `useInitializeChat`, `ConversationService`, and `UserService` refactoring.
+  - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after fixing chat page queryFn bug)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after Memory Bank sync)._
