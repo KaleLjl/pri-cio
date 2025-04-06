@@ -18,11 +18,22 @@
   - **Updated Frontend Hooks:** Modified hooks consuming user-related APIs to align with backend changes:
     - `useProfilePage.ts`: Updated to use `FormData` for `POST /api/editprofile` and correct endpoint (`GET /api/users/me`) for fetching profile.
     - `useHistory.ts`: Updated `fetchUserProfile` to use correct endpoint (`GET /api/users/me`).
-    - Checked `useInitializeChat.ts`, `useChatData.ts`, `useChatHistory.ts` - no direct changes needed, but noted potential UI impact from `/api/users/[userId]` response change.
+      - Checked `useInitializeChat.ts`, `useChatData.ts`, `useChatHistory.ts` - no direct changes needed, but noted potential UI impact from `/api/users/[userId]` response change.
+  - **Debugging ChatHistory Authentication Issue:**
+    - **Initial Hypothesis:** Suspected timing issue in `CurrentUserContext` where `useSession` reported authenticated before `session.user.email` was ready.
+    - **Added Logging:** Inserted console logs into `CurrentUserContext.tsx` and `ChatHistory.tsx` to trace state transitions.
+    - **Log Analysis:** Logs revealed the client session was authenticated with email present, but the server-side `GET /api/users/me` call consistently failed with 401 Unauthorized. Backend logs showed `UserService: No session or user ID found`.
+    - **Code Review:**
+      - `/api/users/me` uses `UserService.getCurrentUser`.
+      - `UserService.getCurrentUser` uses `auth()` and checks for `session.user.id`.
+      - `/api/history` (which works) also uses `auth()` but checks for `session.user.email`.
+    - **Root Cause Identified:** The server-side session object retrieved via `auth()` contains `user.email` but is missing `user.id`. This is likely due to default JWT population behavior in NextAuth.js v5 beta.
   - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
   - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress.
 - **Next Steps:**
-  - Continue refactoring other API routes by creating and implementing corresponding service files. Potential candidates:
+  - **Fix ChatHistory Authentication:** Apply fix by adding `jwt` and `session` callbacks to `src/lib/auth.ts` to explicitly include the user ID in the JWT and session object.
+  - **Update Memory Bank:** Document the debugging process and fix (This step).
+  - Continue refactoring other API routes (e.g., `ConversationService`).
     - Conversation routes (`/api/chat/conversations/*`) -> `ConversationService`.
     - AI routes (`/api/ai/*`) -> `AIService`? (Or keep separate?)
     - Auth routes (`/api/auth/*`) -> `AuthService`? (Or leave as is, handled by NextAuth?)
@@ -44,6 +55,11 @@
   - AWS S3 for file storage (avatars, item images), managed via Service Layer where applicable (e.g., `UserService`).
   - Clear distinction between item creation/history (`histories`) and published items (`explore`).
   - Structured data types for core entities.
-- **Learnings/Insights:** The backend relies heavily on specific API routes for CRUD operations on distinct MongoDB collections, which is being addressed by the Service Layer refactoring. Real-time aspects are handled separately by Socket.IO. Understanding the specific roles and interactions of each collection (`histories`, `explore`, `dealing`, `conversations`, `messages`) is crucial for debugging data flow issues. The initiation logic for `dealing` records (via upsert in `POST /api/chat/messages`) has now been implemented.
+- **Learnings/Insights:**
+  - The backend relies heavily on specific API routes for CRUD operations on distinct MongoDB collections, which is being addressed by the Service Layer refactoring.
+  - Real-time aspects are handled separately by Socket.IO.
+  - Understanding the specific roles and interactions of each collection (`histories`, `explore`, `dealing`, `conversations`, `messages`) is crucial for debugging data flow issues.
+  - The initiation logic for `dealing` records (via upsert in `POST /api/chat/messages`) has now been implemented.
+  - **NextAuth.js v5 beta JWT Defaults:** The default JWT population might not include the user ID (`sub` claim mapped to `session.user.id`) reliably server-side via `auth()`, necessitating explicit `jwt` and `session` callbacks to ensure its presence. Different API routes relying on different session properties (`email` vs `id`) can mask this issue initially.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after Chat component refactoring)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after diagnosing ChatHistory auth issue)._

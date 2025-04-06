@@ -19,6 +19,7 @@
     - **Providers:** Google, Credentials (Email/Password)
     - **Adapter:** MongoDB (`@auth/mongodb-adapter`)
     - **Session Strategy:** JWT
+    - **Note:** Using v5 beta. Default JWT population might not include user ID server-side via `auth()` helper without explicit callbacks (see `activeContext.md` learnings).
   - **Database:** MongoDB
     - **Name:** `pri-cio`
     - **Collections Used:** `users`, `histories`, `explore`, `conversations`, `messages`, `dealing` (plus NextAuth collections like `accounts`, `sessions`, `verificationTokens`).

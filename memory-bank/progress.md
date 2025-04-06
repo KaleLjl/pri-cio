@@ -10,6 +10,7 @@
     - Fetching own profile via `GET /api/users/me` now uses `UserService`.
     - Fetching other users' public profile via `GET /api/users/[userId]` now uses `UserService`.
     - Frontend hooks (`useProfilePage`, `useHistory`) updated to align with API changes (FormData for POST, correct GET endpoint).
+    - Frontend components (`CurrentUserContext`, `Navigation`, `ChatHistory`) updated to handle API changes and authentication status more robustly.
   - **Explore Page (`/explore` & `/api/explore` & `ExploreService`):**
     - `GET /api/explore`: API route calls `exploreService.getExploreItems`.
     - `POST /api/explore`: API route calls `exploreService.publishItem`.
@@ -54,8 +55,10 @@
   - **Analytics:** Vercel Analytics & Speed Insights integrated.
 - **What's Left to Build:** (Outline remaining features or tasks - Requires manual update/verification, e.g., specific functionality of Around page, transaction handling if any, Share Card API/UI details)
 - **Known Issues:** (Document any bugs or problems - Requires manual update)
+  - **ChatHistory Authentication:** `/chathistory` page shows "Error: Failed to load user data" because the `GET /api/users/me` call fails with 401 Unauthorized, despite client session appearing authenticated. Root cause identified as missing user ID in the server-side JWT session object.
   - (Previous dealing issues resolved by implementing initiation logic and correcting GET API).
 - **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
+  - **Diagnosed ChatHistory Auth Issue:** Investigated `CurrentUserContext` and related components/API routes. Added logging, analyzed logs showing `GET /api/users/me` returning 401. Compared with working `/api/history` route. Identified that server-side `auth()` provides `session.user.email` but not `session.user.id`. Planned fix is to add `jwt` and `session` callbacks to `src/lib/auth.ts` to explicitly include the user ID.
   - Implemented `dealing` record creation (upsert) within `POST /api/chat/messages` to resolve the missing initiation step.
   - Corrected aggregation pipeline in `GET /api/chat/deal` (now in `DealService`) to properly fetch dealing item details.
   - Initiated Service Layer refactoring:
@@ -64,7 +67,7 @@
     - Created `HistoryService` (`src/services/history.service.ts`) and refactored `/api/history/route.ts` handlers (GET, POST).
     - Created `ExploreService` (`src/services/explore.service.ts`) and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).
     - Created `UserService` (`src/services/user.service.ts`) and refactored `/api/editprofile/route.ts`, `/api/users/me/route.ts`, and `/api/users/[userId]/route.ts`.
-  - Updated frontend hooks (`useProfilePage`, `useHistory`) to align with `UserService` API refactoring.
+  - Updated frontend hooks (`useProfilePage`, `useHistory`) and components (`CurrentUserContext`, `Navigation`, `ChatHistory`) to align with `UserService` API refactoring and improve auth handling.
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after frontend hook adjustments)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after auth handling fixes)._

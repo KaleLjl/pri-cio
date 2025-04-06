@@ -49,6 +49,7 @@
   - **Core Logic:** `src/lib/` contains shared utilities (DB connection `mongodb.ts`, S3 helpers `s3.ts`, image utils `imageUtils.ts`), hooks, context, types, and managers.
 - **Critical Implementation Paths:**
   - **Authentication Flow:** `/signin`, `/signup` -> `api/auth/*` -> `NextAuth.js` -> MongoDB (`users`, `accounts`, `sessions`, etc.).
+    - **Note:** Observed inconsistency where server-side `auth()` helper retrieves `session.user.email` but not `session.user.id` by default (NextAuth.js v5 beta, JWT strategy). Requires explicit callbacks (`jwt`, `session`) in `lib/auth.ts` to ensure ID is present in the session object.
   - **Chat Messaging:**
     - Frontend (`Chat.tsx`, hooks) -> `Socket.IO Server` (for broadcasting) & API routes (`/api/chat/messages`) for persistence.
     - `POST /api/chat/messages`: API route calls `messageService.sendMessage`, which handles creating/updating `conversations`, inserting into `messages`, and upserting into `dealing` if applicable.
@@ -73,10 +74,11 @@
   - **Item Creation/AI Flow:** `/createpost` -> `useUpload...` hooks -> Prepare data -> Call `POST /api/history` (which calls `historyService.createHistoryItem`) -> Optional AI Analysis (`POST /api/ai/chat` - interacts with OpenAI, no DB writes).
   - **Publishing Flow:** Item exists in `histories` -> User publishes via `POST /api/explore` (which calls `exploreService.publishItem`).
   - **Unpublishing Flow:** User unpublishes via `DELETE /api/explore` (which calls `exploreService.unpublishItem`).
-  - **Profile Editing Flow:** Frontend -> `/api/editprofile` (POST/PUT/DELETE) -> `UserService` methods (`updateUserProfile`, `deleteUserProfile`) -> Handles `users` collection updates and S3 avatar management.
+  - **Profile Editing Flow:** Frontend (`useProfilePage` hook) -> `/api/editprofile` (POST/PUT) -> `UserService.updateUserProfile` -> Handles `users` collection updates and S3 avatar management.
+  - **Profile Deletion Flow:** Frontend -> `/api/editprofile` (DELETE) -> `UserService.deleteUserProfile`.
   - **Profile Fetching Flow:**
-    - Current User: Frontend -> `GET /api/users/me` -> `UserService.getCurrentUser()`.
-    - Specific User: Frontend -> `GET /api/users/[userId]` -> `UserService.getUserById()`.
+    - Current User: Frontend (`CurrentUserContext`, `Navigation`, `useHistory` hook) -> `GET /api/users/me` -> `UserService.getCurrentUser()`.
+    - Specific User: Frontend (`useChatData` hook) -> `GET /api/users/[userId]` -> `UserService.getUserById()`.
   - **Conversation Management Flow:**
     - **Initialization:** Frontend -> `POST /api/chat/conversations/initialize` -> Finds or creates document in `conversations`.
     - **Listing:** Frontend -> `GET /api/chat/conversations/list` -> Aggregates data from `conversations`, `messages`, `users`.

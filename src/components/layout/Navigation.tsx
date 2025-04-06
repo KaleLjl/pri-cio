@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useSession, signOut } from 'next-auth/react';
-import { usePathname, useRouter } from 'next/navigation';
-import LogoImage from '/public/image/logo.png';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useSession, signOut } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
+import LogoImage from "/public/image/logo.png";
 import {
   FaSearch,
   FaCompass,
@@ -14,9 +14,9 @@ import {
   FaDesktop,
   FaSignInAlt,
   FaSignOutAlt,
-  FaMapMarkerAlt,
-} from 'react-icons/fa';
-import ImageWithFallback from '@/components/shared/ImageWithFallback';
+  // FaMapMarkerAlt, // Removed unused import
+} from "react-icons/fa";
+import ImageWithFallback from "@/components/shared/ImageWithFallback";
 
 interface NavItem {
   label: JSX.Element;
@@ -37,38 +37,52 @@ const Navigation: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
   // For the top search bar on /explore
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Fetch user avatar if logged in
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (session?.user?.email) {
+      // Check session status directly if needed, or rely on API 401
+      if (session?.user?.id) {
+        // Check for user ID in session
         try {
-          const response = await fetch(`/api/editprofile`);
+          // Change fetch URL
+          const response = await fetch(`/api/users/me`);
+
+          // Add 401 check
           if (!response.ok) {
-            throw new Error(`Failed to fetch user profile: ${response.statusText}`);
+            if (response.status === 401) {
+              // Not logged in, not an error for the Nav component
+              setCurrentAvatarUrl(null);
+              setUserName(null);
+              return; // Exit gracefully
+            }
+            // Other errors
+            throw new Error(
+              `Failed to fetch user profile: ${response.statusText}`
+            );
           }
-          const profiles = await response.json();
-          const userProfile = profiles.find(
-            (profile: { email: string }) => profile.email === session.user?.email
-          );
-          
+
+          // Response is the UserProfile object directly
+          const userProfile = await response.json();
+
           if (userProfile?.avatarUrl) {
             setCurrentAvatarUrl(userProfile.avatarUrl);
           } else {
             setCurrentAvatarUrl(null);
           }
-          
+
           if (userProfile?.name) {
             setUserName(userProfile.name);
-            if (session.user) {
-              session.user.name = userProfile.name;
-            }
+            // Avoid directly mutating session object here
+            // if (session.user) {
+            //   session.user.name = userProfile.name;
+            // }
           } else {
             setUserName(null);
           }
         } catch (error) {
-          console.error('Error fetching user profile:', error);
+          console.error("Error fetching user profile:", error);
           setCurrentAvatarUrl(null);
           setUserName(null);
         }
@@ -77,7 +91,7 @@ const Navigation: React.FC = () => {
     fetchUserProfile();
   }, [session?.user?.email]);
 
-  const emailInitial = session?.user?.email?.charAt(0).toUpperCase() || 'U';
+  const emailInitial = session?.user?.email?.charAt(0).toUpperCase() || "U";
   const displayName = userName || session?.user?.name;
 
   // Main nav items
@@ -90,7 +104,7 @@ const Navigation: React.FC = () => {
               <span>Explore</span>
             </div>
           ),
-          href: '/explore',
+          href: "/explore",
         },
         {
           label: (
@@ -99,7 +113,7 @@ const Navigation: React.FC = () => {
               <span>Messages</span>
             </div>
           ),
-          href: '/chathistory',
+          href: "/chathistory",
         },
         {
           label: (
@@ -108,7 +122,7 @@ const Navigation: React.FC = () => {
               <span>Create Post</span>
             </div>
           ),
-          href: '/createpost',
+          href: "/createpost",
         },
         {
           label: (
@@ -117,8 +131,8 @@ const Navigation: React.FC = () => {
               <span>Sign Out</span>
             </div>
           ),
-          href: 'sign-out',
-          onClick: () => signOut()
+          href: "sign-out",
+          onClick: () => signOut(),
         },
         {
           label: (
@@ -138,7 +152,7 @@ const Navigation: React.FC = () => {
               )}
             </div>
           ),
-          href: '/history',
+          href: "/history",
         },
       ]
     : [
@@ -149,7 +163,7 @@ const Navigation: React.FC = () => {
               <span>Explore</span>
             </div>
           ),
-          href: '/explore',
+          href: "/explore",
         },
         {
           label: (
@@ -158,12 +172,15 @@ const Navigation: React.FC = () => {
               <span>Sign In</span>
             </div>
           ),
-          href: '/signin',
+          href: "/signin",
         },
       ];
 
   // For clicking nav items in mobile
-  const handleNavClick = (item: NavItem, event: React.MouseEvent<HTMLElement>) => {
+  const handleNavClick = (
+    item: NavItem,
+    event: React.MouseEvent<HTMLElement>
+  ) => {
     if (item.onClick) {
       item.onClick(event);
     } else {
@@ -176,7 +193,7 @@ const Navigation: React.FC = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    if (pathname === '/explore') {
+    if (pathname === "/explore") {
       router.push(`/explore?search=${encodeURIComponent(query)}`);
     }
   };
@@ -194,7 +211,7 @@ const Navigation: React.FC = () => {
           </div>
 
           {/* Search Bar (only on /explore) */}
-          {pathname.includes('/explore') && (
+          {pathname.includes("/explore") && (
             <div className="flex-grow flex justify-center">
               <div className="relative w-full max-w-xs">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -253,9 +270,7 @@ const Navigation: React.FC = () => {
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d={
-                    isOpen
-                      ? 'M6 18L18 6M6 6l12 12'
-                      : 'M4 6h16M4 12h16M4 18h16'
+                    isOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"
                   }
                 />
               </svg>
@@ -282,15 +297,18 @@ const Navigation: React.FC = () => {
               <div
                 onClick={(e) => {
                   e.preventDefault();
-                  handleNavClick({
-                    label: (
-                      <div className="flex items-center space-x-2">
-                        <FaDesktop />
-                        <span>App</span>
-                      </div>
-                    ),
-                    href: '/app',
-                  }, e);
+                  handleNavClick(
+                    {
+                      label: (
+                        <div className="flex items-center space-x-2">
+                          <FaDesktop />
+                          <span>App</span>
+                        </div>
+                      ),
+                      href: "/app",
+                    },
+                    e
+                  );
                 }}
                 className="block px-3 py-2 rounded-md text-white hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
               >
@@ -306,9 +324,3 @@ const Navigation: React.FC = () => {
 };
 
 export default Navigation;
-
-
-
-
-
-
