@@ -48,6 +48,15 @@
       - `MessageInput.tsx`: Handles text input, send button, and toggling MyPostsPopup.
       - `MyPostsPopup.tsx`: Displays current user's posts for selection.
     - **Main Chat Orchestrator:** `src/components/main/Chat.tsx` uses hooks and composes the above sub-components.
+    - **History Components (`src/components/main/history/`):**
+      - `HistoryProfileHeader.tsx`: Displays user info and edit button.
+      - `HistoryTabControls.tsx`: Renders tab buttons.
+      - `HistorySavedItemsTab.tsx`: Renders grid of saved items using `HistoryItemCard`.
+      - `HistoryPostedItemsTab.tsx`: Renders grid of posted items using `HistoryItemCard`.
+      - `HistoryDealingItemsTab.tsx`: Renders grid of dealing items using `DealingItemCard`.
+      - `HistoryItemCard.tsx`: Reusable card for saved/posted items with actions.
+      - `DealingItemCard.tsx`: Card for dealing items showing status and actions.
+    - **Main History Orchestrator:** `src/components/main/History.tsx` uses `useHistory` hook and composes the above sub-components.
   - **Core Logic:** `src/lib/` contains shared utilities (DB connection `mongodb.ts`, S3 helpers `s3.ts`, image utils `imageUtils.ts`), hooks, context (`SocketContext`, `CurrentUserContext`, etc.), types, and managers (`ChatCacheManager`).
 - **Critical Implementation Paths:**
   - **Authentication Flow:** `/signin`, `/signup` -> `api/auth/*` -> `NextAuth.js` -> MongoDB (`users`, `accounts`, `sessions`, etc.).

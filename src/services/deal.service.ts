@@ -210,6 +210,10 @@ export async function getDealingItemsForUser(
             },
             buyerId: 1, // from dealing document
             sellerId: 1, // from dealing document
+            // Add final deal details from historyDetails
+            meetingTime: "$historyDetails.meetingTime", // Final meeting time
+            finalLocation: "$historyDetails.location", // Final location (use different name to avoid conflict)
+            finalPrice: "$historyDetails.suggestedPrice", // Final agreed price
             // Note: otherPartyEmail logic might need adjustment if buyerEmail/sellerEmail aren't in dealing doc
             // Assuming buyerId/sellerId are sufficient for now
           },

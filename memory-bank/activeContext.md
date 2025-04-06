@@ -71,8 +71,11 @@
   - **Reviewed Auth Logic Consistency:** Confirmed that server-side checks are now standardized and client-side patterns are appropriate. No major redundancies found.
   - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
   - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress and auth fix/standardization. (Self-update)
+  - **Refactored `src/components/main/History.tsx`:** Broke down the large component into smaller sub-components (`HistoryProfileHeader`, `HistoryTabControls`, `HistorySavedItemsTab`, `HistoryPostedItemsTab`, `HistoryDealingItemsTab`, `HistoryItemCard`, `DealingItemCard`) located in `src/components/main/history/`. Updated the main `History.tsx` to use these components.
+  - **Fixed `useEffect` Dependencies:** Wrapped functions (`fetchUserProfile`, `fetchDealingItems`) in `useHistory.ts` with `useCallback` and updated the dependency array in the main `useEffect` hook in `History.tsx` to resolve infinite loop ("Maximum update depth exceeded") error.
+  - **Reverted Dealing Card UI:** Reset the style of `DealingItemCard.tsx` to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) based on user feedback.
 - **Next Steps:**
-  - **Update Memory Bank:** Document the final unread count bug fix.
+  - **Update Memory Bank:** Document the `useEffect` fix and UI reversion in `progress.md`. (Current step)
   - **Verify Unread Count Fix:** Confirm the bug is resolved with the latest changes.
   - **Investigate Socket Connection Issue:** (Next) Determine why socket connection fails on direct chat page load (likely related to `CurrentUserContext` timing).
   - **Resume API Refactoring:** (Paused) Continue refactoring remaining API routes (Auth, ShareCard) into the Service Layer once chat issues are resolved.
@@ -85,7 +88,7 @@
   - Next.js App Router structure.
   - TypeScript throughout.
   - Heavy reliance on custom hooks for frontend state management and feature logic (e.g., `useChatData`, `useChatUI`, `useObjectDiscussion`).
-  - **Component Composition:** Breaking down large components (like `Chat.tsx`) into smaller, reusable sub-components for better maintainability.
+  - **Component Composition:** Breaking down large components (like `Chat.tsx`, `History.tsx`) into smaller, reusable sub-components for better maintainability.
   - Use of Tailwind CSS for styling, augmented by Headless UI and potentially Material UI.
   - React Query for server state management.
   - **Socket/Cache Management:**
@@ -117,5 +120,6 @@
   - **[RESOLVED]** React Query error on chat page: `No queryFn was passed...` for query key `["chat-typing-status", userId]`. Fixed by adding dummy `queryFn` and `staleTime: Infinity`.
   - **[RESOLVED]** Chat Page Loading Forever. Fixed via multiple attempts involving `useChatData`, `useInitializeChat`, `ConversationService`, and `UserService` refactoring.
   - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
+  - **[RESOLVED]** Maximum update depth exceeded error on History page. Fixed by memoizing functions in `useHistory` hook and updating `useEffect` dependencies in `History.tsx`.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after Memory Bank sync)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after History page fixes)._

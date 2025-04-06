@@ -63,8 +63,12 @@
   - **[RESOLVED]** Chat Page Loading Forever (Attempt 4). Fixed via multiple attempts involving `useChatData`, `useInitializeChat`, `ConversationService`, and `UserService` refactoring.
   - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
   - **[RESOLVED]** Chat Page React Query Error. Fixed by adding dummy `queryFn` and `staleTime: Infinity`.
+  - **[RESOLVED]** Maximum update depth exceeded error on History page. Fixed by memoizing functions (`fetchUserProfile`, `fetchDealingItems`) in `useHistory` hook and updating `useEffect` dependencies in `History.tsx`.
   - (Previous dealing issues resolved by implementing initiation logic and correcting GET API).
 - **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
+  - **Reverted Dealing Card Style:** Based on user feedback ("too ugly"), reverted the `DealingItemCard.tsx` style to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) after attempts to make details always visible caused layout issues (image cropping).
+  - **Fixed `useEffect` Dependencies in `History.tsx`:** Wrapped `fetchUserProfile` and `fetchDealingItems` in `useCallback` within the `useHistory` hook to provide stable references. Wrapped locally defined `updateContainerHeight` and `updatePostedHistories` in `useCallback`. Added these functions to the main `useEffect` dependency array to resolve the infinite loop error.
+  - **Refactored `History.tsx`:** Broke down the large component into smaller sub-components (`HistoryProfileHeader`, `HistoryTabControls`, `HistorySavedItemsTab`, `HistoryPostedItemsTab`, `HistoryDealingItemsTab`, `HistoryItemCard`, `DealingItemCard`) for better maintainability.
   - **Fixed Unread Count Bug (Final Attempt):** Identified stale data fetch on navigation back to `/chathistory` as the likely cause. Increased `staleTime` in `useChatHistory` query options and removed immediate invalidation from `ChatHistory.tsx` to rely more on the real-time updated client cache.
   - **Fixed Unread Count Bug (Initial Attempt):** Removed redundant cache update from `useChatHistory.markAsRead`. (Insufficient on its own).
   - **Fixed "Sending" Status Bug:** Modified `ChatCacheManager.handleNewMessage` to update status to 'sent' for existing messages (sender's confirmation).

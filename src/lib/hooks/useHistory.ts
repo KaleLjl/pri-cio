@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react"; // Import useCallback
 import { useSession } from "next-auth/react";
 import { HistoryItem, DealingItem } from "@/lib/types/history";
 
@@ -155,8 +155,8 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   };
 
-  // User profile fetch function
-  const fetchUserProfile = async () => {
+  // User profile fetch function (Memoized)
+  const fetchUserProfile = useCallback(async () => {
     if (!session?.user?.id) return; // Check for session user ID
 
     try {
@@ -179,10 +179,10 @@ export function useHistory(initialData: HistoryItem[] = []) {
         error instanceof Error ? error.message : "Failed to fetch user profile"
       );
     }
-  };
+  }, [session?.user?.id]); // Dependency: session.user.id
 
-  // Dealing items fetch function
-  const fetchDealingItems = async () => {
+  // Dealing items fetch function (Memoized)
+  const fetchDealingItems = useCallback(async () => {
     if (!session?.user?.email) return;
 
     setIsDealingLoading(true);
@@ -201,7 +201,7 @@ export function useHistory(initialData: HistoryItem[] = []) {
     } finally {
       setIsDealingLoading(false);
     }
-  };
+  }, [session?.user?.email]); // Dependency: session.user.email
 
   return {
     histories,

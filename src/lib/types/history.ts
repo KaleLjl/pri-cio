@@ -30,7 +30,10 @@ export interface DealingItem extends HistoryItem {
   dealingId: string;
   role: "buying" | "selling";
   status: "pending" | "completed" | "cancelled";
-  otherPartyEmail: string;
+  otherPartyEmail: string; // Note: This might not be directly available from the current aggregation
+  meetingTime?: string; // Final agreed meeting time (from history doc)
+  finalLocation?: string; // Final agreed location (from history doc)
+  finalPrice?: string; // Final agreed price (from history doc)
 }
 
 // Data required to complete a deal
