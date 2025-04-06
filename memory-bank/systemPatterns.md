@@ -21,8 +21,8 @@
 - **Design Patterns:**
   - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`, `AIService`) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs (e.g., S3 within `UserService`, OpenAI within `AIService`).
   - **Context API:** Used for managing global state (`src/lib/context/`). Includes `SocketContext` for managing WebSocket interactions.
-  - **Manager Pattern:** Used for client-side cache updates (`ChatCacheManager`).
-  - **Singleton Pattern:** Used for `SocketService`.
+  - **Manager Pattern:** Used for centralized client-side cache updates (`ChatCacheManager` in `src/lib/managers/`). This class is responsible for all direct modifications to chat-related React Query caches.
+  - **Singleton Pattern:** Used for `socketService` (exported instance from `src/lib/socket.ts`). This ensures a single WebSocket connection manager instance across the client application.
   - **Custom Hooks:** Extensive use for encapsulating frontend logic (`src/lib/hooks/`). Key examples:
     - `useExplore`: Handles fetching and caching of explore items.
     - `useUpload...` series (`useUploadMetaData`, `useUploadImageProcess`, `useUploadAI`, `useUploadAIChat`, `useUploadUI`, `useUploadActions`): Manages the complex state and logic for the item creation/AI estimation process.
@@ -53,13 +53,15 @@
   - **Authentication Flow:** `/signin`, `/signup` -> `api/auth/*` -> `NextAuth.js` -> MongoDB (`users`, `accounts`, `sessions`, etc.).
     - **Note:** Explicit `jwt` and `session` callbacks added to `lib/auth.ts` to ensure user ID is consistently included in the JWT session object server-side. Server-side authorization checks now standardized to use `session.user.id`.
   - **Chat Messaging & Real-time Updates:**
-    - **Connection:** `SocketContext` initiates connection via `SocketService` upon user login.
-    - **Event Handling:** `SocketContext` sets up listeners via `SocketService`. Callbacks primarily delegate to `ChatCacheManager` to update React Query cache (`["chat-messages"]`, `["chat-history"]`, `["chat-typing-status"]`).
-    - **Sending:** UI components call methods exposed by `SocketContext` (e.g., `sendMessage`, `markMessageRead`). `sendMessage` performs optimistic UI update via `ChatCacheManager` before emitting via `SocketService`. `markMessageRead` does optimistic update and emits `mark-read` event.
-    - **Persistence:** `Socket.IO Server` broadcasts events (`new-message`, `message-read`, etc.). Separate API routes (`/api/chat/messages`) handle database persistence via `MessageService`.
-    - **Status Flow:**
-      - Send -> Optimistic 'sending' (Cache) -> `send-message` (Socket) -> Server Broadcast `new-message` -> Cache update to 'sent'.
-      - Read -> Optimistic 'read' (Cache) -> `mark-read` (Socket) -> Server Broadcast `message-read` / `conversation-read` -> Cache update (redundant?).
+    - **Client-Side Socket Architecture:**
+      - **`socketService` (`src/lib/socket.ts`):** Singleton instance responsible for low-level WebSocket connection management (connect, disconnect) and raw event emission/subscription via Socket.IO client library.
+      - **`SocketContext` (`src/lib/context/SocketContext.tsx`):** React context provider that utilizes `socketService`. Manages connection lifecycle based on user session, sets up event listeners (using `socketService.on...`), coordinates room joining, and exposes higher-level actions (`sendMessage`, `markMessageRead`) to the UI/hooks. Acts as the bridge between the raw socket connection and the React application state/cache.
+      - **`ChatCacheManager` (`src/lib/managers/ChatCacheManager.ts`):** Centralized manager responsible for _all_ direct updates to chat-related React Query caches (`["chat-messages"]`, `["chat-history"]`, `["chat-typing-status"]`). It's instantiated within `SocketContext` and its methods are called by `SocketContext` handlers in response to socket events or UI actions.
+    - **Event Handling Flow (Example: New Message):**
+      - Server emits `new-message` -> `socketService` receives -> `SocketContext`'s listener fires -> `SocketContext` calls `cacheManager.handleNewMessage` -> `ChatCacheManager` updates `["chat-messages"]` and `["chat-history"]` caches -> React Query notifies UI components.
+    - **Action Flow (Example: Mark Read):**
+      - UI calls `socketContext.markMessageRead` -> `SocketContext` calls `cacheManager.updateMessageStatus` (optimistic cache update) -> `SocketContext` calls `socketService.markMessageRead` -> `socketService` emits `mark-read` event to server.
+    - **Persistence:** Real-time events are handled client-side via the socket architecture. Database persistence occurs separately via standard API calls (e.g., `POST /api/chat/messages`, `PATCH /api/chat/messages`) triggered by UI actions or sometimes within socket event handlers if necessary (though currently, persistence seems tied to API routes).
     - `POST /api/chat/messages`: API route calls `messageService.sendMessage`, which handles creating/updating `conversations`, inserting into `messages`, and upserting into `dealing` if applicable.
     - `GET /api/chat/messages`: API route calls `messageService.getMessages` to retrieve messages.
     - `PATCH /api/chat/messages`: API route calls `messageService.markMessagesRead` to update `messages` and `conversations`.
