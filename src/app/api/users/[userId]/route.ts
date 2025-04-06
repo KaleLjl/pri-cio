@@ -1,39 +1,33 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { NextResponse } from "next/server";
+import { getUserService } from "@/services/user.service"; // Import the service
+// ObjectId is no longer needed here as validation happens in the service
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ userId: string }> }
+  { params }: { params: { userId: string } } // Params are directly available
 ) {
   try {
-    const { userId } = await params;
+    const { userId } = params; // Get userId directly
 
-    if (!ObjectId.isValid(userId)) {
-      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
+    const userService = await getUserService();
+    // getUserById handles ID validation and fetching internally
+    const userProfile = await userService.getUserById(userId);
+
+    if (!userProfile) {
+      // Service returns null if ID is invalid or user not found
+      return NextResponse.json(
+        { error: "Invalid user ID or user not found" },
+        { status: 404 } // Combine 400 and 404 for simplicity here
+      );
     }
 
-    const client = await clientPromise;
-    const db = client.db('pri-cio');
-
-    const user = await db.collection('users').findOne(
-      { _id: new ObjectId(userId) },
-      { projection: { _id: 1, name: 1, email: 1, avatarUrl: 1 } }
-    );
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      ...user,
-      _id: user._id.toString()
-    });
+    // Service returns the partial UserProfile object
+    return NextResponse.json(userProfile);
   } catch (error) {
-    console.error('Error fetching user:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch user' },
-      { status: 500 }
-    );
+    console.error(`Error in GET /api/users/${params.userId}:`, error);
+    // Use a more specific error message if possible
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to fetch user";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

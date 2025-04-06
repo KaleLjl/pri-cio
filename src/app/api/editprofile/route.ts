@@ -1,167 +1,188 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
-import { uploadToS3, deleteFromS3 } from '@/lib/s3';
-import { auth } from '@/lib/auth';
-import { ObjectId } from "mongodb";
+// Removed unused imports: clientPromise, uploadToS3, deleteFromS3, ObjectId
+// import clientPromise from "@/lib/mongodb"; // No longer needed
+// import { ObjectId } from "mongodb"; // No longer needed
+import { auth } from "@/lib/auth";
+import { getUserService } from "@/services/user.service";
+import { UserProfile } from "@/lib/types/user"; // Moved import to top
 
-export async function GET(req: Request) {
+// GET: Fetch the current user's profile
+export async function GET() {
+  // Removed unused req parameter
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userService = await getUserService();
+    const userProfile = await userService.getCurrentUser(); // Handles session check
+
+    if (!userProfile) {
+      return NextResponse.json(
+        { error: "Unauthorized or user not found" },
+        { status: 401 }
+      );
     }
-
-    const client = await clientPromise;
-    const db = client.db("pri-cio");
-
-    const profiles = await db.collection("users").find({}).sort({ updatedAt: -1 }).toArray();
-
-    return NextResponse.json(profiles);
+    return NextResponse.json(userProfile);
   } catch (error) {
-    console.error("Error fetching profiles:", error);
-    return NextResponse.json({ message: "Failed to fetch profiles" }, { status: 500 });
+    console.error("Error fetching current user profile:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to fetch profile";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-}
+} // Added missing closing brace for GET function
 
+// POST: Update current user's profile (including avatar via FormData)
 export async function POST(req: Request) {
   try {
     const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { email, name, about, website, avatar, currentAvatarUrl, updatedAt } = body;
+    const formData = await req.formData();
+    const name = formData.get("name") as string | null;
+    const about = formData.get("about") as string | null;
+    const website = formData.get("website") as string | null;
+    const avatarFile = formData.get("avatar") as File | null;
+    // Check if avatar is explicitly being removed
+    const removeAvatar = formData.get("removeAvatar") === "true";
 
-    if (!email || !name) {
-      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+    const updateData: Partial<UserProfile> = {};
+    if (name !== null) updateData.name = name;
+    // Allow empty strings to clear fields
+    if (about !== null) updateData.about = about;
+    if (website !== null) updateData.website = website;
+    if (removeAvatar) updateData.avatarUrl = null; // Signal removal
+
+    // Basic validation
+    if (
+      !updateData.name &&
+      !avatarFile &&
+      !removeAvatar &&
+      about === null &&
+      website === null
+    ) {
+      return NextResponse.json(
+        { message: "No update data provided" },
+        { status: 400 }
+      );
+    }
+    if (updateData.name === "") {
+      return NextResponse.json(
+        { message: "Name cannot be empty" },
+        { status: 400 }
+      );
     }
 
-    const client = await clientPromise;
-    const db = client.db("pri-cio");
-
-    // 检查用户是否存在
-    const existingUser = await db.collection("users").findOne({ email });
-    
-    if (!existingUser) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
-    }
-
-    let newAvatarUrl = currentAvatarUrl;
-    
-    // 如果有新头像，上传到 S3
-    if (avatar) {
-      const fileName = `avatar-${email}-${Date.now()}.jpg`;
-      try {
-        console.log('Starting avatar upload to S3...');
-        newAvatarUrl = await uploadToS3(avatar, fileName);
-        console.log('Avatar uploaded successfully:', newAvatarUrl);
-        
-        // 如果上传成功且存在旧头像，删除旧头像
-        if (currentAvatarUrl) {
-          try {
-            console.log('Deleting old avatar:', currentAvatarUrl);
-            await deleteFromS3(currentAvatarUrl);
-            console.log('Old avatar deleted successfully');
-          } catch (error) {
-            console.error("Error deleting old avatar:", error);
-            // 继续执行，不要因为删除旧头像失败而中断整个流程
-          }
-        }
-      } catch (error) {
-        console.error("Error uploading avatar:", error);
-        return NextResponse.json({ 
-          message: "Failed to upload avatar",
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }, { status: 500 });
-      }
-    }
-
-    const updatedProfile = {
-      name,
-      about: about || "",
-      website: website || "",
-      avatarUrl: newAvatarUrl || "",
-      updatedAt: updatedAt || new Date(),
-    };
-
-    console.log('Updating profile in database:', updatedProfile);
-
-    const result = await db.collection("users").updateOne(
-      { email: email },
-      { $set: updatedProfile }
+    const userService = await getUserService();
+    const updatedUserProfile = await userService.updateUserProfile(
+      userId,
+      updateData,
+      avatarFile ?? undefined // Pass undefined if null
     );
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ message: "Failed to update profile" }, { status: 500 });
+    if (!updatedUserProfile) {
+      return NextResponse.json(
+        { message: "Failed to update profile (User not found or error)" },
+        { status: 404 } // Or 500 depending on service error handling
+      );
     }
 
-    console.log('Profile updated successfully');
-
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: "Profile updated successfully",
-      profile: updatedProfile 
+      profile: updatedUserProfile,
     });
   } catch (error) {
     console.error("Error updating profile:", error);
-    return NextResponse.json({ 
-      message: "Failed to update profile",
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to update profile";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
+// PUT: Update current user's profile (JSON body, no file upload)
 export async function PUT(req: Request) {
   try {
-    const body = await req.json();
-    const { id, ...updates } = body;
+    const session = await auth();
+    const userId = session?.user?.id;
 
-    if (!id) {
-      return NextResponse.json({ message: "Missing user ID" }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const client = await clientPromise;
-    const db = client.db("pri-cio");
+    const updates = (await req.json()) as Partial<UserProfile>;
 
-    const result = await db.collection("users").updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { ...updates, updatedAt: new Date() } }
+    // Remove fields that shouldn't be updated this way (e.g., id, email, avatar)
+    delete updates._id;
+    delete updates.email; // Prevent changing email via this route
+    delete updates.avatarUrl; // Avatar handled by POST
+    delete updates.createdAt;
+    delete updates.updatedAt;
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { message: "No update data provided" },
+        { status: 400 }
+      );
+    }
+    if (updates.name === "") {
+      return NextResponse.json(
+        { message: "Name cannot be empty" },
+        { status: 400 }
+      );
+    }
+
+    const userService = await getUserService();
+    // Call updateUserProfile without the file argument
+    const updatedUserProfile = await userService.updateUserProfile(
+      userId,
+      updates
     );
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    if (!updatedUserProfile) {
+      return NextResponse.json(
+        { message: "Failed to update profile (User not found or error)" },
+        { status: 404 } // Or 500
+      );
     }
 
-    return NextResponse.json({ message: "Profile updated successfully" });
+    return NextResponse.json({
+      message: "Profile updated successfully",
+      profile: updatedUserProfile,
+    });
   } catch (error) {
-    console.error("Error updating profile:", error);
-    return NextResponse.json({ message: "Failed to update profile" }, { status: 500 });
+    console.error("Error updating profile (PUT):", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to update profile";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
-export async function DELETE(req: Request) {
+// DELETE: Delete the current user's profile
+export async function DELETE() {
+  // Removed unused req parameter
   try {
-    const url = new URL(req.url);
-    const userId = url.pathname.split("/").pop();
+    const session = await auth();
+    const userId = session?.user?.id;
 
     if (!userId) {
-      return NextResponse.json({ message: "Missing user ID" }, { status: 400 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const client = await clientPromise;
-    const db = client.db("pri-cio");
+    const userService = await getUserService();
+    const success = await userService.deleteUserProfile(userId);
 
-    const result = await db.collection("users").deleteOne({ _id: new ObjectId(userId) });
-
-    if (result.deletedCount === 0) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    if (!success) {
+      return NextResponse.json(
+        { message: "Failed to delete profile (User not found or error)" },
+        { status: 404 } // Or 500
+      );
     }
 
     return NextResponse.json({ message: "Profile deleted successfully" });
   } catch (error) {
     console.error("Error deleting profile:", error);
-    return NextResponse.json({ message: "Failed to delete profile" }, { status: 500 });
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to delete profile";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
-
-

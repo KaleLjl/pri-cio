@@ -19,7 +19,7 @@
   - **Styling:** Tailwind CSS for utility-first styling, potentially augmented by Material UI/Headless UI components.
   - **State Management:** React Query for server state management (fetching, caching, synchronizing).
 - **Design Patterns:**
-  - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, etc.) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs.
+  - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, etc.) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs (e.g., S3 within `UserService`).
   - **Context API:** Used for managing global state (`src/lib/context/`).
   - **Custom Hooks:** Extensive use for encapsulating frontend logic (`src/lib/hooks/`). Key examples:
     - `useExplore`: Handles fetching and caching of explore items.
@@ -73,7 +73,10 @@
   - **Item Creation/AI Flow:** `/createpost` -> `useUpload...` hooks -> Prepare data -> Call `POST /api/history` (which calls `historyService.createHistoryItem`) -> Optional AI Analysis (`POST /api/ai/chat` - interacts with OpenAI, no DB writes).
   - **Publishing Flow:** Item exists in `histories` -> User publishes via `POST /api/explore` (which calls `exploreService.publishItem`).
   - **Unpublishing Flow:** User unpublishes via `DELETE /api/explore` (which calls `exploreService.unpublishItem`).
-  - **Profile Editing Flow:** Frontend -> `POST /api/editprofile` -> Uploads new avatar to S3 (if provided), deletes old avatar from S3 -> Updates user document in `users` collection. (Candidate for User Service).
+  - **Profile Editing Flow:** Frontend -> `/api/editprofile` (POST/PUT/DELETE) -> `UserService` methods (`updateUserProfile`, `deleteUserProfile`) -> Handles `users` collection updates and S3 avatar management.
+  - **Profile Fetching Flow:**
+    - Current User: Frontend -> `GET /api/users/me` -> `UserService.getCurrentUser()`.
+    - Specific User: Frontend -> `GET /api/users/[userId]` -> `UserService.getUserById()`.
   - **Conversation Management Flow:**
     - **Initialization:** Frontend -> `POST /api/chat/conversations/initialize` -> Finds or creates document in `conversations`.
     - **Listing:** Frontend -> `GET /api/chat/conversations/list` -> Aggregates data from `conversations`, `messages`, `users`.

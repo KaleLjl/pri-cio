@@ -11,13 +11,20 @@
     - Created `src/services/message.service.ts` and refactored `/api/chat/messages/route.ts` handlers (GET, POST, PATCH, DELETE, PUT).
     - Created `src/services/history.service.ts` and refactored `/api/history/route.ts` handlers (GET, POST).
     - Created `src/services/explore.service.ts` and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).
+    - **Created `src/services/user.service.ts` and refactored user-related API routes:**
+      - `/api/editprofile/route.ts` (GET, POST, PUT, DELETE) now uses `UserService`.
+      - `/api/users/me/route.ts` (GET) now uses `UserService`.
+      - `/api/users/[userId]/route.ts` (GET) now uses `UserService`.
   - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
   - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress.
 - **Next Steps:**
-  - Continue refactoring other API routes by creating and implementing corresponding service files (e.g., `user.service.ts`, `conversation.service.ts`).
+  - Continue refactoring other API routes by creating and implementing corresponding service files. Potential candidates:
+    - Conversation routes (`/api/chat/conversations/*`) -> `ConversationService`.
+    - AI routes (`/api/ai/*`) -> `AIService`? (Or keep separate?)
+    - Auth routes (`/api/auth/*`) -> `AuthService`? (Or leave as is, handled by NextAuth?)
   - Update Memory Bank documentation as refactoring progresses.
 - **Active Decisions/Considerations:**
-  - Proceeding with service layer refactoring incrementally.
+  - Proceeding with service layer refactoring incrementally. Prioritize `ConversationService` next.
 - **Key Patterns/Preferences:** (Updated)
   - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access, separating concerns from API route handlers.
   - Next.js App Router structure.
@@ -28,9 +35,9 @@
   - React Query for server state management.
   - Socket.IO (dedicated server) for real-time features (chat, presence, explore updates) - no direct DB interaction.
   - MongoDB (`pri-cio` database) as the primary datastore with distinct collections for different data types (`users`, `histories`, `explore`, `conversations`, `messages`, `dealing`).
-  - API routes handle all direct database interactions.
+  - API routes delegate logic to the Service Layer, which handles database interactions.
   - OpenAI integration for AI features (no direct DB interaction).
-  - AWS S3 for file storage (avatars, item images).
+  - AWS S3 for file storage (avatars, item images), managed via Service Layer where applicable (e.g., `UserService`).
   - Clear distinction between item creation/history (`histories`) and published items (`explore`).
   - Structured data types for core entities.
 - **Learnings/Insights:** The backend relies heavily on specific API routes for CRUD operations on distinct MongoDB collections, which is being addressed by the Service Layer refactoring. Real-time aspects are handled separately by Socket.IO. Understanding the specific roles and interactions of each collection (`histories`, `explore`, `dealing`, `conversations`, `messages`) is crucial for debugging data flow issues. The initiation logic for `dealing` records (via upsert in `POST /api/chat/messages`) has now been implemented.

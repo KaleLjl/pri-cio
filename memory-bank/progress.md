@@ -4,12 +4,12 @@
 - **What Works (Implemented Features - Functional Status & Details Verified via Code Analysis):**
   - **Core Structure:** Next.js App Router setup, Layout Wrapper (`src/components/layout/LayoutWrapper.tsx`), Navigation (`Navigation.tsx`), Footer (`Footer.tsx`).
   - **Authentication:** NextAuth.js setup (`/api/auth/[...nextauth]`) with Google & Credentials providers, MongoDB adapter (`@auth/mongodb-adapter`), JWT strategy. Includes API routes for signup, reset password, verify email/code.
-  - **User Profiles (`users` collection):**
+  - **User Profiles (`users` collection & `UserService`):**
     - Data structure (`UserProfile` in `src/lib/types/user.ts`).
-    - Profile editing via `POST /api/editprofile` (updates `users`, handles S3 avatar upload/delete). `PUT` and `DELETE` also exist.
-    - Fetching own basic profile via `GET /api/users/me`.
-    - Fetching other users' basic public profile via `GET /api/users/[userId]`.
-  - **Explore Page (`/explore` & `/api/explore`):**
+    - Profile editing via `/api/editprofile` (GET, POST, PUT, DELETE) now uses `UserService`, which handles `users` collection updates and S3 avatar management.
+    - Fetching own profile via `GET /api/users/me` now uses `UserService`.
+    - Fetching other users' public profile via `GET /api/users/[userId]` now uses `UserService`.
+  - **Explore Page (`/explore` & `/api/explore` & `ExploreService`):**
     - `GET /api/explore`: API route calls `exploreService.getExploreItems`.
     - `POST /api/explore`: API route calls `exploreService.publishItem`.
     - `DELETE /api/explore`: API route calls `exploreService.unpublishItem`.
@@ -62,6 +62,7 @@
     - Created `MessageService` (`src/services/message.service.ts`) and refactored `/api/chat/messages/route.ts` handlers (GET, POST, PATCH, DELETE, PUT).
     - Created `HistoryService` (`src/services/history.service.ts`) and refactored `/api/history/route.ts` handlers (GET, POST).
     - Created `ExploreService` (`src/services/explore.service.ts`) and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).
+    - Created `UserService` (`src/services/user.service.ts`) and refactored `/api/editprofile/route.ts`, `/api/users/me/route.ts`, and `/api/users/[userId]/route.ts`.
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after Chat component refactoring)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after UserService refactoring)._

@@ -5,10 +5,12 @@ export interface UserProfile {
   about?: string;
   website?: string;
   avatarUrl?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
+  // Use Date for timestamps as returned by MongoDB driver
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
+// This interface seems related to a specific hook/page, not a general update type
 export interface UseProfilePage {
   avatarUrl: string | null;
   formData: UserProfile;
@@ -17,4 +19,4 @@ export interface UseProfilePage {
   resetForm: () => void;
   saveProfile: () => Promise<void>;
   fetchProfileData: () => Promise<UserProfile>;
-} 
+}
