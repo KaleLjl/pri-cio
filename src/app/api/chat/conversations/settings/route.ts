@@ -1,66 +1,63 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
 import { auth } from "@/lib/auth";
 import { ObjectId } from "mongodb";
+import conversationService from "@/services/conversation.service"; // Import the service
 
 // Update conversation settings
 export async function PATCH(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      // Check for ID instead of email
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const currentUserId = session.user.id;
 
     const { conversationId, settings } = await req.json();
-    if (!conversationId || !ObjectId.isValid(conversationId)) {
+
+    // Basic validation
+    if (!conversationId) {
       return NextResponse.json(
-        { error: "Invalid conversation ID" },
+        { error: "Missing conversation ID" },
+        { status: 400 }
+      );
+    }
+    if (!ObjectId.isValid(conversationId)) {
+      return NextResponse.json(
+        { error: "Invalid conversation ID format" },
+        { status: 400 }
+      );
+    }
+    if (!settings) {
+      return NextResponse.json(
+        { error: "Missing settings data" },
         { status: 400 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("pri-cio");
+    // Call the service method
+    const updatedConversation =
+      await conversationService.updateConversationSettings(
+        currentUserId,
+        conversationId,
+        settings
+      );
 
-    // Get current user ID
-    const user = await db
-      .collection("users")
-      .findOne({ email: session.user.email }, { projection: { _id: 1 } });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const userId = user._id.toString();
-
-    // Verify conversation exists and user is participant
-    const conversation = await db.collection("conversations").findOne({
-      _id: new ObjectId(conversationId),
-      participants: userId,
-    });
-
-    if (!conversation) {
+    if (!updatedConversation) {
+      // Service handles internal errors, logging, and auth check (user must be participant)
       return NextResponse.json(
-        { error: "Conversation not found" },
-        { status: 404 }
+        {
+          error:
+            "Failed to update settings or conversation not found/unauthorized",
+        },
+        { status: 404 } // Return 404 if not found or user not participant
       );
     }
 
-    // Update conversation settings
-    await db.collection("conversations").updateOne(
-      { _id: new ObjectId(conversationId) },
-      {
-        $set: {
-          settings,
-          updatedAt: new Date(),
-        },
-      }
-    );
-
-    return NextResponse.json({ success: true });
+    console.log("Conversation settings updated:", conversationId);
+    // Return the updated conversation object as per service method
+    return NextResponse.json(updatedConversation);
   } catch (error) {
-    console.error("Error updating conversation settings:", error);
+    console.error("Error updating conversation settings in API route:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

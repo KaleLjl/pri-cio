@@ -19,7 +19,7 @@
   - **Styling:** Tailwind CSS for utility-first styling, potentially augmented by Material UI/Headless UI components.
   - **State Management:** React Query for server state management (fetching, caching, synchronizing).
 - **Design Patterns:**
-  - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, etc.) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs (e.g., S3 within `UserService`).
+  - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs (e.g., S3 within `UserService`).
   - **Context API:** Used for managing global state (`src/lib/context/`).
   - **Custom Hooks:** Extensive use for encapsulating frontend logic (`src/lib/hooks/`). Key examples:
     - `useExplore`: Handles fetching and caching of explore items.
@@ -79,11 +79,11 @@
   - **Profile Fetching Flow:**
     - Current User: Frontend (`CurrentUserContext`, `Navigation`, `useHistory` hook) -> `GET /api/users/me` -> `UserService.getCurrentUser()`.
     - Specific User: Frontend (`useChatData` hook) -> `GET /api/users/[userId]` -> `UserService.getUserById()`.
-  - **Conversation Management Flow:**
-    - **Initialization:** Frontend -> `POST /api/chat/conversations/initialize` -> Finds or creates document in `conversations`.
-    - **Listing:** Frontend -> `GET /api/chat/conversations/list` -> Aggregates data from `conversations`, `messages`, `users`.
-    - **Deletion:** Frontend -> `DELETE /api/chat/messages`. API route calls `messageService.deleteConversation` which handles the transaction logic for soft/hard deleting from `messages` and `conversations`, including the check for active `ObjectDiscussion`.
-    - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` (or `initialize`) -> Updates `settings` field in `conversations`. (This could be moved to a ConversationService later).
+  - **Conversation Management Flow:** (Refactored to use ConversationService)
+    - **Initialization:** Frontend -> `POST /api/chat/conversations/initialize` -> `ConversationService.initializeConversation` -> Finds or creates document in `conversations`.
+    - **Listing:** Frontend -> `GET /api/chat/conversations/list` -> `ConversationService.listConversations` -> Aggregates data from `conversations`, `messages`, `users`.
+    - **Deletion:** Frontend -> `DELETE /api/chat/messages`. API route calls `messageService.deleteConversation` which handles the transaction logic for soft/hard deleting from `messages` and `conversations`, including the check for active `ObjectDiscussion`. (Note: Deletion logic remains in MessageService for now).
+    - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` -> `ConversationService.updateConversationSettings` -> Updates `settings` field in `conversations`.
   - **Share Card Flow:** (Details still limited) Frontend (`useShareCard`) -> API call (`/api/share-card`?) -> Generates shareable card/link.
 
-_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after Chat component refactoring)._
+_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after ConversationService refactoring)._

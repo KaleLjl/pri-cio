@@ -21,11 +21,13 @@
     - `GET /api/history`: API route calls `historyService.getHistoryForUser` to fetch items.
   - **Chat System (`conversations`, `messages` collections):**
     - Real-time via dedicated Socket.IO server (`src/server/socket.ts` - no DB interaction).
-    - `POST /api/chat/conversations/initialize`: Finds or creates a conversation record in `conversations`.
-    - `GET /api/chat/conversations/list`: Fetches user's conversation list with last message preview and unread count (aggregates `conversations`, `messages`, `users`).
-    - `PATCH /api/chat/conversations/settings` (or `/initialize`): Updates settings field in `conversations`.
-    - `POST /api/chat/messages`: API route calls `messageService.sendMessage`.
-    - `GET /api/chat/messages`: API route calls `messageService.getMessages`.
+    - **Conversation Management (Refactored):**
+      - `POST /api/chat/conversations/initialize`: API route calls `conversationService.initializeConversation`.
+      - `GET /api/chat/conversations/list`: API route calls `conversationService.listConversations`.
+      - `PATCH /api/chat/conversations/settings`: API route calls `conversationService.updateConversationSettings`.
+    - **Message Management (Refactored):**
+      - `POST /api/chat/messages`: API route calls `messageService.sendMessage`.
+      - `GET /api/chat/messages`: API route calls `messageService.getMessages`.
     - `PATCH /api/chat/messages`: API route calls `messageService.markMessagesRead`.
     - `PUT /api/chat/messages`: API route calls `messageService.updateMessageStatus`.
     - `DELETE /api/chat/messages`: API route calls `messageService.deleteConversation`.
@@ -55,9 +57,14 @@
   - **Analytics:** Vercel Analytics & Speed Insights integrated.
 - **What's Left to Build:** (Outline remaining features or tasks - Requires manual update/verification, e.g., specific functionality of Around page, transaction handling if any, Share Card API/UI details)
 - **Known Issues:** (Document any bugs or problems - Requires manual update)
+  - **[RESOLVED] Chat Page Loading Forever (Attempt 4):** After previous fixes, identified a type mismatch issue in `ConversationService` when querying the `users` collection (typed as `UserProfile` with string `_id` but DB stores `ObjectId`). Refactored `ConversationService` to remove direct `users` collection access and instead use `UserService` (which correctly handles ID conversion) for user validation and fetching. This resolved the final underlying issue causing the loading problem.
   - **[RESOLVED] ChatHistory Authentication:** `/chathistory` page showed "Error: Failed to load user data" due to missing user ID in server-side JWT session. Fixed by adding callbacks to `lib/auth.ts`.
   - (Previous dealing issues resolved by implementing initiation logic and correcting GET API).
 - **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
+  - **Fixed Chat Page Loading Issue (Attempt 4):** After Attempt 3 (adding pre-validation) still resulted in errors due to type mismatches (`string` vs `ObjectId` for user `_id`), refactored `ConversationService` to delegate all user lookups (validation and data fetching) to `UserService`. This centralizes the handling of the ID type conversion and resolves the conflict.
+  - **Fixed Chat Page Loading Issue (Attempt 3):** After Attempt 2 (fixing participant ID logic in `useInitializeChat`) still resulted in a frontend error ("Other participant data not found..."), added pre-validation to `ConversationService.initializeConversation` using `usersCollection.countDocuments`. (Note: This failed due to the type mismatch resolved in Attempt 4).
+  - **Fixed Chat Page Loading Issue (Attempt 2):** After the first fix (removing redundant fetch in `useChatData`) failed to resolve the infinite loading, re-investigated `useInitializeChat`. Found participant identification relied on comparing names. Refactored `useInitializeChat` to use `session.user.id` and the `userId` prop for robust ID-based identification. Also fixed a minor type issue in the React Query cache update logic within the hook. (Note: This revealed the underlying data issue fixed in Attempt 3/4).
+  - **Fixed Chat Page Loading Issue (Attempt 1):** Investigated infinite loading on `/chat/[userId]` page occurring after `ConversationService` refactoring. Traced data flow from page component (`Chat.tsx`) through hooks (`useInitializeChat`, `useChatData`). Identified that `useChatData` was redundantly fetching the other user's profile via `/api/users/[userId]`, even though basic info was already available from `useInitializeChat`. Removed the redundant `useQuery` from `useChatData.ts`. (Note: This did not resolve the issue).
   - **Fixed ChatHistory Auth Issue:** Investigated `CurrentUserContext` and related components/API routes. Identified root cause as missing user ID in server-side JWT session object (NextAuth v5 beta default behavior). Added `jwt` and `session` callbacks to `src/lib/auth.ts` to explicitly include the user ID, resolving the issue.
   - **Standardized Server-Side Auth Checks:** Refactored API routes (`/api/history`, `/api/ai/*`, `/api/explore`, `/api/chat/*`) to consistently use `!session?.user?.id` for authorization checks.
   - Implemented `dealing` record creation (upsert) within `POST /api/chat/messages` to resolve the missing initiation step.
@@ -68,7 +75,8 @@
     - Created `HistoryService` (`src/services/history.service.ts`) and refactored `/api/history/route.ts` handlers (GET, POST).
     - Created `ExploreService` (`src/services/explore.service.ts`) and refactored `/api/explore/route.ts` handlers (GET, POST, DELETE).
     - Created `UserService` (`src/services/user.service.ts`) and refactored `/api/editprofile/route.ts`, `/api/users/me/route.ts`, and `/api/users/[userId]/route.ts`.
+    - Created `ConversationService` (`src/services/conversation.service.ts`) and refactored `/api/chat/conversations/initialize/route.ts`, `/api/chat/conversations/list/route.ts`, and `/api/chat/conversations/settings/route.ts`.
   - Updated frontend hooks (`useProfilePage`, `useHistory`) and components (`CurrentUserContext`, `Navigation`, `ChatHistory`) to align with `UserService` API refactoring and improve auth handling.
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after auth handling fixes)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after fixing chat page loading issue - final attempt)._

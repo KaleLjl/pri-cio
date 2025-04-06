@@ -15,6 +15,22 @@
       - `/api/editprofile/route.ts` (GET, POST, PUT, DELETE) now uses `UserService`.
       - `/api/users/me/route.ts` (GET) now uses `UserService`.
       - `/api/users/[userId]/route.ts` (GET) now uses `UserService`.
+    - **Created `src/services/conversation.service.ts` and refactored conversation-related API routes:**
+      - `/api/chat/conversations/initialize/route.ts` (POST) now uses `ConversationService`.
+      - `/api/chat/conversations/list/route.ts` (GET) now uses `ConversationService`.
+      - `/api/chat/conversations/settings/route.ts` (PATCH) now uses `ConversationService`. (Moved PATCH handler from `initialize` to `settings` route file).
+  - **Fixed Chat Page Loading Issue (Attempt 1):**
+    - Identified that `useChatData` hook was redundantly fetching other user's profile via `/api/users/[userId]`, likely causing a conflict after `ConversationService` refactoring.
+    - Removed the redundant `useQuery` for `/api/users/[userId]` from `useChatData.ts`. The hook now relies on the `otherUser` prop passed from `useInitializeChat`.
+    - **Issue Persisted:** Infinite loading continued without logs.
+  - **Fixed Chat Page Loading Issue (Attempt 2):**
+    - Investigated `useInitializeChat.ts`. Found that participant identification relied on comparing names (`p.name === session.user.name`), which is unreliable.
+    - Refactored `useInitializeChat.ts` to identify participants by comparing IDs (`p._id`) with the `userId` prop and `session.user.id`.
+    - Corrected a type error in the React Query cache update logic within the hook.
+    - **Issue Persisted:** Frontend hook threw "Other participant data not found in initialization response." error.
+  - **Fixed Chat Page Loading Issue (Attempt 3 & 4):**
+    - Added pre-validation to `ConversationService.initializeConversation` using `usersCollection.countDocuments`. This failed due to a type mismatch (`ObjectId` in DB vs `string` in `UserProfile` type).
+    - **Final Fix:** Refactored `ConversationService` to remove direct access to `usersCollection`. It now uses `UserService.getUserById()` for pre-validation and fetching participant details. This centralizes user data access and ensures consistent handling of the `_id` type mismatch (string vs ObjectId). Added checks for potentially undefined `_id` from `getUserById` results.
   - **Updated Frontend Hooks:** Modified hooks consuming user-related APIs to align with backend changes:
     - `useProfilePage.ts`: Updated to use `FormData` for `POST /api/editprofile` and correct endpoint (`GET /api/users/me`) for fetching profile.
     - `useHistory.ts`: Updated `fetchUserProfile` to use correct endpoint (`GET /api/users/me`).
@@ -34,15 +50,14 @@
   - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
   - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress and auth fix/standardization.
 - **Next Steps:**
-  - Continue refactoring other API routes (e.g., `ConversationService`).
-    - Conversation routes (`/api/chat/conversations/*`) -> `ConversationService`.
-    - AI routes (`/api/ai/*`) -> `AIService`? (Or keep separate?)
+  - Continue refactoring other API routes into the Service Layer. Potential candidates:
+    - AI routes (`/api/ai/*`) -> `AIService`?
     - Auth routes (`/api/auth/*`) -> `AuthService`? (Or leave as is, handled by NextAuth?)
   - Update Memory Bank documentation as refactoring progresses.
 - **Active Decisions/Considerations:**
-  - Proceeding with service layer refactoring incrementally. Prioritize `ConversationService` next.
+  - Service layer refactoring is proceeding incrementally. Next focus TBD (AI or Auth routes).
 - **Key Patterns/Preferences:** (Updated)
-  - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access, separating concerns from API route handlers.
+  - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access, separating concerns from API route handlers. Services created: `DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`.
   - Next.js App Router structure.
   - TypeScript throughout.
   - Heavy reliance on custom hooks for frontend state management and feature logic (e.g., `useChatData`, `useChatUI`, `useObjectDiscussion`).
@@ -62,5 +77,8 @@
   - Understanding the specific roles and interactions of each collection (`histories`, `explore`, `dealing`, `conversations`, `messages`) is crucial for debugging data flow issues.
   - The initiation logic for `dealing` records (via upsert in `POST /api/chat/messages`) has now been implemented.
   - **NextAuth.js v5 beta JWT Defaults:** The default JWT population might not include the user ID (`sub` claim mapped to `session.user.id`) reliably server-side via `auth()` without explicit `jwt` and `session` callbacks. This was the root cause of the ChatHistory bug. Adding the callbacks resolved the issue.
+  - **Data Flow Simplification:** Removing the redundant user profile fetch in `useChatData` simplifies the data flow for the chat page, relying on the initial data fetched during conversation initialization.
+  - **Robust Participant Identification:** Using IDs instead of names in `useInitializeChat` makes identifying the current and other user more reliable.
+  - **Service Pre-validation & Centralization:** Adding user existence checks via `UserService` at the start of `ConversationService.initializeConversation` prevents operations with invalid data. Centralizing user lookups in `UserService` ensures consistent handling of ID type conversions (string vs ObjectId).
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after standardizing auth checks)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after fixing chat page loading issue - final attempt)._
