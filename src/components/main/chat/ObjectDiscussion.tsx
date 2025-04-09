@@ -1,14 +1,14 @@
-import React, { useEffect } from 'react';
-import ImageWithFallback from './ImageWithFallback';
-import { CURRENCIES } from '@/components/main/CreatePost';
-import { useObjectDiscussion } from '@/lib/hooks/chat/useObjectDiscussion';
-import { ObjectDiscussionProps } from '@/lib/types/objectDiscussion';
+import React, { useEffect } from "react";
+import ImageWithFallback from "@/components/shared/ImageWithFallback";
+import { CURRENCIES } from "@/components/main/createpost/CreatePost";
+import { useObjectDiscussion } from "@/lib/hooks/chat/useObjectDiscussion";
+import { ObjectDiscussionProps } from "@/lib/types/objectDiscussion";
 
-export default function ObjectDiscussion({ 
-  post, 
+export default function ObjectDiscussion({
+  post,
   initialValues,
-  onClose, 
-  onSubmit 
+  onClose,
+  onSubmit,
 }: ObjectDiscussionProps) {
   const {
     price,
@@ -19,9 +19,9 @@ export default function ObjectDiscussion({
     handleMeetingTimeChange,
     handleFormSubmit,
     getPrimaryImage,
-    initializeFormValues
+    initializeFormValues,
   } = useObjectDiscussion({
-    currentUserId: '',
+    currentUserId: "",
     messages: [],
     sendMessage: async () => {},
   });
@@ -29,8 +29,11 @@ export default function ObjectDiscussion({
   useEffect(() => {
     initializeFormValues(
       initialValues?.price || post.price,
-      initialValues?.location || (post.location ? `${post.location.city}, ${post.location.country}` : ''),
-      initialValues?.meetingTime || ''
+      initialValues?.location ||
+        (post.location
+          ? `${post.location.city}, ${post.location.country}`
+          : ""),
+      initialValues?.meetingTime || ""
     );
   }, [initialValues, post]);
 
@@ -54,15 +57,16 @@ export default function ObjectDiscussion({
             {post.description}
           </p>
 
-          <form onSubmit={(e) => handleFormSubmit(e, onSubmit)} className="space-y-3">
+          <form
+            onSubmit={(e) => handleFormSubmit(e, onSubmit)}
+            className="space-y-3"
+          >
             {/* Price */}
             <div className="flex items-center space-x-2">
-              <span className="text-gray-400 text-sm">
-                Price:
-              </span>
+              <span className="text-gray-400 text-sm">Price:</span>
               <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  {CURRENCIES.find(c => c.value === post.currency)?.symbol}
+                  {CURRENCIES.find((c) => c.value === post.currency)?.symbol}
                 </span>
                 <input
                   type="text"
@@ -77,9 +81,7 @@ export default function ObjectDiscussion({
 
             {/* Location */}
             <div className="flex items-center space-x-2">
-              <span className="text-gray-400 text-sm">
-                Location:
-              </span>
+              <span className="text-gray-400 text-sm">Location:</span>
               <input
                 type="text"
                 value={location}
@@ -92,9 +94,7 @@ export default function ObjectDiscussion({
 
             {/* Meeting Time */}
             <div className="flex items-center space-x-2">
-              <span className="text-gray-400 text-sm">
-                Meeting Time:
-              </span>
+              <span className="text-gray-400 text-sm">Meeting Time:</span>
               <input
                 type="datetime-local"
                 value={meetingTime}
@@ -126,4 +126,4 @@ export default function ObjectDiscussion({
       </div>
     </div>
   );
-} 
+}

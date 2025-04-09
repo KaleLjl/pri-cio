@@ -1,7 +1,24 @@
 # Active Context
 
-- **Current Focus:** Updating Memory Bank after applying the final fix for the unread count bug.
+- **Current Focus:** Testing "Post to Explore" modal after refactoring to use Context API. Updating Memory Bank.
 - **Recent Changes:**
+  - **Refactored "Post to Explore" to use Context:**
+    - Created `ExploreContext` (`src/lib/context/ExploreContext.tsx`) to manage state and functions related to posting items to the explore feed.
+    - `ExploreProvider` now wraps the tab content in `History.tsx`.
+    - `ToExplore.tsx` (now at `src/components/main/history/ToExplore.tsx`) consumes the context instead of using the `useToExplore` hook directly. Props were adjusted.
+    - `HistoryItemCard.tsx` consumes the context to get `handlePost` and `isPosting`, removing the `ToExplore` wrapper component and related props.
+    - Removed `locationPermission`, `onLocationPermissionChange`, and `onPostSuccess` props from `HistorySavedItemsTab.tsx` and `History.tsx` where they were previously drilled down.
+  - **Implemented Trade Completion Code Feature:** (Previous)
+    - Added `completionCode` field to `DealingItem` type (`src/lib/types/history.ts`).
+    - Modified `DealService.getDealingItemsForUser` to auto-generate and save a 6-digit code for buyers on pending deals.
+    - Added `DealService.verifyAndCompleteDeal` to validate the code submitted by the seller and complete the deal.
+    - Created API route `POST /api/chat/deal/verify-code` for sellers to submit the code.
+    - Created (but less critical now) API route `POST /api/chat/deal/generate-code`.
+    - Updated `DealingItemCard.tsx` to display the code for buyers and show a verification input/button for sellers.
+    - Updated `useHistory` hook with `verifyCompletionCode` function to call the verification API.
+    - Updated `History.tsx` and `HistoryDealingItemsTab.tsx` to pass down the verification handler.
+  - **Fixed `useEffect` Dependencies in `History.tsx`:** Resolved "Maximum update depth exceeded" error by wrapping functions (`fetchUserProfile`, `fetchDealingItems`) in `useCallback` within the `useHistory` hook and updating the main `useEffect` dependency array.
+  - **Reverted Dealing Card UI:** Reset the style of `DealingItemCard.tsx` to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) based on user feedback regarding aesthetics and layout issues.
   - **Fixed Unread Count Bug (Final Attempt):**
     - Identified that the bug likely occurred due to stale data being fetched by `useQuery` in `useChatHistory` immediately upon navigating back to `/chathistory` (due to default `refetchOnMount: true` and immediate invalidation in `ChatHistory.tsx`), overwriting the correct client-side cache updated in real-time.
     - Increased `staleTime` for `["chat-history"]` query in `useChatHistory.ts` from 30s to 60s.
@@ -73,29 +90,27 @@
   - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress and auth fix/standardization. (Self-update)
   - **Refactored `src/components/main/History.tsx`:** Broke down the large component into smaller sub-components (`HistoryProfileHeader`, `HistoryTabControls`, `HistorySavedItemsTab`, `HistoryPostedItemsTab`, `HistoryDealingItemsTab`, `HistoryItemCard`, `DealingItemCard`) located in `src/components/main/history/`. Updated the main `History.tsx` to use these components.
   - **Fixed `useEffect` Dependencies:** Wrapped functions (`fetchUserProfile`, `fetchDealingItems`) in `useHistory.ts` with `useCallback` and updated the dependency array in the main `useEffect` hook in `History.tsx` to resolve infinite loop ("Maximum update depth exceeded") error.
-  - **Reverted Dealing Card UI:** Reset the style of `DealingItemCard.tsx` to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) based on user feedback.
+  - **Reverted Dealing Card UI:** (Previous) Reset the style of `DealingItemCard.tsx` to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) based on user feedback.
 - **Next Steps:**
-  - **Update Memory Bank:** Document the `useEffect` fix and UI reversion in `progress.md`. (Current step)
-  - **Verify Unread Count Fix:** Confirm the bug is resolved with the latest changes.
+  - **Test "Post to Explore" Modal:** Verify if the location modal now appears correctly after the context refactoring.
+  - **Update Memory Bank:** Document context refactoring in `systemPatterns.md` and `progress.md`. (Ongoing)
   - **Investigate Socket Connection Issue:** (Next) Determine why socket connection fails on direct chat page load (likely related to `CurrentUserContext` timing).
-  - **Resume API Refactoring:** (Paused) Continue refactoring remaining API routes (Auth, ShareCard) into the Service Layer once chat issues are resolved.
+  - **Verify Unread Count Fix:** (Next) Confirm the unread count bug is resolved with the latest changes.
+  - **Resume API Refactoring:** (Paused) Continue refactoring remaining API routes (Auth, ShareCard) into the Service Layer once other issues are resolved.
 - **Active Decisions/Considerations:**
   - Addressed the unread count bug by adjusting React Query fetching behavior rather than solely focusing on cache update logic.
   - Prioritized updating Memory Bank after applying the fix.
   - Decided to keep `/api/ai/quick` route separate from `AIService` for now due to its unique market research functionality.
-- **Key Patterns/Preferences:** (Updated)
-  - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access, separating concerns from API route handlers. Services created: `DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`, `AIService`.
+  - **Key Patterns/Preferences:** (Updated)
+  - **Service Layer:** Introduced (`src/services/`) to encapsulate business logic and data access.
+  - **Context API:** Used for global state (`RootProvider`, `SocketContext`) and feature-specific state (`ExploreContext`).
   - Next.js App Router structure.
   - TypeScript throughout.
-  - Heavy reliance on custom hooks for frontend state management and feature logic (e.g., `useChatData`, `useChatUI`, `useObjectDiscussion`).
-  - **Component Composition:** Breaking down large components (like `Chat.tsx`, `History.tsx`) into smaller, reusable sub-components for better maintainability.
-  - Use of Tailwind CSS for styling, augmented by Headless UI and potentially Material UI.
+  - Heavy reliance on custom hooks (e.g., `useChatData`, `useHistory`, `useToExplore`).
+  - **Component Composition:** Breaking down large components (`Chat.tsx`, `History.tsx`) into smaller sub-components.
+  - Tailwind CSS for styling.
   - React Query for server state management.
-  - **Socket/Cache Management:**
-    - Socket.IO (dedicated server) for real-time transport.
-    - Client-side `SocketService` (singleton) manages connection lifecycle and event abstraction.
-    - `SocketContext` provides connection management, listener setup (via `SocketService`), room management (based on history cache), and exposes actions.
-    - `ChatCacheManager` handles React Query cache updates based on socket events and optimistic UI actions.
+  - **Socket/Cache Management:** `SocketService` (singleton), `SocketContext`, `ChatCacheManager`.
   - MongoDB (`pri-cio` database) as the primary datastore with distinct collections for different data types (`users`, `histories`, `explore`, `conversations`, `messages`, `dealing`).
   - API routes delegate logic to the Service Layer, which handles database interactions.
   - OpenAI integration for AI features (no direct DB interaction).
@@ -111,15 +126,20 @@
   - **Data Flow Simplification:** Removing the redundant user profile fetch in `useChatData` simplifies the data flow for the chat page, relying on the initial data fetched during conversation initialization.
   - **Robust Participant Identification:** Using IDs instead of names in `useInitializeChat` makes identifying the current and other user more reliable.
   - **Service Pre-validation & Centralization:** Adding user existence checks via `UserService` at the start of `ConversationService.initializeConversation` prevents operations with invalid data. Centralizing user lookups in `UserService` ensures consistent handling of ID type conversions (string vs ObjectId).
-  - **Centralized Cache Updates:** Removing redundant cache manipulations (like the one in `useChatHistory.markAsRead`) and relying on a central manager (`ChatCacheManager`) triggered by appropriate events/actions prevents race conditions and ensures consistent state.
-  - **Client Socket Architecture Roles:** Clarified the distinct roles: `socketService` (`src/lib/socket.ts`) handles low-level connection/transport; `SocketContext` integrates with React, manages lifecycle/listeners, and coordinates actions; `ChatCacheManager` centralizes React Query cache updates for chat. Kept `socketService` in `src/lib` to maintain separation from backend `src/services`.
+  - **Centralized Cache Updates:** Using `ChatCacheManager` for chat-related cache updates.
+  - **Client Socket Architecture Roles:** Clarified roles of `socketService`, `SocketContext`, `ChatCacheManager`.
+- **Learnings/Insights:**
+  - Refactoring with Context API (`ExploreContext`) significantly reduced prop drilling for the "Post to Explore" feature in the History page components.
+  - Need to be careful with `replace_in_file` on complex components; `write_to_file` can be a necessary fallback despite its drawbacks.
+  - Previous learnings about NextAuth JWT, Service Layer, etc., remain relevant.
 - **Known Issues:**
-  - **Socket Connection Failure:** Socket connection doesn't establish reliably when navigating directly to a chat page (`/chat/[userId]`). Suspected timing issue with `CurrentUserContext` loading. (Next investigation target)
-  - **[RESOLVED] Incorrect Unread Count (Bug 2):** Addressed by increasing `staleTime` in `useChatHistory` and removing immediate invalidation in `ChatHistory.tsx` to prevent fetching stale data on navigation. Previous fix attempt (removing redundant cache update in `useChatHistory.markAsRead`) was insufficient on its own but kept for code clarity.
+  - **"Post to Explore" Modal Bug:** The original issue (modal not appearing) needs re-testing after the context refactoring.
+  - **Socket Connection Failure:** Socket connection doesn't establish reliably on direct chat page load. (Next investigation target)
+  - **[RESOLVED] Incorrect Unread Count (Bug 2):** Addressed by adjusting React Query fetching behavior.
   - **[RESOLVED]** Messages stuck in "sending" state (Bug 1). Fixed by updating `ChatCacheManager.handleNewMessage` to update status of existing messages.
   - **[RESOLVED]** React Query error on chat page: `No queryFn was passed...` for query key `["chat-typing-status", userId]`. Fixed by adding dummy `queryFn` and `staleTime: Infinity`.
   - **[RESOLVED]** Chat Page Loading Forever. Fixed via multiple attempts involving `useChatData`, `useInitializeChat`, `ConversationService`, and `UserService` refactoring.
   - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
-  - **[RESOLVED]** Maximum update depth exceeded error on History page. Fixed by memoizing functions in `useHistory` hook and updating `useEffect` dependencies in `History.tsx`.
+  - **[RESOLVED]** Maximum update depth exceeded error on History page. Fixed by wrapping functions in `useCallback` within `useHistory` hook and updating `useEffect` dependencies in `History.tsx`.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after History page fixes)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after trade code feature implementation)._

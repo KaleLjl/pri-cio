@@ -9,9 +9,9 @@ interface HistorySavedItemsTabProps {
   savedItemsCount: number;
   onOpenCard: (item: HistoryItem) => void;
   onDelete: (historyId: string) => void;
-  onPostSuccess: () => void;
-  locationPermission: "granted" | "denied" | "prompt" | null;
-  onLocationPermissionChange: (permission: "granted" | "denied") => void;
+  // onPostSuccess: () => void; // Removed - Handled by context
+  // locationPermission: "granted" | "denied" | "prompt" | null; // Removed - Handled by context
+  // onLocationPermissionChange: (permission: "granted" | "denied") => void; // Removed - Handled by context
   actionInProgress: { [key: string]: string };
 }
 
@@ -22,9 +22,9 @@ const HistorySavedItemsTab: React.FC<HistorySavedItemsTabProps> = ({
   savedItemsCount,
   onOpenCard,
   onDelete,
-  onPostSuccess,
-  locationPermission,
-  onLocationPermissionChange,
+  // onPostSuccess, // Removed
+  // locationPermission, // Removed
+  // onLocationPermissionChange, // Removed
   actionInProgress,
 }) => {
   const savedItems = histories.filter((history) => {
@@ -53,9 +53,9 @@ const HistorySavedItemsTab: React.FC<HistorySavedItemsTabProps> = ({
               onOpenCard={onOpenCard}
               onDelete={onDelete}
               onUnpublish={() => {}} // Not applicable for saved items
-              onPostSuccess={onPostSuccess}
-              locationPermission={locationPermission}
-              onLocationPermissionChange={onLocationPermissionChange}
+              // onPostSuccess={onPostSuccess} // Removed - Handled by context
+              // locationPermission={locationPermission} // Removed
+              // onLocationPermissionChange={onLocationPermissionChange} // Removed
               actionInProgress={actionInProgress[history._id]}
             />
           ))}

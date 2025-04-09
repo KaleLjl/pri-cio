@@ -3,7 +3,7 @@
 import React from "react";
 import { ExploreItem } from "@/lib/types/explore";
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
-import { CURRENCIES } from "@/components/main/CreatePost";
+import { CURRENCIES } from "@/components/main/createpost/CreatePost";
 import { getPrimaryImage } from "@/lib/utils/imageUtils";
 
 interface MyPostsPopupProps {

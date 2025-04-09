@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState } from "react"; // Keep only one import line, remove useContext
 import Image from "next/image";
 import { HistoryItem } from "@/lib/types/history";
-import { CURRENCIES, Currency } from "@/components/main/CreatePost";
-import ToExplore from "@/components/shared/ToExplore";
+import { CURRENCIES, Currency } from "@/components/main/createpost/CreatePost";
+// import ToExplore from "@/components/main/history/ToExplore"; // Removed - Will use context
+import { useExploreContext } from "@/lib/context/ExploreContext"; // Import the context hook
 
 interface HistoryItemCardProps {
   history: HistoryItem;
@@ -10,9 +11,9 @@ interface HistoryItemCardProps {
   onOpenCard: (item: HistoryItem) => void;
   onDelete: (historyId: string) => void;
   onUnpublish: (historyId: string, exploreId: string) => void;
-  onPostSuccess: () => void; // Callback for successful posting
-  locationPermission: "granted" | "denied" | "prompt" | null;
-  onLocationPermissionChange: (permission: "granted" | "denied") => void;
+  // onPostSuccess: () => void; // Removed - Handled by context's handleConfirm
+  // locationPermission: "granted" | "denied" | "prompt" | null; // Removed - Handled by context
+  // onLocationPermissionChange: (permission: "granted" | "denied") => void; // Removed - Handled by context
   actionInProgress: string | undefined; // Track action for this specific card
 }
 
@@ -22,12 +23,14 @@ const HistoryItemCard: React.FC<HistoryItemCardProps> = ({
   onOpenCard,
   onDelete,
   onUnpublish,
-  onPostSuccess,
-  locationPermission,
-  onLocationPermissionChange,
+  // onPostSuccess, // Removed
+  // locationPermission, // Removed
+  // onLocationPermissionChange, // Removed
   actionInProgress,
 }) => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  // Consume the context
+  const { handlePost, isSaving: isPosting } = useExploreContext();
 
   const handleDropdownToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -94,29 +97,24 @@ const HistoryItemCard: React.FC<HistoryItemCardProps> = ({
               <div className="absolute right-0 top-full mt-1 w-30 bg-black shadow-lg rounded-lg z-50">
                 {!isPosted ? (
                   <>
-                    <ToExplore
-                      history={history}
-                      locationPermission={locationPermission}
-                      onLocationPermissionChange={onLocationPermissionChange}
-                      onSuccess={() => {
-                        onPostSuccess(); // Call parent success handler
-                        setActiveDropdown(null); // Close dropdown
-                      }}
-                    >
-                      {({ handlePost, isPosting }) => (
-                        <button
-                          onClick={(e) => handleActionClick(e, handlePost)}
-                          className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
-                          disabled={isPosting || !!actionInProgress}
-                        >
-                          <i className="fas fa-share mr-2"></i>
-                          {isPosting ? "Posting..." : "Post to Explore"}
-                        </button>
-                      )}
-                    </ToExplore>
+                    {/* Use context directly */}
                     <button
-                      onClick={(e) =>
-                        handleActionClick(e, () => onDelete(history._id))
+                      onClick={(e) => {
+                        handleActionClick(e, () => {
+                          // Call handlePost from context, passing the history item
+                          handlePost(history);
+                          // Note: onSuccess logic needs to be handled within the context's handleConfirm now
+                        });
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
+                      disabled={isPosting || !!actionInProgress}
+                    >
+                      <i className="fas fa-share mr-2"></i>
+                      {isPosting ? "Posting..." : "Post to Explore"}
+                    </button>
+                    <button
+                      onClick={
+                        (e) => handleActionClick(e, () => onDelete(history._id)) // Keep delete logic
                       }
                       className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 rounded disabled:opacity-50 flex items-center"
                       disabled={!!actionInProgress}

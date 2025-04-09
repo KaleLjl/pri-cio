@@ -51,15 +51,22 @@
     - Fetches data via `GET /api/history` and `GET /api/chat/deal`.
     - Client-side logic categorizes items into Saved, Posted, Dealing tabs.
     - Allows deal completion/cancellation via `PATCH /api/chat/deal`.
-  - **Database:** MongoDB (`pri-cio` database) connection via `lib/mongodb.ts`. Collections: `users`, `histories`, `explore`, `conversations`, `messages`, `dealing` (plus NextAuth).
+    - **Trade Completion Code:** Implemented system where buyers see a code on pending deals, and sellers use it to verify and complete the transaction via `/api/chat/deal/verify-code`. Code auto-generated in `DealService.getDealingItemsForUser`. Frontend components (`DealingItemCard`, `HistoryDealingItemsTab`, `History.tsx`) and hook (`useHistory`) updated.
+  - **Database:** MongoDB (`pri-cio` database) connection via `lib/mongodb.ts`. Collections: `users`, `histories`, `explore`, `conversations`, `messages`, `dealing` (plus NextAuth). `dealing` collection now includes `completionCode` and `codeGeneratedAt`.
   - **File Uploads:** AWS S3 integration via `lib/s3.ts` used by `/api/history` and `/api/editprofile`.
-  - **Utilities:** Context providers, custom hooks, type definitions (`src/lib/types`).
+  - **Utilities:** Context providers (`SocketContext`, `ExploreContext`), custom hooks, type definitions (`src/lib/types`).
   - **Analytics:** Vercel Analytics & Speed Insights integrated.
-- **What's Left to Build:** (Outline remaining features or tasks - Requires manual update/verification, e.g., specific functionality of Around page, transaction handling if any, Share Card API/UI details)
+  - **Context Refactoring:** "Post to Explore" feature in History page now uses `ExploreContext` to manage state and actions, reducing prop drilling.
+- **What's Left to Build:**
+  - Specific functionality of Around page (`/around`).
+  - Share Card API/UI details (`/api/share-card`, `useShareCard`).
+  - Transaction handling (if any beyond current dealing flow).
+  - (Requires further manual update/verification)
 - **Known Issues:** (Document any bugs or problems - Requires manual update)
+  - **"Post to Explore" Modal Bug:** Needs re-testing after context refactoring. The underlying cause might be resolved or changed.
   - **Socket Connection Failure:** Socket connection doesn't establish reliably when navigating directly to a chat page (`/chat/[userId]`). Suspected timing issue with `CurrentUserContext` loading. (Next investigation target)
-  - **[RESOLVED] Incorrect Unread Count (Bug 2):** Addressed by increasing `staleTime` in `useChatHistory` and removing immediate invalidation in `ChatHistory.tsx` to prevent fetching stale data on navigation. Previous fix attempt (removing redundant cache update in `useChatHistory.markAsRead`) was insufficient on its own but kept for code clarity.
-  - **[RESOLVED]** Messages stuck in "sending" state (Bug 1). Fixed by updating `ChatCacheManager.handleNewMessage` to update status to 'sent' for existing messages.
+  - **[RESOLVED] Incorrect Unread Count (Bug 2):** Addressed by increasing `staleTime` in `useChatHistory` and removing immediate invalidation in `ChatHistory.tsx`.
+  - **[RESOLVED]** Messages stuck in "sending" state (Bug 1). Fixed by updating `ChatCacheManager.handleNewMessage`.
   - **[RESOLVED]** Chat Page Loading Forever (Attempt 4). Fixed via multiple attempts involving `useChatData`, `useInitializeChat`, `ConversationService`, and `UserService` refactoring.
   - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
   - **[RESOLVED]** Chat Page React Query Error. Fixed by adding dummy `queryFn` and `staleTime: Infinity`.
@@ -93,5 +100,6 @@
     - Created `AIService` (`src/services/ai.service.ts`) and refactored `/api/ai/chat/route.ts`.
   - Updated frontend hooks (`useProfilePage`, `useHistory`) and components (`CurrentUserContext`, `Navigation`, `ChatHistory`) to align with `UserService` API refactoring and improve auth handling.
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
+  - **Refactored "Post to Explore" with Context:** Introduced `ExploreContext` to manage state/functions for posting items from the History page, simplifying prop drilling through `History.tsx`, `HistorySavedItemsTab.tsx`, `HistoryItemCard.tsx`, and `ToExplore.tsx`.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after Memory Bank sync)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after context refactoring)._

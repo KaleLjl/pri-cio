@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { ChatProps } from "@/lib/types/chat";
 import Loading from "@/components/shared/Loading";
 import { useQueryClient } from "@tanstack/react-query";
-import ObjectDiscussion from "@/components/shared/ObjectDiscussion";
+import ObjectDiscussion from "@/components/main/chat/ObjectDiscussion";
 import {
   useInitializeChat,
   useChatData,

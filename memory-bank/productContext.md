@@ -26,22 +26,30 @@
     - User -> `/explore` or `/around` -> Click Item/User Avatar -> `/chat/[userId]` -> Real-time messaging.
     - Chat includes a structured "Object Discussion" feature (`ObjectDiscussionData`) for negotiating specific items (price, location, time).
     - Discussion messages have a `status` ('discussing', 'completed', 'canceled').
-    - **Completion:** Receiver of the latest 'discussing' message can click "Complete". This triggers `POST /api/chat/deal` (which calls `dealService.completeDeal` to update `histories`, `explore`, and `dealing` collections) and sends a final chat message with `status: 'completed'`.
+    - **Completion (via Chat):** Receiver of the latest 'discussing' message can click "Complete". This triggers `POST /api/chat/deal` (which calls `dealService.completeDeal` to update `histories`, `explore`, and `dealing` collections) and sends a final chat message with `status: 'completed'`.
+    - **Completion (via History Page - New):**
+      - Buyer views pending deal in `/history` -> `GET /api/chat/deal` calls `dealService.getDealingItemsForUser`, which auto-generates and returns a `completionCode` if needed.
+      - Buyer sees the code displayed on the `DealingItemCard`.
+      - Seller views the same pending deal in `/history`.
+      - Seller enters the buyer's code into the input field on `DealingItemCard`.
+      - Seller clicks "Verify & Complete" -> `POST /api/chat/deal/verify-code` calls `dealService.verifyAndCompleteDeal`.
+      - If code is valid, `dealService.verifyAndCompleteDeal` calls `dealService.completeDeal` to update `histories`, `explore`, and `dealing` collections.
   - **Profile Management:** User -> (UI likely linked from History/Avatar) -> `POST /api/editprofile` -> Updates `users` record (uploads/deletes avatar on S3).
   - **Item Lifecycle & History:**
     - Item created/estimated -> `POST /api/history` creates record in `histories` collection (images uploaded to S3).
     - User publishes item -> `POST /api/explore` creates record in `explore` collection, updates `histories` record with `exploreId`.
     - **Dealing State:** When the first `ObjectDiscussion` message for an item is sent (`POST /api/chat/messages` calls `messageService.sendMessage`), a record is **upserted** into the `dealing` collection (status: 'pending', links `historyId`, `buyerId`, `sellerId`).
-    - Deal completed (via Chat) -> `POST /api/chat/deal` calls `dealService.completeDeal` to update `histories`, `explore`, and `dealing` collections.
-    - Deal completed/cancelled (via History page) -> `PATCH /api/chat/deal` calls `dealService.updateDealingStatus` to update the `dealing` record status.
+    - Deal completed (via Chat) -> `POST /api/chat/deal` calls `dealService.completeDeal`.
+    - Deal completed (via History Code Verification) -> `POST /api/chat/deal/verify-code` calls `dealService.verifyAndCompleteDeal`, which then calls `dealService.completeDeal`.
+    - Deal cancelled (via History page) -> `PATCH /api/chat/deal` calls `dealService.updateDealingStatus`.
     - User unpublishes item -> `DELETE /api/explore` removes record from `explore`, removes `exploreId` from `histories` record.
   - **History Review:**
     - User -> `/chathistory` (Messages link) -> Review past conversations (`GET /api/chat/conversations/list` & `GET /api/chat/messages` which calls `messageService.getMessages`).
     - User -> `/history` (Avatar link) -> Review items:
       - **Saved Items:** Fetched via `GET /api/history` (calls `historyService.getHistoryForUser`), filtered client-side (items without `exploreId` and not actively dealing).
       - **Posted Items:** Fetched via `GET /api/history` (calls `historyService.getHistoryForUser`), filtered client-side (items with `exploreId` and not sold/dealing).
-      - **Dealing Items:** Fetched via `GET /api/chat/deal` (calls `dealService.getDealingItemsForUser`). Status can be updated ('completed'/'cancelled') directly via `PATCH /api/chat/deal` (calls `dealService.updateDealingStatus`).
+      - **Dealing Items:** Fetched via `GET /api/chat/deal` (calls `dealService.getDealingItemsForUser`, which now auto-generates `completionCode` for buyers). Status can be updated ('cancelled') directly via `PATCH /api/chat/deal` (calls `dealService.updateDealingStatus`). Completion now primarily happens via code verification (`POST /api/chat/deal/verify-code`).
   - **Sharing:** User -> (From Create Post/History?) -> Generate Share Card -> Get shareable link/image.
   - **Sign Out:** User -> Click Sign Out -> Session terminated -> Redirect to `/`.
 
-_This file explains the 'why' behind the project, the problems it solves, how it should work from a user perspective, and the desired user experience. (Updated based on LandingContent, Navigation, explore API, CreatePost)._
+_This file explains the 'why' behind the project, the problems it solves, how it should work from a user perspective, and the desired user experience. (Updated after trade code feature implementation)._

@@ -11,6 +11,8 @@ interface HistoryDealingItemsTabProps {
     dealingId: string,
     status: "completed" | "cancelled"
   ) => void;
+  // Add prop for verifying code
+  onVerifyCode: (dealingId: string, code: string) => Promise<void>;
 }
 
 const HistoryDealingItemsTab: React.FC<HistoryDealingItemsTabProps> = ({
@@ -18,6 +20,7 @@ const HistoryDealingItemsTab: React.FC<HistoryDealingItemsTabProps> = ({
   dealingHistories,
   isDealingLoading,
   onUpdateStatus,
+  onVerifyCode, // Destructure new prop
 }) => {
   return (
     <div ref={dealingItemsRef}>
@@ -39,6 +42,7 @@ const HistoryDealingItemsTab: React.FC<HistoryDealingItemsTabProps> = ({
               key={item._id} // Use item._id which is the historyId
               item={item}
               onUpdateStatus={onUpdateStatus}
+              onVerifyCode={onVerifyCode} // Pass down the prop
             />
           ))}
         </div>

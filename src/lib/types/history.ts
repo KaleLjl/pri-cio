@@ -34,6 +34,7 @@ export interface DealingItem extends HistoryItem {
   meetingTime?: string; // Final agreed meeting time (from history doc)
   finalLocation?: string; // Final agreed location (from history doc)
   finalPrice?: string; // Final agreed price (from history doc)
+  completionCode?: string; // Code for buyer to give seller to complete deal
 }
 
 // Data required to complete a deal

@@ -118,9 +118,10 @@ export async function sendMessage(
     const db = client.db("pri-cio");
     const conversationsCollection = db.collection("conversations");
     const messagesCollection = db.collection<MessageDBSchema>("messages");
-    const usersCollection = db.collection("users"); // Needed for dealing logic
-    const historiesCollection = db.collection("histories"); // Needed for dealing logic
-    const dealingCollection = db.collection("dealing"); // Needed for dealing logic
+    const usersCollection = db.collection("users");
+    const historiesCollection = db.collection("histories"); // Keep for potential future use? Or remove if truly unused now.
+    const dealingCollection = db.collection("dealing");
+    const exploreCollection = db.collection("explore"); // Add explore collection
 
     // Find or create conversation
     let conversation = await conversationsCollection.findOne({
@@ -184,55 +185,73 @@ export async function sendMessage(
         objectDiscussionContent.historyId &&
         ObjectId.isValid(objectDiscussionContent.historyId)
       ) {
-        // Inner try...catch specifically for the dealing logic, so it doesn't block message sending on failure
+        // Inner try...catch specifically for the dealing logic
         try {
-          const historyId = objectDiscussionContent.historyId;
+          const historyId = objectDiscussionContent.historyId; // Keep the original historyId
+          const postId = objectDiscussionContent.postId; // Get the explore item ID
 
-          const historyItem = await historiesCollection.findOne(
-            { _id: new ObjectId(historyId) },
-            { projection: { userEmail: 1 } }
-          );
+          if (!postId || !ObjectId.isValid(postId)) {
+            throw new Error("Invalid postId in object discussion content.");
+          }
 
-          if (historyItem?.userEmail) {
-            const sellerUser = await usersCollection.findOne(
-              { email: historyItem.userEmail },
-              { projection: { _id: 1 } }
-            );
+          // 1. Find the ExploreItem using postId
+          const exploreItem = await exploreCollection.findOne({
+            _id: new ObjectId(postId),
+          });
 
-            if (sellerUser) {
-              const sellerId = sellerUser._id.toString();
-              const buyerId = senderId === sellerId ? receiverId : senderId;
+          if (!exploreItem) {
+            throw new Error(`Explore item not found for postId: ${postId}`);
+          }
 
-              const filter = { historyId: historyId };
-              const update = {
-                $set: { updatedAt: new Date() },
-                $setOnInsert: {
-                  historyId: historyId,
-                  buyerId: buyerId,
-                  sellerId: sellerId,
-                  status: "pending",
-                  createdAt: new Date(),
-                },
-              };
-              await dealingCollection.updateOne(filter, update, {
-                upsert: true,
-              });
-              console.log(
-                `[MessageService] Upserted dealing record for historyId: ${historyId}`
-              );
-            } else {
-              console.error(
-                `[MessageService] Seller user not found for email: ${historyItem.userEmail}`
-              );
-            }
-          } else {
-            console.error(
-              `[MessageService] History item not found for ID: ${historyId}`
+          if (!exploreItem.userEmail) {
+            throw new Error(
+              `Seller email not found on explore item: ${postId}`
             );
           }
+
+          // 2. Find the Seller User using email from ExploreItem
+          const sellerUser = await usersCollection.findOne(
+            { email: exploreItem.userEmail },
+            { projection: { _id: 1 } }
+          );
+
+          if (!sellerUser) {
+            throw new Error(
+              `Seller user not found for email: ${exploreItem.userEmail}`
+            );
+          }
+
+          // 3. Determine Buyer and Seller IDs
+          const sellerId = sellerUser._id.toString();
+          // The sender of the *first* object_discussion message is the buyer initiating the deal
+          const buyerId = senderId;
+
+          // Ensure buyer and seller are different (sanity check)
+          if (buyerId === sellerId) {
+            throw new Error("Buyer and Seller cannot be the same user.");
+          }
+
+          // 4. Upsert the dealing record using the original historyId
+          const filter = { historyId: historyId }; // Use the original historyId for the filter
+          const update = {
+            $set: { updatedAt: new Date() },
+            $setOnInsert: {
+              historyId: historyId, // Store the original historyId
+              postId: postId, // Optionally store postId for reference
+              buyerId: buyerId,
+              sellerId: sellerId,
+              status: "pending",
+              createdAt: new Date(),
+            },
+          };
+          await dealingCollection.updateOne(filter, update, { upsert: true });
+          console.log(
+            `[MessageService] Upserted dealing record for historyId: ${historyId} (linked to postId: ${postId})`
+          );
         } catch (dealError) {
+          // Log the error but allow message sending to continue
           console.error(
-            `[MessageService] Error upserting dealing record for historyId ${objectDiscussionContent.historyId}:`,
+            `[MessageService] Error upserting dealing record for historyId ${objectDiscussionContent.historyId} / postId ${objectDiscussionContent.postId}:`,
             dealError
           );
         }

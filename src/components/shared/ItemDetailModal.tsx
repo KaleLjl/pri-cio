@@ -1,12 +1,12 @@
-import React, { useCallback, useState } from 'react';
-import { motion } from 'framer-motion';
-import ImageWithFallback from './ImageWithFallback';
-import { CURRENCIES } from '@/components/main/CreatePost';
+import React, { useCallback, useState } from "react";
+import { motion } from "framer-motion";
+import ImageWithFallback from "./ImageWithFallback";
+import { CURRENCIES } from "@/components/main/createpost/CreatePost";
 
 interface ItemDetailModalProps {
   item: {
     _id: string;
-    images?: { id: string; url: string; isPrimary: boolean; }[];
+    images?: { id: string; url: string; isPrimary: boolean }[];
     imageUrl?: string;
     description: string;
     createdAt?: string;
@@ -33,7 +33,10 @@ interface ItemDetailModalProps {
   onSendMessage?: (userId: string, e: React.MouseEvent) => void;
   onGetDirections?: (lat: number, lng: number) => void;
   currentUserId?: string;
-  onUpdate?: (id: string, updates: { price: string; description: string }) => Promise<void>;
+  onUpdate?: (
+    id: string,
+    updates: { price: string; description: string }
+  ) => Promise<void>;
 }
 
 export default function ItemDetailModal({
@@ -50,22 +53,22 @@ export default function ItemDetailModal({
 }: ItemDetailModalProps) {
   // Format date to show either 'X days ago' or DD/MM/YYYY
   const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    
+    if (!dateString) return "";
+
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 7) {
-      if (diffDays === 0) return 'Today';
-      if (diffDays === 1) return 'Yesterday';
+      if (diffDays === 0) return "Today";
+      if (diffDays === 1) return "Yesterday";
       return `${diffDays} days ago`;
     } else {
-      return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+      return date.toLocaleDateString("en-GB"); // DD/MM/YYYY format
     }
   };
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editPrice, setEditPrice] = useState(item.price);
   const [editDescription, setEditDescription] = useState(item.description);
@@ -100,7 +103,7 @@ export default function ItemDetailModal({
 
   const handleUpdate = async () => {
     if (!onUpdate) return;
-    
+
     try {
       setIsUpdating(true);
       await onUpdate(item._id, {
@@ -109,7 +112,7 @@ export default function ItemDetailModal({
       });
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to update:', error);
+      console.error("Failed to update:", error);
     } finally {
       setIsUpdating(false);
     }
@@ -133,15 +136,26 @@ export default function ItemDetailModal({
         {/* Header with back button and user profile - Fixed height header */}
         <div className="relative h-20 pt-10 px-4 flex items-center justify-between z-10">
           <div className="flex items-center space-x-4">
-            <button 
+            <button
               onClick={onClose}
               className="p-2 rounded-full bg-black/40 text-white hover:bg-black/60"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
-            
+
             {item.userProfile && (
               <div className="flex items-center space-x-3 ml-2">
                 <div
@@ -149,34 +163,34 @@ export default function ItemDetailModal({
                   onClick={handleAvatarClick}
                 >
                   <ImageWithFallback
-                    src={item.userProfile?.avatarUrl || ''}
-                    alt={item.userProfile?.name || 'Anonymous'}
+                    src={item.userProfile?.avatarUrl || ""}
+                    alt={item.userProfile?.name || "Anonymous"}
                     layout="fill"
                     objectFit="cover"
                     isAvatar
                   />
                 </div>
                 <span className="font-semibold text-white text-xl md:text-2xl">
-                  {item.userProfile?.name || 'Anonymous'}
+                  {item.userProfile?.name || "Anonymous"}
                 </span>
               </div>
             )}
           </div>
-          
+
           {isOwnItem && onUpdate && !item.exploreId && (
             <button
               onClick={() => setIsEditing(!isEditing)}
               className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
             >
-              {isEditing ? 'Cancel' : 'Edit'}
+              {isEditing ? "Cancel" : "Edit"}
             </button>
           )}
         </div>
-        
+
         <div className="flex flex-col w-full">
           {/* Full-width image - Now positioned below the header */}
           <div className="relative w-full h-screen max-h-[70vh] bg-black overflow-hidden">
-            {((item.images && item.images.length > 0) || item.imageUrl) ? (
+            {(item.images && item.images.length > 0) || item.imageUrl ? (
               <>
                 <ImageWithFallback
                   src={
@@ -184,9 +198,9 @@ export default function ItemDetailModal({
                       ? item.images[currentImageIndex]?.url
                       : item.imageUrl
                   }
-                  alt={item.description || 'No description available'}
+                  alt={item.description || "No description available"}
                   fill
-                  style={{ objectFit: 'contain', backgroundColor: 'black' }}
+                  style={{ objectFit: "contain", backgroundColor: "black" }}
                   className="object-contain"
                 />
                 {/* Arrows inside the image box */}
@@ -223,7 +237,7 @@ export default function ItemDetailModal({
                   onClick={() => setIsEditing(!isEditing)}
                   className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
                 >
-                  {isEditing ? 'Cancel' : 'Edit'}
+                  {isEditing ? "Cancel" : "Edit"}
                 </button>
               </div>
             )}
@@ -231,7 +245,9 @@ export default function ItemDetailModal({
             {isEditing ? (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Price</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Price
+                  </label>
                   <input
                     type="text"
                     value={editPrice}
@@ -240,7 +256,9 @@ export default function ItemDetailModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Description
+                  </label>
                   <textarea
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
@@ -260,25 +278,27 @@ export default function ItemDetailModal({
                     disabled={isUpdating}
                     className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                   >
-                    {isUpdating ? 'Saving...' : 'Save'}
+                    {isUpdating ? "Saving..." : "Save"}
                   </button>
                 </div>
               </div>
             ) : (
               <>
                 <p className="text-xl md:text-2xl font-bold text-white">
-                  {CURRENCIES.find((c) => c.value === item.currency)?.symbol}{' '}
-                  {item.price || ''}
+                  {CURRENCIES.find((c) => c.value === item.currency)?.symbol}{" "}
+                  {item.price || ""}
                 </p>
                 <h2 className="text-lg text-white">
-                  {item.description || 'No description available'}
+                  {item.description || "No description available"}
                 </h2>
                 <p className="text-gray-600 text-xs md:text-sm flex items-center space-x-2">
                   <span>{formatDate(item.createdAt)}</span>
                   {item?.location && (
                     <>
                       <span>•</span>
-                      <span>{item.location.city}, {item.location.country}</span>
+                      <span>
+                        {item.location.city}, {item.location.country}
+                      </span>
                     </>
                   )}
                 </p>
@@ -305,9 +325,17 @@ export default function ItemDetailModal({
                       className="h-8 w-8"
                     >
                       <path
-                        d="M12 21.25C11.7623 21.25 11.5269 21.2033 11.3073 21.1123C11.0877 21.0214 10.8881 20.8881 10.72 20.72L3.28 13.28C3.11188 13.1119 2.97853 12.9124 2.88754 12.6928C2.79656 12.4731 2.74973 12.2377 2.74973 12C2.74973 11.7623 2.79656 11.5269 2.88754 11.3073C2.97853 11.0876 3.11188 10.8881 3.28 10.72L10.72 3.28001C11.0656 2.95224 11.5237 2.76953 12 2.76953C12.4763 2.76953 12.9344 2.95224 13.28 3.28001L20.72 10.72C20.8881 10.8881 21.0215 11.0876 21.1125 11.3073C21.2034 11.5269 21.2503 11.7623 21.2503 12C21.2503 12.2377 21.2034 12.4731 21.1125 12.6928C21.0215 12.9124 20.8881 13.1119 20.72 13.28L13.28 20.72C13.1119 20.8881 12.9123 21.0214 12.6927 21.1123C12.4731 21.2033 12.2377 21.25 12 21.25ZM12 4.25001C11.9605 4.24875 11.9213 4.25616 11.885 4.27171C11.8487 4.28726 11.8163 4.31057 11.79 4.34001L4.34 11.79C4.31156 11.8171 4.28892 11.8497 4.27345 11.8858C4.25798 11.9219 4.25 11.9607 4.25 12C4.25 12.0393 4.25798 12.0782 4.27345 12.1143C4.28892 12.1503 4.31156 12.1829 4.34 12.21L11.79 19.66C11.8127 19.6951 11.8438 19.7239 11.8804 19.7439C11.9171 19.7639 11.9582 19.7744 12 19.7744C12.0418 19.7744 12.0829 19.7639 12.1196 19.7439C12.1562 19.7239 12.1873 19.6951 12.21 19.66L19.66 12.21C19.6884 12.1829 19.7111 12.1503 19.7266 12.1143C19.742 12.0782 19.75 12.0393 19.75 12C19.75 11.9607 19.742 11.9219 19.7266 11.8858C19.7111 11.8497 19.6884 11.8171 19.66 11.79L12.21 4.34001C12.1837 4.31057 12.1513 4.28726 12.115 4.27171C12.0787 4.25616 12.0395 4.24875 12 4.25001Z" fill="currentColor"/>
-                      <path d="M13.27 14.42C13.1714 14.4205 13.0738 14.4013 12.9828 14.3635C12.8918 14.3257 12.8092 14.2701 12.74 14.2C12.5995 14.0594 12.5207 13.8688 12.5207 13.67C12.5207 13.4713 12.5995 13.2807 12.74 13.14L14.44 11.46L12.74 9.78003C12.6663 9.71137 12.6072 9.62857 12.5662 9.53657C12.5252 9.44457 12.5032 9.34526 12.5014 9.24455C12.4996 9.14385 12.5181 9.04382 12.5559 8.95043C12.5936 8.85705 12.6497 8.77221 12.721 8.70099C12.7922 8.62978 12.877 8.57363 12.9704 8.53591C13.0638 8.49819 13.1638 8.47966 13.2645 8.48144C13.3652 8.48322 13.4645 8.50526 13.5565 8.54625C13.6485 8.58724 13.7313 8.64635 13.8 8.72003L16 10.93C16.071 10.9998 16.1275 11.0831 16.166 11.175C16.2045 11.2668 16.2244 11.3654 16.2244 11.465C16.2244 11.5646 16.2045 11.6633 16.166 11.7551C16.1275 11.847 16.071 11.9302 16 12L13.8 14.2C13.7307 14.2701 13.6482 14.3257 13.5572 14.3635C13.4662 14.4013 13.3685 14.4205 13.27 14.42Z" fill="currentColor"/>
-                      <path d="M8.5 15C8.30189 14.9974 8.11263 14.9176 7.97253 14.7775C7.83244 14.6374 7.75259 14.4481 7.75 14.25V11.46C7.75259 11.2619 7.83244 11.0727 7.97253 10.9326C8.11263 10.7925 8.30189 10.7126 8.5 10.71H15.5C15.6989 10.71 15.8897 10.789 16.0303 10.9297C16.171 11.0703 16.25 11.2611 16.25 11.46C16.25 11.6589 16.171 11.8497 16.0303 11.9904C15.8897 12.131 15.6989 12.21 15.5 12.21H9.25V14.21C9.25402 14.3115 9.23766 14.4127 9.20189 14.5078C9.16613 14.6028 9.11168 14.6897 9.04177 14.7633C8.97185 14.837 8.88789 14.8959 8.79484 14.9365C8.70179 14.9772 8.60154 14.9988 8.5 15Z" fill="currentColor"/>
+                        d="M12 21.25C11.7623 21.25 11.5269 21.2033 11.3073 21.1123C11.0877 21.0214 10.8881 20.8881 10.72 20.72L3.28 13.28C3.11188 13.1119 2.97853 12.9124 2.88754 12.6928C2.79656 12.4731 2.74973 12.2377 2.74973 12C2.74973 11.7623 2.79656 11.5269 2.88754 11.3073C2.97853 11.0876 3.11188 10.8881 3.28 10.72L10.72 3.28001C11.0656 2.95224 11.5237 2.76953 12 2.76953C12.4763 2.76953 12.9344 2.95224 13.28 3.28001L20.72 10.72C20.8881 10.8881 21.0215 11.0876 21.1125 11.3073C21.2034 11.5269 21.2503 11.7623 21.2503 12C21.2503 12.2377 21.2034 12.4731 21.1125 12.6928C21.0215 12.9124 20.8881 13.1119 20.72 13.28L13.28 20.72C13.1119 20.8881 12.9123 21.0214 12.6927 21.1123C12.4731 21.2033 12.2377 21.25 12 21.25ZM12 4.25001C11.9605 4.24875 11.9213 4.25616 11.885 4.27171C11.8487 4.28726 11.8163 4.31057 11.79 4.34001L4.34 11.79C4.31156 11.8171 4.28892 11.8497 4.27345 11.8858C4.25798 11.9219 4.25 11.9607 4.25 12C4.25 12.0393 4.25798 12.0782 4.27345 12.1143C4.28892 12.1503 4.31156 12.1829 4.34 12.21L11.79 19.66C11.8127 19.6951 11.8438 19.7239 11.8804 19.7439C11.9171 19.7639 11.9582 19.7744 12 19.7744C12.0418 19.7744 12.0829 19.7639 12.1196 19.7439C12.1562 19.7239 12.1873 19.6951 12.21 19.66L19.66 12.21C19.6884 12.1829 19.7111 12.1503 19.7266 12.1143C19.742 12.0782 19.75 12.0393 19.75 12C19.75 11.9607 19.742 11.9219 19.7266 11.8858C19.7111 11.8497 19.6884 11.8171 19.66 11.79L12.21 4.34001C12.1837 4.31057 12.1513 4.28726 12.115 4.27171C12.0787 4.25616 12.0395 4.24875 12 4.25001Z"
+                        fill="currentColor"
+                      />
+                      <path
+                        d="M13.27 14.42C13.1714 14.4205 13.0738 14.4013 12.9828 14.3635C12.8918 14.3257 12.8092 14.2701 12.74 14.2C12.5995 14.0594 12.5207 13.8688 12.5207 13.67C12.5207 13.4713 12.5995 13.2807 12.74 13.14L14.44 11.46L12.74 9.78003C12.6663 9.71137 12.6072 9.62857 12.5662 9.53657C12.5252 9.44457 12.5032 9.34526 12.5014 9.24455C12.4996 9.14385 12.5181 9.04382 12.5559 8.95043C12.5936 8.85705 12.6497 8.77221 12.721 8.70099C12.7922 8.62978 12.877 8.57363 12.9704 8.53591C13.0638 8.49819 13.1638 8.47966 13.2645 8.48144C13.3652 8.48322 13.4645 8.50526 13.5565 8.54625C13.6485 8.58724 13.7313 8.64635 13.8 8.72003L16 10.93C16.071 10.9998 16.1275 11.0831 16.166 11.175C16.2045 11.2668 16.2244 11.3654 16.2244 11.465C16.2244 11.5646 16.2045 11.6633 16.166 11.7551C16.1275 11.847 16.071 11.9302 16 12L13.8 14.2C13.7307 14.2701 13.6482 14.3257 13.5572 14.3635C13.4662 14.4013 13.3685 14.4205 13.27 14.42Z"
+                        fill="currentColor"
+                      />
+                      <path
+                        d="M8.5 15C8.30189 14.9974 8.11263 14.9176 7.97253 14.7775C7.83244 14.6374 7.75259 14.4481 7.75 14.25V11.46C7.75259 11.2619 7.83244 11.0727 7.97253 10.9326C8.11263 10.7925 8.30189 10.7126 8.5 10.71H15.5C15.6989 10.71 15.8897 10.789 16.0303 10.9297C16.171 11.0703 16.25 11.2611 16.25 11.46C16.25 11.6589 16.171 11.8497 16.0303 11.9904C15.8897 12.131 15.6989 12.21 15.5 12.21H9.25V14.21C9.25402 14.3115 9.23766 14.4127 9.20189 14.5078C9.16613 14.6028 9.11168 14.6897 9.04177 14.7633C8.97185 14.837 8.88789 14.8959 8.79484 14.9365C8.70179 14.9772 8.60154 14.9988 8.5 15Z"
+                        fill="currentColor"
+                      />
                     </svg>
                   </button>
 

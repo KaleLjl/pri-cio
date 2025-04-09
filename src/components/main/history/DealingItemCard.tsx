@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react"; // Import useState
 import Image from "next/image";
 import { DealingItem } from "@/lib/types/history";
-import { CURRENCIES, Currency } from "@/components/main/CreatePost";
+import { CURRENCIES, Currency } from "@/components/main/createpost/CreatePost";
 
 interface DealingItemCardProps {
   item: DealingItem;
@@ -9,12 +9,21 @@ interface DealingItemCardProps {
     dealingId: string,
     status: "completed" | "cancelled"
   ) => void;
+  // Add prop for verifying code (implementation needed in parent)
+  onVerifyCode: (dealingId: string, code: string) => Promise<void>;
 }
 
 const DealingItemCard: React.FC<DealingItemCardProps> = ({
   item,
   onUpdateStatus,
+  onVerifyCode, // Destructure new prop
 }) => {
+  const [enteredCode, setEnteredCode] = useState(""); // State for seller's input
+  const [isVerifying, setIsVerifying] = useState(false); // State for verification loading
+  const [verificationError, setVerificationError] = useState<string | null>(
+    null
+  ); // State for verification error
+
   const primaryImageUrl = item.imageUrl || "/fallback.jpg";
 
   return (
@@ -92,27 +101,91 @@ const DealingItemCard: React.FC<DealingItemCardProps> = ({
             </div>
           )}
 
-          {/* Action Buttons (only if status is pending, within overlay) */}
+          {/* Action Area (only if status is pending, within overlay) */}
           {item.status === "pending" && (
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdateStatus(item.dealingId, "completed");
-                }}
-                className="flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded-lg text-sm font-medium transition-colors duration-200"
-              >
-                Complete
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdateStatus(item.dealingId, "cancelled");
-                }}
-                className="flex-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition-colors duration-200"
-              >
-                Cancel
-              </button>
+            <div className="mt-3 space-y-2">
+              {/* Buyer View: Display Code */}
+              {item.role === "buying" && (
+                <>
+                  <p className="text-sm text-gray-200">Completion Code:</p>
+                  <p className="text-lg font-bold text-center bg-gray-700 p-2 rounded select-all">
+                    {item.completionCode || "Generating..."}
+                  </p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdateStatus(item.dealingId, "cancelled");
+                    }}
+                    className="w-full px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition-colors duration-200"
+                  >
+                    Cancel Deal
+                  </button>
+                </>
+              )}
+
+              {/* Seller View: Verify Code */}
+              {item.role === "selling" && (
+                <>
+                  <input
+                    type="text"
+                    value={enteredCode}
+                    onChange={(e) => {
+                      setEnteredCode(e.target.value);
+                      setVerificationError(null); // Clear error on input change
+                    }}
+                    onClick={(e) => e.stopPropagation()} // Prevent card click
+                    placeholder="Enter Buyer's Code"
+                    className="w-full px-3 py-1.5 rounded-lg text-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  {verificationError && (
+                    <p className="text-xs text-red-400 text-center">
+                      {verificationError}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!enteredCode) {
+                          setVerificationError("Please enter the code.");
+                          return;
+                        }
+                        setIsVerifying(true);
+                        setVerificationError(null);
+                        try {
+                          await onVerifyCode(item.dealingId, enteredCode);
+                          // Success handled by parent re-fetching/updating state
+                        } catch (error: unknown) {
+                          // Use unknown instead of any
+                          if (error instanceof Error) {
+                            setVerificationError(error.message);
+                          } else {
+                            setVerificationError(
+                              "An unknown error occurred during verification."
+                            );
+                          }
+                        } finally {
+                          setIsVerifying(false);
+                        }
+                      }}
+                      disabled={isVerifying || !enteredCode}
+                      className="flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded-lg text-sm font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isVerifying ? "Verifying..." : "Verify & Complete"}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdateStatus(item.dealingId, "cancelled");
+                      }}
+                      disabled={isVerifying}
+                      className="flex-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition-colors duration-200 disabled:opacity-50"
+                    >
+                      Cancel Deal
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

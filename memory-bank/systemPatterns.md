@@ -12,17 +12,17 @@
     - Explore feed updates (`explore-posts-update`).
 - **Key Technical Decisions:**
   - **Framework:** Next.js (App Router) for full-stack development.
-  - **Database:** MongoDB (`pri-cio` database via `lib/mongodb.ts`). Collections identified: `users`, `histories`, `explore`, `conversations`, `messages`, `dealing` (plus NextAuth collections like `accounts`, `sessions`, `verificationTokens`).
+  - **Database:** MongoDB (`pri-cio` database via `lib/mongodb.ts`). Collections identified: `users`, `histories`, `explore`, `conversations`, `messages`, `dealing` (now includes `completionCode`, `codeGeneratedAt`), `accounts`, `sessions`, `verificationTokens`.
   - **Authentication:** NextAuth.js for handling user sessions (interacts with MongoDB via adapter).
   - **Real-time Communication:** Socket.IO (dedicated server `src/server/socket.ts`) for chat events, presence, and explore updates. Does not directly interact with DB.
   - **File Storage:** AWS S3 for storing user uploads or other assets.
   - **Styling:** Tailwind CSS for utility-first styling, potentially augmented by Material UI/Headless UI components.
   - **State Management:** React Query for server state management (fetching, caching, synchronizing).
 - **Design Patterns:**
-  - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`, `AIService`) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs (e.g., S3 within `UserService`, OpenAI within `AIService`).
-  - **Context API:** Used for managing global state (`src/lib/context/`). Includes `SocketContext` for managing WebSocket interactions.
-  - **Manager Pattern:** Used for centralized client-side cache updates (`ChatCacheManager` in `src/lib/managers/`). This class is responsible for all direct modifications to chat-related React Query caches.
-  - **Singleton Pattern:** Used for `socketService` (exported instance from `src/lib/socket.ts`). This ensures a single WebSocket connection manager instance across the client application.
+  - **MVC/MVVM-like (Next.js) + Service Layer:** Pages/Layouts act as Controllers/ViewModels, Components as Views. API routes act as thin controllers, delegating business logic and data access to a dedicated Service Layer (`src/services/`). Services (`DealService`, `MessageService`, `HistoryService`, `ExploreService`, `UserService`, `ConversationService`, `AIService`) encapsulate interactions with the database (`src/lib/mongodb.ts`) and external APIs.
+  - **Context API:** Used for managing global state (`src/lib/context/`). Includes `SocketContext` (WebSocket interactions) and `ExploreContext` (managing state/functions for the "Post to Explore" feature, including the location modal).
+  - **Manager Pattern:** Used for centralized client-side cache updates (`ChatCacheManager` in `src/lib/managers/`).
+  - **Singleton Pattern:** Used for `socketService` (`src/lib/socket.ts`).
   - **Custom Hooks:** Extensive use for encapsulating frontend logic (`src/lib/hooks/`). Key examples:
     - `useExplore`: Handles fetching and caching of explore items.
     - `useUpload...` series (`useUploadMetaData`, `useUploadImageProcess`, `useUploadAI`, `useUploadAIChat`, `useUploadUI`, `useUploadActions`): Manages the complex state and logic for the item creation/AI estimation process.
@@ -80,15 +80,16 @@
   - **Item Dealing Flow:**
     - **Initiation:** When the first `object_discussion` type message for a specific item (`historyId`) is sent, the `POST /api/chat/messages` handler **upserts** a record into the `dealing` collection (status: 'pending', links `historyId`, `buyerId`, `sellerId`).
     - **Display in History:** `/history` page (Dealing tab) calls `GET /api/chat/deal`. This API route now calls `dealService.getDealingItemsForUser(...)` which reads from the `dealing` collection and uses an aggregation pipeline (`$lookup`) to join item details from the `histories` collection.
-    - **Completion in Chat:** `Chat.tsx` -> `useObjectDiscussion.ts` -> `POST /api/chat/deal`. This API route now calls `dealService.completeDeal({ ... })`, which handles updating the `histories`, `explore`, and `dealing` collections.
-    - **Completion/Cancellation from History:** `/history` page calls `PATCH /api/chat/deal`. This API route now calls `dealService.updateDealingStatus(...)` to update the status in the `dealing` collection.
+    - **Completion in Chat:** `Chat.tsx` -> `useObjectDiscussion.ts` -> `POST /api/chat/deal`. This API route calls `dealService.completeDeal({ ... })`.
+    - **Completion via History Code:** `/history` page (Seller) -> `DealingItemCard` -> `POST /api/chat/deal/verify-code`. This API route calls `dealService.verifyAndCompleteDeal(...)`, which validates the code and then calls `dealService.completeDeal(...)`.
+    - **Cancellation from History:** `/history` page calls `PATCH /api/chat/deal`. This API route calls `dealService.updateDealingStatus(...)`.
   - **Data Fetching (General):** Frontend Components/Pages -> React Query Hooks (`useExplore`, `useHistory`, etc.) -> API Routes (`src/app/api/*`) -> MongoDB (`pri-cio` database) / External APIs (OpenAI, OpenCage).
     - `explore` collection: Publicly listed items. Linked to `histories` via `historyId`. Contains embedded user profile subset.
     - `histories` collection: Initial item records created by users. Linked to `explore` via `exploreId`. Stores deal completion details.
     - `users` collection: User profile data.
     - `conversations` collection: Metadata for chat conversations (participants, timestamps, settings, unread counts, soft-delete markers).
     - `messages` collection: Individual chat messages. Linked to `conversations`. Stores content, sender/receiver, read status, soft-delete markers.
-    - `dealing` collection: Tracks negotiation state (links `historyId`, `buyerId`, `sellerId`, status). Read/updated by `DealService` (called by `/api/chat/deal`).
+    - `dealing` collection: Tracks negotiation state (links `historyId`, `buyerId`, `sellerId`, status). Now also includes `completionCode` and `codeGeneratedAt`. Read/updated by `DealService` (called by `/api/chat/deal`, `/api/chat/deal/verify-code`). Code auto-generated by `getDealingItemsForUser`.
   - **File Uploads:** Frontend -> S3 (via presigned URLs or direct uploads handled by API routes like `POST /api/history` (via `HistoryService`) and `POST /api/editprofile` (via `UserService`)). Uses `lib/s3.ts`.
   - **Item Creation/AI Flow:** `/createpost` -> `useUpload...` hooks -> Prepare data -> Call `POST /api/history` (which calls `historyService.createHistoryItem`) -> Optional AI Analysis (`POST /api/ai/chat` - API route now calls `aiService.handleImageUploadAnalysis` or `aiService.handleJsonChat`, which interacts with OpenAI; no DB writes).
   - **Publishing Flow:** Item exists in `histories` -> User publishes via `POST /api/explore` (which calls `exploreService.publishItem`).
@@ -105,4 +106,4 @@
     - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` -> `ConversationService.updateConversationSettings` -> Updates `settings` field in `conversations`.
   - **Share Card Flow:** (Details still limited) Frontend (`useShareCard`) -> API call (`/api/share-card`?) -> Generates shareable card/link.
 
-_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after socket/cache refactor)._
+_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after trade code feature implementation)._

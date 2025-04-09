@@ -4,7 +4,7 @@ import React from "react";
 import { ChatMessage, ObjectDiscussionData } from "@/lib/types/chat";
 import { ExploreItem } from "@/lib/types/explore";
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
-import { CURRENCIES } from "@/components/main/CreatePost";
+import { CURRENCIES } from "@/components/main/createpost/CreatePost";
 
 interface ObjectDiscussionCardProps {
   message: ChatMessage; // Pass the whole message for context if needed

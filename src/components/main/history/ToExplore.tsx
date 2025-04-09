@@ -1,67 +1,68 @@
-import React from 'react';
-import { useToExplore } from '@/lib/hooks/useToExplore';
-import { HistoryItem } from '@/lib/types/history';
+import React from "react"; // Removed unused useContext
+// import { useToExplore } from '@/lib/hooks/useToExplore'; // Removed hook import
+import { useExploreContext } from "@/lib/context/ExploreContext"; // Import context hook
+// import { HistoryItem } from "@/lib/types/history"; // Removed unused import
 import { Switch as HeadlessSwitch } from "@headlessui/react";
+import { ExploreItem } from "@/lib/types/explore"; // Import ExploreItem for onSuccess type
 
+// Updated Props: Remove history prop, keep only onSuccess
 interface ToExploreProps {
-  history: HistoryItem;
-  locationPermission: string | null;
-  onLocationPermissionChange: (permission: 'granted' | 'denied') => void;
-  onSuccess?: (data: any) => void;
-  children: (props: {
-    handlePost: () => void;
-    isPosting: boolean;
-  }) => React.ReactNode;
+  // history: HistoryItem; // Removed - Will get from context
+  onSuccess?: (data: { success: boolean; data: ExploreItem }) => void; // Keep onSuccess callback
 }
 
 export default function ToExplore({
-  history,
-  locationPermission,
-  onLocationPermissionChange,
-  onSuccess,
-  children
+  // history, // Removed
+  onSuccess, // Keep onSuccess prop
 }: ToExploreProps) {
+  // Consume context
   const {
     isSaving,
+    itemToPost, // Get the item from context
     locationState,
     showLocationModal,
-    setShowLocationModal,
+    // setShowLocationModal, // Removed unused variable
     setInputAddress,
     setEnableLocation,
     handleUseCurrentLocation,
     handleGeocodeInputLocation,
     handleConfirm,
-    handlePost,
-  } = useToExplore();
+    closeLocationModal, // Use the close helper from context
+    // handlePost is no longer needed here
+  } = useExploreContext();
+
+  // The component now only renders the modal, triggered by context state
+  // Only render the modal content if an item is selected and the modal should be shown
+  if (!showLocationModal || !itemToPost) {
+    return null; // Don't render anything if modal shouldn't be shown or no item selected
+  }
 
   return (
     <>
-      {children({
-        handlePost,
-        isPosting: isSaving,
-      })}
-
       {/* Location Modal */}
       <div
-        className={`fixed inset-0 z-50 flex items-center justify-center ${
-          showLocationModal ? 'visible bg-black/50' : 'invisible'
-        }`}
+        className={`fixed inset-0 z-50 flex items-center justify-center visible bg-black/50`} // Always visible when rendered
         onClick={(e) => {
           e.stopPropagation();
-          setShowLocationModal(false);
+          closeLocationModal(); // Use context helper to close and clear item
         }}
       >
-        <div 
+        <div
           className="bg-zinc-900 p-8 rounded-xl shadow-2xl w-[480px] border border-zinc-700"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header */}
-          <h2 className="text-xl font-semibold text-white mb-6">Add Location</h2>
-          
+          <h2 className="text-xl font-semibold text-white mb-6">
+            Add Location
+          </h2>
+
           <div className="flex flex-col gap-6">
             {/* Enable Location Switch */}
             <div className="flex items-center justify-between bg-zinc-800 p-4 rounded-lg">
-              <label htmlFor="locationSwitch" className="text-white font-medium">
+              <label
+                htmlFor="locationSwitch"
+                className="text-white font-medium"
+              >
                 Use Current Location
               </label>
               <HeadlessSwitch
@@ -71,12 +72,14 @@ export default function ToExplore({
                   if (checked) handleUseCurrentLocation();
                 }}
                 className={`${
-                  locationState.enableLocation ? 'bg-purple-600' : 'bg-zinc-600'
+                  locationState.enableLocation ? "bg-purple-600" : "bg-zinc-600"
                 } relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200`}
               >
                 <span
                   className={`${
-                    locationState.enableLocation ? 'translate-x-6' : 'translate-x-1'
+                    locationState.enableLocation
+                      ? "translate-x-6"
+                      : "translate-x-1"
                   } inline-block h-4 w-4 transform bg-white rounded-full transition-transform duration-200`}
                 />
               </HeadlessSwitch>
@@ -101,20 +104,40 @@ export default function ToExplore({
               >
                 {locationState.isFetchingLocation ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Searching...
                   </span>
-                ) : 'Search Location'}
+                ) : (
+                  "Search Location"
+                )}
               </button>
             </div>
 
             {/* Error Message */}
             {locationState.errorMessage && (
               <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                <p className="text-red-500 text-sm">{locationState.errorMessage}</p>
+                <p className="text-red-500 text-sm">
+                  {locationState.errorMessage}
+                </p>
               </div>
             )}
 
@@ -123,7 +146,7 @@ export default function ToExplore({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowLocationModal(false);
+                  closeLocationModal(); // Use context helper to close and clear item
                 }}
                 className="px-6 py-2.5 border border-zinc-600 text-white rounded-lg hover:bg-zinc-800 transition-colors duration-200"
               >
@@ -132,10 +155,13 @@ export default function ToExplore({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleConfirm(history, onSuccess);
+                  // Call handleConfirm from context, no need to pass history item
+                  handleConfirm(onSuccess);
                 }}
-                className="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors duration-200"
+                className="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors duration-200 disabled:opacity-50"
+                disabled={!locationState.inputCoordinates || isSaving} // Disable if no coords or saving
               >
+                {isSaving ? "Confirming..." : "Confirm"}
                 Confirm
               </button>
             </div>
@@ -144,4 +170,4 @@ export default function ToExplore({
       </div>
     </>
   );
-} 
+}

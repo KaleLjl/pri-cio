@@ -1,17 +1,16 @@
-import { auth } from '@/lib/auth';
-import { redirect } from 'next/navigation';
-import ImageCapture from '@/components/main/CreatePost';
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import ImageCapture from "@/components/main/createpost/CreatePost";
 
 export default async function AppPage() {
   const session = await auth();
   if (!session) {
-    redirect('/signin')
+    redirect("/signin");
   }
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center px-4 space-y-4 pt-4 justify-center">
-      <div className="w-full flex justify-center pt-4 pb-2">
-      </div>
+      <div className="w-full flex justify-center pt-4 pb-2"></div>
       <ImageCapture />
     </div>
   );

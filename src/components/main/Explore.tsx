@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useExplore } from '@/lib/hooks/useExplore';
-import { ExploreItem } from '@/lib/types/explore';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Switch as HeadlessSwitch } from '@headlessui/react';
-import { Menu } from '@headlessui/react';
-import { motion } from 'framer-motion';
-import Modal from 'react-modal';
-import { CURRENCIES } from '@/components/main/CreatePost';
-import { useSession } from 'next-auth/react';
-import ImageWithFallback from '@/components/shared/ImageWithFallback';
-import Loading from '@/components/shared/Loading';
-import ItemDetailModal from '@/components/shared/ItemDetailModal';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useExplore } from "@/lib/hooks/useExplore";
+import { ExploreItem } from "@/lib/types/explore";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Switch as HeadlessSwitch } from "@headlessui/react";
+import { Menu } from "@headlessui/react";
+import { motion } from "framer-motion";
+import Modal from "react-modal";
+import { CURRENCIES } from "@/components/main/createpost/CreatePost";
+import { useSession } from "next-auth/react";
+import ImageWithFallback from "@/components/shared/ImageWithFallback";
+import Loading from "@/components/shared/Loading";
+import ItemDetailModal from "@/components/shared/ItemDetailModal";
 
 interface DisplayExploreProps {
   explores: ExploreItem[];
@@ -20,30 +20,31 @@ interface DisplayExploreProps {
 
 const RadiusDropdown = ({
   radius,
-  setRadius
+  setRadius,
 }: {
   radius: number;
   setRadius: (value: number) => void;
 }) => {
   const options = [
-    { value: 1, label: '1 km' },
-    { value: 2, label: '2 km' },
-    { value: 5, label: '5 km' },
-    { value: 10, label: '10 km' },
-    { value: 20, label: '20 km' },
-    { value: 40, label: '40 km' },
-    { value: 60, label: '60 km' },
-    { value: 80, label: '80 km' },
-    { value: 100, label: '100 km' },
-    { value: 250, label: '250 km' },
-    { value: 500, label: '500 km' },
+    { value: 1, label: "1 km" },
+    { value: 2, label: "2 km" },
+    { value: 5, label: "5 km" },
+    { value: 10, label: "10 km" },
+    { value: 20, label: "20 km" },
+    { value: 40, label: "40 km" },
+    { value: 60, label: "60 km" },
+    { value: 80, label: "80 km" },
+    { value: 100, label: "100 km" },
+    { value: 250, label: "250 km" },
+    { value: 500, label: "500 km" },
   ];
 
   return (
     <Menu as="div" className="relative inline-block w-full text-left">
       <div>
         <Menu.Button className="inline-flex justify-between items-center w-full px-4 py-2 text-sm font-medium text-black bg-gray-100 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-600">
-          {options.find((option) => option.value === radius)?.label || 'Select Radius'}
+          {options.find((option) => option.value === radius)?.label ||
+            "Select Radius"}
           <svg
             className="w-5 h-5 ml-2 -mr-1 text-gray-500"
             xmlns="http://www.w3.org/2000/svg"
@@ -68,7 +69,7 @@ const RadiusDropdown = ({
               <button
                 onClick={() => setRadius(option.value)}
                 className={`${
-                  active ? 'bg-purple-600 text-white' : 'text-gray-900'
+                  active ? "bg-purple-600 text-white" : "text-gray-900"
                 } group flex rounded-md items-center w-full px-4 py-2 text-sm`}
               >
                 {option.label}
@@ -81,7 +82,9 @@ const RadiusDropdown = ({
   );
 };
 
-export default function Explore({ explores: initialExplores }: DisplayExploreProps) {
+export default function Explore({
+  explores: initialExplores,
+}: DisplayExploreProps) {
   const { explores, isLoading, error } = useExplore(initialExplores);
 
   // Which card is open:
@@ -89,20 +92,24 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
 
   const searchParams = useSearchParams();
-  const searchQuery = searchParams?.get('search') || '';
+  const searchQuery = searchParams?.get("search") || "";
   const router = useRouter();
   const { data: session } = useSession();
-  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
   // Radius & location states
   const [radiusModalOpen, setRadiusModalOpen] = useState(false);
   const [radius, setRadius] = useState<number>(10);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [enableLocation, setEnableLocation] = useState(false);
   const [noLimit, setNoLimit] = useState(false);
-  const [locationName, setLocationName] = useState<string>('');
+  const [locationName, setLocationName] = useState<string>("");
   const [tempRadius, setTempRadius] = useState<number>(radius);
-  const [tempEnableLocation, setTempEnableLocation] = useState<boolean>(enableLocation);
+  const [tempEnableLocation, setTempEnableLocation] =
+    useState<boolean>(enableLocation);
   const [tempNoLimit, setTempNoLimit] = useState<boolean>(noLimit);
   const apiKey = process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
 
@@ -111,13 +118,13 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     const fetchCurrentUser = async () => {
       if (session?.user?.email) {
         try {
-          const response = await fetch('/api/users/me');
+          const response = await fetch("/api/users/me");
           if (response.ok) {
             const userData = await response.json();
             setCurrentUserId(userData._id);
           }
         } catch (error) {
-          console.error('Error fetching current user:', error);
+          console.error("Error fetching current user:", error);
         }
       }
     };
@@ -128,14 +135,12 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   const haversineDistance = useCallback(
     (lat1: number, lon1: number, lat2: number, lon2: number) => {
       const toRad = (v: number) => (v * Math.PI) / 180;
-      const R = 6371; 
+      const R = 6371;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
       const a =
         Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) *
-          Math.cos(toRad(lat2)) *
-          Math.sin(dLon / 2) ** 2;
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     },
     []
@@ -168,12 +173,20 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     }
 
     return filtered;
-  }, [explores, searchQuery, noLimit, enableLocation, userLocation, radius, haversineDistance]);
+  }, [
+    explores,
+    searchQuery,
+    noLimit,
+    enableLocation,
+    userLocation,
+    radius,
+    haversineDistance,
+  ]);
 
   // Geolocation
   const handleGetUserLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      alert('Geolocation not supported.');
+      alert("Geolocation not supported.");
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -184,22 +197,23 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
           const response = await fetch(
             `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}`
           );
-          if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+          if (!response.ok)
+            throw new Error(`API error: ${response.statusText}`);
           const data = await response.json();
           if (data?.results?.[0]?.formatted) {
             setLocationName(data.results[0].formatted);
           } else {
-            setLocationName('Unknown Location');
+            setLocationName("Unknown Location");
           }
         } catch (err) {
-          console.error('Error fetching location name:', err);
-          setLocationName('Unknown Location');
+          console.error("Error fetching location name:", err);
+          setLocationName("Unknown Location");
         }
       },
       (error) => {
-        console.error('Error getting location:', error);
-        alert('Failed to get your location.');
-        setLocationName('Unknown Location');
+        console.error("Error getting location:", error);
+        alert("Failed to get your location.");
+        setLocationName("Unknown Location");
       }
     );
   }, [apiKey]);
@@ -210,24 +224,27 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
       if (userLocation) {
         window.open(
           `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${lat},${lng}`,
-          '_blank'
+          "_blank"
         );
       } else if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+            setUserLocation({
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            });
             window.open(
               `https://www.google.com/maps/dir/?api=1&origin=${pos.coords.latitude},${pos.coords.longitude}&destination=${lat},${lng}`,
-              '_blank'
+              "_blank"
             );
           },
           (err) => {
-            console.error('Error fetching location:', err);
-            alert('Please enable location services to get directions');
+            console.error("Error fetching location:", err);
+            alert("Please enable location services to get directions");
           }
         );
       } else {
-        alert('Geolocation is not supported by this browser');
+        alert("Geolocation is not supported by this browser");
       }
     },
     [userLocation]
@@ -281,7 +298,8 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
   const handlePrevImage = useCallback(() => {
     if (!selectedCard?.images) return;
     setCurrentImageIndex(
-      (prev) => (prev - 1 + selectedCard.images.length) % selectedCard.images.length
+      (prev) =>
+        (prev - 1 + selectedCard.images.length) % selectedCard.images.length
     );
   }, [selectedCard]);
 
@@ -293,12 +311,19 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
-          <h1 className="text-2xl font-bold text-red-500">Error loading posts</h1>
+          <h1 className="text-2xl font-bold text-red-500">
+            Error loading posts
+          </h1>
         </div>
       </div>
     );
   }
-  if (!isLoading && explores && explores.length > 0 && filteredExplores.length === 0) {
+  if (
+    !isLoading &&
+    explores &&
+    explores.length > 0 &&
+    filteredExplores.length === 0
+  ) {
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
         <div className="text-center py-20">
@@ -327,8 +352,9 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
       <div className="p-12 pt-20 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
         {filteredExplores.map((explore) => {
           const coverImage = explore.images?.length
-            ? (explore.images.find(img => img.isPrimary)?.url || explore.images[0]?.url)
-            : '/fallback.jpg';
+            ? explore.images.find((img) => img.isPrimary)?.url ||
+              explore.images[0]?.url
+            : "/fallback.jpg";
           return (
             <motion.div
               key={explore._id}
@@ -341,7 +367,9 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                   <ImageWithFallback
                     src={coverImage}
                     alt={`Created at ${
-                      explore.createdAt ? new Date(explore.createdAt).toLocaleString() : ''
+                      explore.createdAt
+                        ? new Date(explore.createdAt).toLocaleString()
+                        : ""
                     }`}
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
@@ -351,13 +379,16 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               </div>
               <div className="text-center">
                 <p className="text-sm font-medium text-white">
-                  {CURRENCIES.find((c) => c.value === explore.currency)?.symbol} {explore.price}
+                  {CURRENCIES.find((c) => c.value === explore.currency)?.symbol}{" "}
+                  {explore.price}
                 </p>
                 <p className="text-xs text-gray-400">
-                  {explore.description || 'No description available'}
+                  {explore.description || "No description available"}
                 </p>
                 <p className="text-xs text-gray-500 mb-2">
-                  {explore.createdAt ? new Date(explore.createdAt).toLocaleString() : ''}
+                  {explore.createdAt
+                    ? new Date(explore.createdAt).toLocaleString()
+                    : ""}
                 </p>
                 <div className="flex items-center justify-center space-x-2 mt-2">
                   <div
@@ -371,15 +402,15 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
                     }}
                   >
                     <ImageWithFallback
-                      src={explore.userProfile?.avatarUrl || ''}
-                      alt={explore.userProfile?.name || 'Anonymous'}
+                      src={explore.userProfile?.avatarUrl || ""}
+                      alt={explore.userProfile?.name || "Anonymous"}
                       layout="fill"
                       objectFit="cover"
                       isAvatar
                     />
                   </div>
                   <span className="text-xs text-gray-300">
-                    {explore.userProfile?.name || 'Anonymous'}
+                    {explore.userProfile?.name || "Anonymous"}
                   </span>
                 </div>
               </div>
@@ -410,12 +441,12 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               if (value) handleGetUserLocation();
             }}
             className={`${
-              tempEnableLocation ? 'bg-purple-600' : 'bg-gray-200'
+              tempEnableLocation ? "bg-purple-600" : "bg-gray-200"
             } relative inline-flex h-6 w-11 items-center rounded-full`}
           >
             <span
               className={`${
-                tempEnableLocation ? 'translate-x-6' : 'translate-x-1'
+                tempEnableLocation ? "translate-x-6" : "translate-x-1"
               } inline-block h-4 w-4 transform bg-white rounded-full transition-transform`}
             />
           </HeadlessSwitch>
@@ -426,7 +457,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
             Location: {locationName}
           </div>
         )}
-      
+
         {/* No Limit */}
         <div className="flex items-center justify-between mb-4">
           <label htmlFor="noLimitSwitch" className="text-gray-600 mr-3">
@@ -442,12 +473,12 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
               }
             }}
             className={`${
-              tempNoLimit ? 'bg-purple-600' : 'bg-gray-200'
+              tempNoLimit ? "bg-purple-600" : "bg-gray-200"
             } relative inline-flex h-6 w-11 items-center rounded-full`}
           >
             <span
               className={`${
-                tempNoLimit ? 'translate-x-6' : 'translate-x-1'
+                tempNoLimit ? "translate-x-6" : "translate-x-1"
               } inline-block h-4 w-4 transform bg-white rounded-full transition-transform`}
             />
           </HeadlessSwitch>
@@ -479,7 +510,7 @@ export default function Explore({ explores: initialExplores }: DisplayExplorePro
             createdAt: selectedCard.createdAt,
             location: selectedCard.location,
             userProfile: selectedCard.userProfile,
-            exploreId: selectedCard.historyId
+            exploreId: selectedCard.historyId,
           }}
           currentImageIndex={currentImageIndex}
           onClose={() => setSelectedCard(null)}

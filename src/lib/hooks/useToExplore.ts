@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react"; // Import useCallback
 import { useSession } from "next-auth/react";
 import { socketService } from "@/lib/socket";
 import { HistoryItem } from "@/lib/types/history";
@@ -18,6 +18,7 @@ export function useToExplore() {
   const [error, setError] = useState<string | null>(null);
   const [canPost, setCanPost] = useState(true);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [itemToPost, setItemToPost] = useState<HistoryItem | null>(null); // State for the item being posted
 
   // 地址相关状态
   const [locationState, setLocationState] = useState<LocationState>({
@@ -146,6 +147,7 @@ export function useToExplore() {
 
     setCanPost(false);
     setIsSaving(true);
+    setError(null); // Clear previous errors
 
     try {
       const response = await fetch("/api/explore", {
@@ -191,7 +193,7 @@ export function useToExplore() {
       setError(
         error instanceof Error ? error.message : "Failed to post to explore"
       );
-      throw error;
+      throw error; // Re-throw to be caught by handleConfirm
     } finally {
       setIsSaving(false);
       setTimeout(() => {
@@ -207,6 +209,7 @@ export function useToExplore() {
 
     try {
       setIsSaving(true);
+      setError(null); // Clear previous errors
       const response = await fetch(
         `/api/explore?historyId=${historyId}&exploreId=${exploreId}`,
         {
@@ -233,17 +236,36 @@ export function useToExplore() {
           ? error.message
           : "Failed to unpublish from explore"
       );
-      throw error;
+      throw error; // Re-throw
     } finally {
       setIsSaving(false);
     }
   };
 
+  // Helper to close modal and clear state
+  const closeLocationModal = useCallback(() => {
+    setShowLocationModal(false);
+    setItemToPost(null); // Clear item when modal is closed
+    // Reset location state? Maybe not, user might reopen.
+    // setLocationState({
+    //   inputAddress: "",
+    //   inputCoordinates: null,
+    //   isFetchingLocation: false,
+    //   errorMessage: "",
+    //   enableLocation: false,
+    // });
+  }, []);
+
   const handleConfirm = async (
-    history: HistoryItem,
+    // history: HistoryItem, // Removed argument, use itemToPost from state
     // Use a more specific type for the callback data
     onSuccess?: (data: { success: boolean; data: ExploreItem }) => void
   ) => {
+    if (!itemToPost) {
+      setError("No item selected for posting.");
+      console.error("handleConfirm called without itemToPost set.");
+      return;
+    }
     if (!locationState.inputCoordinates) {
       setErrorMessage(
         "Please select or enter a valid location before confirming."
@@ -258,21 +280,23 @@ export function useToExplore() {
       };
 
       const result = await postToExplore({
-        ...history,
+        ...itemToPost, // Use item from state
         location: locationData,
       });
-      setShowLocationModal(false);
+      closeLocationModal(); // Use the new function to close modal and clear item
       // Type assertion might be needed if TS can't infer result type correctly
       onSuccess?.(result as { success: boolean; data: ExploreItem });
     } catch (error) {
       // Log the error
       console.error("Error during confirmation:", error);
-      // 错误已经在postToExplore中设置 (Error is already set in postToExplore)
+      // Error state is already set within postToExplore, no need to set it again here
     }
   };
 
-  const handlePost = () => {
-    setShowLocationModal(true);
+  // Modified handlePost to accept the item
+  const handlePost = (item: HistoryItem) => {
+    setItemToPost(item); // Store the item
+    setShowLocationModal(true); // Show the modal
   };
 
   return {
@@ -281,9 +305,10 @@ export function useToExplore() {
     isSaving,
     error,
     canPost,
+    itemToPost, // Return the item state
     locationState,
     showLocationModal,
-    setShowLocationModal,
+    setShowLocationModal, // Still needed for modal component to close itself
     setInputAddress,
     setInputCoordinates,
     setIsFetchingLocation,
@@ -292,6 +317,7 @@ export function useToExplore() {
     handleUseCurrentLocation,
     handleGeocodeInputLocation,
     handleConfirm,
-    handlePost,
+    handlePost, // Return modified handlePost
+    closeLocationModal, // Return helper if needed elsewhere, maybe not
   };
 }

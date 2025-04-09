@@ -203,6 +203,42 @@ export function useHistory(initialData: HistoryItem[] = []) {
     }
   }, [session?.user?.email]); // Dependency: session.user.email
 
+  // Function to verify completion code (Memoized)
+  const verifyCompletionCode = useCallback(
+    async (dealingId: string, code: string): Promise<void> => {
+      if (!session?.user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      try {
+        const response = await fetch("/api/chat/deal/verify-code", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ dealingId, code }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          // Throw specific error message from backend if available
+          throw new Error(data.message || "Code verification failed");
+        }
+
+        // Success! Re-fetch dealing items to update the UI
+        // (Alternatively, could optimistically update the specific item's status)
+        await fetchDealingItems();
+        console.log("Code verified and deal completed successfully.");
+      } catch (error) {
+        console.error("Verify completion code failed:", error);
+        // Re-throw the error so the component can display it
+        throw error;
+      }
+    },
+    [session?.user?.id, fetchDealingItems] // Dependencies
+  );
+
   return {
     histories,
     setHistories,
@@ -221,5 +257,6 @@ export function useHistory(initialData: HistoryItem[] = []) {
     setDealingHistories,
     isDealingLoading,
     fetchDealingItems,
+    verifyCompletionCode, // Expose the new function
   };
 }
