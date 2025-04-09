@@ -1,7 +1,18 @@
-# Active Context
+\*\*\*\*# Active Context
 
-- **Current Focus:** Testing "Post to Explore" modal after refactoring to use Context API. Updating Memory Bank.
+- **Current Focus:** Updating Memory Bank. Next: Rename `handleDealComplete` hook function.
 - **Recent Changes:**
+  - **Refactored Chat Components with Context API:**
+    - Created `ChatContext` (`src/lib/context/ChatContext.tsx`) and `ChatProvider`.
+    - Integrated chat-related hooks (`useInitializeChat`, `useChatData`, `useMessageActions`, `useChatUI`, `useObjectDiscussion`, `useChatHistory`) into the provider.
+    - Wrapped `Chat` component in `ChatProvider` within `src/app/chat/[userId]/page.tsx`.
+    - Refactored `Chat.tsx`, `ChatHeader.tsx`, `UserPostsDisplay.tsx`, `MessageList.tsx`, `MessageItem.tsx`, `ObjectDiscussionCard.tsx`, and `MessageInput.tsx` to use `useChatContext` instead of props, significantly reducing prop drilling.
+  - **Debugged Deal Finalization Flow (Chat):**
+    - Identified that the "Complete" button in `ObjectDiscussionCard` incorrectly triggered full deal finalization (`POST /api/chat/deal` via `handleDealComplete` in `useObjectDiscussion`).
+    - Modified `handleDealComplete` in `useObjectDiscussion` to call `PUT /api/chat/messages` instead, aiming to only update the message status.
+    - Verified relevant backend API routes (`/api/chat/deal/*`, `PUT /api/chat/messages`).
+    - Encountered runtime error "Failed to update message status" when clicking the modified "Complete" button.
+    - Discussed renaming `handleDealComplete` to `handleConfirmAgreement` for clarity, but paused implementation to prioritize context refactoring.
   - **Refactored "Post to Explore" to use Context:**
     - Created `ExploreContext` (`src/lib/context/ExploreContext.tsx`) to manage state and functions related to posting items to the explore feed.
     - `ExploreProvider` now wraps the tab content in `History.tsx`.
@@ -92,12 +103,15 @@
   - **Fixed `useEffect` Dependencies:** Wrapped functions (`fetchUserProfile`, `fetchDealingItems`) in `useHistory.ts` with `useCallback` and updated the dependency array in the main `useEffect` hook in `History.tsx` to resolve infinite loop ("Maximum update depth exceeded") error.
   - **Reverted Dealing Card UI:** (Previous) Reset the style of `DealingItemCard.tsx` to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) based on user feedback.
 - **Next Steps:**
+  - **Update Memory Bank:** Document chat context refactoring. (This step)
+  - **Rename Hook Function:** Rename `handleDealComplete` in `useObjectDiscussion` to `handleConfirmAgreement` across relevant files (`useObjectDiscussion.ts`, `ChatContext.tsx`).
+  - **Debug Message Status Update:** Investigate and fix the "Failed to update message status" runtime error.
   - **Test "Post to Explore" Modal:** Verify if the location modal now appears correctly after the context refactoring.
-  - **Update Memory Bank:** Document context refactoring in `systemPatterns.md` and `progress.md`. (Ongoing)
-  - **Investigate Socket Connection Issue:** (Next) Determine why socket connection fails on direct chat page load (likely related to `CurrentUserContext` timing).
-  - **Verify Unread Count Fix:** (Next) Confirm the unread count bug is resolved with the latest changes.
-  - **Resume API Refactoring:** (Paused) Continue refactoring remaining API routes (Auth, ShareCard) into the Service Layer once other issues are resolved.
+  - **Investigate Socket Connection Issue:** Determine why socket connection fails on direct chat page load.
+  - **Verify Unread Count Fix:** Confirm the unread count bug is resolved.
+  - **Resume API Refactoring:** (Paused) Continue refactoring remaining API routes (Auth, ShareCard).
 - **Active Decisions/Considerations:**
+  - Decided to prioritize refactoring chat components with Context API before renaming `handleDealComplete` or further debugging the message status update error.
   - Addressed the unread count bug by adjusting React Query fetching behavior rather than solely focusing on cache update logic.
   - Prioritized updating Memory Bank after applying the fix.
   - Decided to keep `/api/ai/quick` route separate from `AIService` for now due to its unique market research functionality.
@@ -129,8 +143,9 @@
   - **Centralized Cache Updates:** Using `ChatCacheManager` for chat-related cache updates.
   - **Client Socket Architecture Roles:** Clarified roles of `socketService`, `SocketContext`, `ChatCacheManager`.
 - **Learnings/Insights:**
+  - Refactoring chat components with `ChatContext` significantly reduced prop drilling and centralized state management logic.
   - Refactoring with Context API (`ExploreContext`) significantly reduced prop drilling for the "Post to Explore" feature in the History page components.
-  - Need to be careful with `replace_in_file` on complex components; `write_to_file` can be a necessary fallback despite its drawbacks.
+  - `replace_in_file` can be unreliable with auto-formatting; `write_to_file` is a necessary fallback but requires careful re-application of changes.
   - Previous learnings about NextAuth JWT, Service Layer, etc., remain relevant.
 - **Known Issues:**
   - **"Post to Explore" Modal Bug:** The original issue (modal not appearing) needs re-testing after the context refactoring.
@@ -141,5 +156,7 @@
   - **[RESOLVED]** Chat Page Loading Forever. Fixed via multiple attempts involving `useChatData`, `useInitializeChat`, `ConversationService`, and `UserService` refactoring.
   - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
   - **[RESOLVED]** Maximum update depth exceeded error on History page. Fixed by wrapping functions in `useCallback` within `useHistory` hook and updating `useEffect` dependencies in `History.tsx`.
+  - **Runtime Error:** "Failed to update message status" occurs when clicking the modified "Complete" button in chat (`ObjectDiscussionCard` -> `useChatContext.handleConfirmAgreement`). Backend API (`PUT /api/chat/messages`) or service (`messageService.updateMessageStatus`) is failing.
+  - **Stale TS Error:** A persistent TypeScript error regarding `currentUserId` type mismatch in `Chat.tsx` (line 62) might be stale or indicate a deeper issue, despite the code appearing correct.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after trade code feature implementation)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after chat context refactoring)._

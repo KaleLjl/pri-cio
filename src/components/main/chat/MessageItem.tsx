@@ -1,99 +1,104 @@
 "use client";
 
 import React from "react";
-import { format } from "date-fns";
 import { ChatMessage, ObjectDiscussionData } from "@/lib/types/chat";
-import { ExploreItem } from "@/lib/types/explore";
-import ObjectDiscussionCard from "./ObjectDiscussionCard"; // Will be created next
+// import { ExploreItem } from "@/lib/types/explore"; // REMOVED (unused)
+import ImageWithFallback from "@/components/shared/ImageWithFallback";
+import ObjectDiscussionCard from "./ObjectDiscussionCard"; // Import the card component
+import { useChatContext } from "@/lib/context/ChatContext"; // Import context hook
 
+// Remove props interface, except for message
 interface MessageItemProps {
   message: ChatMessage;
+  // Keep currentUserId for direct comparison
   currentUserId: string;
-  allMessages: ChatMessage[]; // Needed for context in ObjectDiscussionCard
-  // Props for ObjectDiscussionCard
-  myPosts: ExploreItem[];
-  userPosts: ExploreItem[];
-  handleDealComplete: (content: ObjectDiscussionData, senderId: string) => void;
-  handleCancelDiscussion: (
-    content: ObjectDiscussionData,
-    senderId: string
-  ) => void;
-  isCurrentUserSeller: (
-    postId: string,
-    myPosts: ExploreItem[],
-    userPosts: ExploreItem[]
-  ) => boolean;
-  isPostCompleted: (postId: string) => boolean;
-  isLastDiscussionMessage: (message: ChatMessage) => boolean;
-  isPostInDiscussion: (postId: string) => boolean;
-  isPostFinalized: (postId: string, discussingId: string) => boolean;
-  isSending: boolean;
 }
 
+// Remove props from function signature, except message
 export default function MessageItem({
   message,
-  currentUserId,
-  allMessages,
-  myPosts,
-  userPosts,
-  handleDealComplete,
-  handleCancelDiscussion,
-  isCurrentUserSeller,
-  isPostCompleted,
-  isLastDiscussionMessage,
-  isPostInDiscussion,
-  isPostFinalized,
-  isSending,
+  currentUserId, // Keep for direct comparison
 }: MessageItemProps) {
+  // Get necessary values/functions from context
+  const {
+    // myPosts, // REMOVED (unused)
+    // userPosts, // REMOVED (unused)
+    // handleConfirmAgreement, // REMOVED (unused)
+    // handleCancelDiscussion, // REMOVED (unused)
+    // isCurrentUserSeller, // REMOVED (unused)
+    // isPostCompleted, // REMOVED (unused)
+    // isLastDiscussionMessage, // REMOVED (unused)
+    // isPostInDiscussion, // REMOVED (unused)
+    // isPostFinalized, // REMOVED (unused)
+    // isSending, // REMOVED (unused)
+    otherUser, // Needed for avatar
+  } = useChatContext();
+
   const isSender = message.senderId === currentUserId;
+  const alignment = isSender ? "justify-end" : "justify-start";
+  const messageBg = isSender ? "bg-purple-600" : "bg-gray-700";
+  const messageRounded = isSender ? "rounded-br-none" : "rounded-bl-none";
+
+  // Determine if the content is ObjectDiscussionData
+  const isObjectDiscussion =
+    typeof message.content === "object" &&
+    message.content !== null &&
+    message.content.type === "object_discussion";
 
   return (
-    <div className={`flex ${isSender ? "justify-end" : "justify-start"}`}>
-      <div className="max-w-[70%] space-y-1">
-        {typeof message.content === "string" ? (
-          // Render plain text message
-          <div
-            className={`rounded-lg px-4 py-2 break-words ${
-              isSender ? "bg-purple-600 text-white" : "bg-gray-700 text-white"
-            }`}
-          >
-            {message.content}
+    <div className={`flex ${alignment} group`}>
+      <div
+        className={`flex items-end max-w-xs md:max-w-md lg:max-w-lg ${
+          isSender ? "flex-row-reverse" : "flex-row"
+        } gap-2`}
+      >
+        {/* Avatar (only for receiver messages) */}
+        {!isSender && (
+          <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+            <ImageWithFallback
+              src={otherUser?.avatarUrl || ""}
+              alt={otherUser?.name || "User"}
+              width={32}
+              height={32}
+              className="object-cover"
+              isAvatar={true}
+            />
           </div>
-        ) : message.content.type === "object_discussion" ? (
-          // Render Object Discussion Card
-          <ObjectDiscussionCard
-            message={message} // Pass the whole message for context
-            content={message.content as ObjectDiscussionData}
-            myPosts={myPosts}
-            userPosts={userPosts}
-            currentUserId={currentUserId}
-            handleDealComplete={handleDealComplete}
-            handleCancelDiscussion={handleCancelDiscussion}
-            isCurrentUserSeller={isCurrentUserSeller}
-            isPostCompleted={isPostCompleted}
-            isLastDiscussionMessage={isLastDiscussionMessage(message)}
-            isPostInDiscussion={isPostInDiscussion}
-            isPostFinalized={isPostFinalized}
-            isSending={isSending}
-            allMessages={allMessages} // Pass all messages for context
-          />
-        ) : null}
+        )}
 
-        {/* Timestamp and Status */}
-        <div className="flex items-center justify-end gap-2 mt-2">
-          <span className="text-xs text-gray-300">
-            {format(new Date(message.createdAt), "HH:mm")}
-          </span>
-          {isSender && (
-            <span className="text-xs text-gray-300">
-              {message.status === "sending" && "Sending..."}
-              {message.status === "sent" && "Sent"}
-              {message.status === "delivered" && "Delivered"}
-              {message.status === "read" && "Read"}
-              {message.status === "error" && "Error"}
-            </span>
+        {/* Message Content */}
+        <div
+          className={`px-4 py-3 rounded-2xl ${messageBg} ${messageRounded} text-white shadow-md`}
+        >
+          {isObjectDiscussion ? (
+            <ObjectDiscussionCard
+              message={message} // Pass the whole message
+              content={message.content as ObjectDiscussionData}
+              // Pass necessary props from context or calculated values
+              // myPosts={myPosts} // REMOVED prop
+              // userPosts={userPosts} // REMOVED prop
+              // currentUserId={currentUserId} // REMOVED prop
+              // allMessages={allMessages} // REMOVED prop
+              // handleDealComplete={handleConfirmAgreement} // REMOVED prop
+              // handleCancelDiscussion={handleCancelDiscussion} // REMOVED prop
+              // isCurrentUserSeller={(postId: string) => isCurrentUserSeller(postId)} // REMOVED prop
+              // isPostCompleted={(postId: string) => isPostCompleted(postId)} // REMOVED prop
+              // isLastDiscussionMessage={isLastDiscussionMessage(message)} // REMOVED prop
+              // isPostInDiscussion={(postId: string) => isPostInDiscussion(postId)} // REMOVED prop
+              // isPostFinalized={(postId: string, discussingId: string) => isPostFinalized(postId, discussingId)} // REMOVED prop
+              // isSending={isSending} // REMOVED prop
+            />
+          ) : (
+            <p className="text-sm break-words">{message.content as string}</p> // Render plain text
           )}
         </div>
+
+        {/* Message Status (only for sender messages) */}
+        {isSender && (
+          <div className="text-xs text-gray-500 self-end ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {message.status}
+          </div>
+        )}
       </div>
     </div>
   );

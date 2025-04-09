@@ -76,10 +76,17 @@ export function useChatHistory(): UseChatHistoryReturn {
 
   // 修改标记已读方法
   const markAsRead = async (conversationId: string, messageId?: string) => {
-    try {
-      // 1. (Removed) Redundant optimistic cache update removed.
-      // Relying on ChatCacheManager triggered by socket events or markMessageRead.
+    // --- BEGIN OPTIMISTIC UPDATE ---
+    // Immediately update the cache to set unreadCount to 0
+    queryClient.setQueryData<ChatRecord[]>(["chat-history"], (oldData) => {
+      if (!oldData) return oldData;
+      return oldData.map((chat) =>
+        chat._id === conversationId ? { ...chat, unreadCount: 0 } : chat
+      );
+    });
+    // --- END OPTIMISTIC UPDATE ---
 
+    try {
       // 2. 通过 Socket Context 发送消息已读状态 (if messageId provided)
       if (messageId) {
         // Replace incorrect call with the correct one from SocketContext

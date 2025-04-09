@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useContext } from "react";
+import { useState, useRef, useEffect, useContext, useCallback } from "react";
 import { useInView } from "react-intersection-observer";
 import { ChatMessage } from "@/lib/types/chat";
 import { ExploreItem } from "@/lib/types/explore";
@@ -47,11 +47,11 @@ export function useChatUI({
   }, [loadMoreCallbackRef]);
 
   // Scroll to bottom function
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (shouldScrollToBottom) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  };
+  }, [shouldScrollToBottom]);
 
   // Handle scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -88,7 +88,13 @@ export function useChatUI({
         }).catch(console.error);
       }
     }
-  }, [messages, currentUserId, shouldScrollToBottom, conversationId]);
+  }, [
+    messages,
+    currentUserId,
+    shouldScrollToBottom,
+    conversationId,
+    scrollToBottom,
+  ]);
 
   // Load more messages when scrolling up
   useEffect(() => {
@@ -96,7 +102,7 @@ export function useChatUI({
       setLoadingMore(true);
       fetchNextPage().finally(() => setLoadingMore(false));
     }
-  }, [inView, hasNextPage, fetchNextPage]);
+  }, [inView, loadingMore, hasNextPage, fetchNextPage]);
 
   // Save scroll position before toggling posts
   const handleTogglePosts = () => {

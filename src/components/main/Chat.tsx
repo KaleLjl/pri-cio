@@ -1,153 +1,71 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { ChatProps } from "@/lib/types/chat";
+// import { ChatProps } from "@/lib/types/chat"; // userId prop no longer needed
 import Loading from "@/components/shared/Loading";
-import { useQueryClient } from "@tanstack/react-query";
 import ObjectDiscussion from "@/components/main/chat/ObjectDiscussion";
-import {
-  useInitializeChat,
-  useChatData,
-  useMessageActions,
-  useChatUI,
-  useObjectDiscussion,
-} from "@/lib/hooks/chat";
-import { useChatHistory } from "@/lib/hooks/useChatHistory";
-import { useEffect, useMemo, useContext, useRef } from "react"; // Import useContext, useRef
-import { SocketContext } from "@/lib/context/SocketContext"; // Import SocketContext
+import { useChatUI } from "@/lib/hooks/chat"; // Keep useChatUI for refs/scroll
+import { useChatContext } from "@/lib/context/ChatContext"; // Import the context hook
 import ChatHeader from "./chat/ChatHeader";
 import UserPostsDisplay from "./chat/UserPostsDisplay";
 import MessageList from "./chat/MessageList";
 import MessageInput from "./chat/MessageInput";
 
-export default function Chat({ userId }: ChatProps) {
+// Remove userId prop as it's handled by the Provider
+export default function Chat() {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  // Get markAsRead for initial conversation read marking, chats for unread check
-  const { markAsRead, chats } = useChatHistory();
-  const socket = useContext(SocketContext); // Get socket context for marking individual messages
 
-  // --- Hooks ---
-  // Use the initialization hook
-  const { currentUserId, otherUser, conversationId, isInitializing, error } =
-    useInitializeChat({ userId });
-
-  // Use the chat data hook
+  // --- Use Context ---
   const {
-    messages,
-    userPosts,
-    isLoadingPosts,
-    isTyping,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-  } = useChatData({
-    userId,
-    conversationId,
+    currentUserId,
     otherUser,
-  });
-
-  // Use the chat UI hook
-  const {
-    messagesEndRef,
-    messagesContainerRef,
-    loadMoreRef,
-    inputMessage,
-    showPosts,
-    showMyPosts,
-    myPosts,
-    isLoadingMyPosts,
-    setShowMyPosts,
-    setShowPosts,
-    handleScroll,
-    handleTogglePosts,
-    // handlePostClick is now managed within UserPostsDisplay/MyPostsPopup -> setSelectedPost
-    handleMessageInput,
-    handleMessageSubmit, // This is passed to useMessageActions
-  } = useChatUI({
-    messages,
-    currentUserId: currentUserId ?? undefined, // Pass currentUserId
-    conversationId, // Pass conversationId
-    fetchNextPage,
-    hasNextPage,
-  });
-
-  // Use the message actions hook
-  const {
-    sendMessage, // Keep sendMessage for useObjectDiscussion
-    deleteMessages, // Keep deleteMessages for ChatHeader
-    handleSubmit, // Keep handleSubmit for MessageInput form
-    isSending: isSendingMessage, // Keep isSendingMessage for MessageInput button state
-    // isDeleting is likely handled internally now or not exposed
-  } = useMessageActions({
     conversationId,
-    currentUserId: currentUserId ?? undefined,
-    otherUserId: otherUser?._id ?? undefined,
-    handleMessageSubmit, // Pass the callback from useChatUI
-  });
-
-  // Use the object discussion hook
-  const {
+    isInitializing,
+    error,
+    messages,
+    // userPosts, // No longer needed directly here
+    // isLoadingPosts, // REMOVED (unused)
+    // isTyping, // REMOVED (unused)
+    hasNextPage,
+    fetchNextPage,
+    // isFetchingNextPage, // No longer needed directly here
+    // inputMessage, // No longer needed directly here
+    // showPosts, // No longer needed directly here
+    // showMyPosts, // No longer needed directly here
+    // myPosts, // No longer needed directly here
+    // isLoadingMyPosts, // No longer needed directly here
+    // setShowMyPosts, // No longer needed directly here
+    // handleMessageInput, // No longer needed directly here
+    // deleteMessages, // No longer needed directly here
+    // isSendingMessage, // No longer needed directly here
+    // handleSubmit, // No longer needed directly here
     selectedPost,
     editingContent,
-    setSelectedPost, // Keep setSelectedPost for MessageInput/UserPostsDisplay interaction
-    handleDiscussionSubmit, // Keep handleDiscussionSubmit for ObjectDiscussion modal
-    // handleObjectDiscussionClick is likely internal to the hook now
-    handleDealComplete, // Keep handleDealComplete for MessageList -> MessageItem -> ObjectDiscussionCard
-    handleCancelDiscussion, // Keep handleCancelDiscussion for MessageList -> MessageItem -> ObjectDiscussionCard
-    isCurrentUserSeller, // Keep isCurrentUserSeller for MessageList -> MessageItem -> ObjectDiscussionCard
-    isPostCompleted, // Keep isPostCompleted for MessageList -> MessageItem -> ObjectDiscussionCard
-    isLastDiscussionMessage, // Keep isLastDiscussionMessage for MessageList -> MessageItem -> ObjectDiscussionCard
-    setEditingContent, // Keep setEditingContent for ObjectDiscussion modal interaction
-    isPostInDiscussion, // Keep isPostInDiscussion for MessageInput/UserPostsDisplay/MessageList
-    isPostFinalized, // Keep isPostFinalized for MessageList -> MessageItem -> ObjectDiscussionCard
-    isSending, // Keep isSending for button states in ObjectDiscussionCard
-  } = useObjectDiscussion({
-    currentUserId: currentUserId || "",
-    messages, // Pass messages
-    sendMessage, // Pass sendMessage
-    queryClient, // Pass queryClient
-    setShowPosts, // Pass setShowPosts
-  });
+    setSelectedPost,
+    setEditingContent,
+    handleDiscussionSubmit,
+    // handleConfirmAgreement, // No longer needed directly here
+    // handleCancelDiscussion, // No longer needed directly here
+    // isCurrentUserSeller, // No longer needed directly here
+    // isPostCompleted, // No longer needed directly here
+    // isLastDiscussionMessage, // No longer needed directly here
+    // isPostInDiscussion, // No longer needed directly here
+    // isPostFinalized, // No longer needed directly here
+    // isSending, // No longer needed directly here
+    handleTogglePosts,
+  } = useChatContext();
 
-  // --- Effects ---
-  // Memoize the current chat's unread status to prevent unnecessary effect runs
-  const hasUnreadMessages = useMemo(() => {
-    if (!conversationId || !chats) return false;
-    const currentChat = chats.find((chat) => chat._id === conversationId);
-    return !!currentChat && currentChat.unreadCount > 0;
-  }, [conversationId, chats]);
-
-  // Mark the message as read only if there are unread messages
-  useEffect(() => {
-    // Only run if conversationId is valid and there are unread messages
-    if (conversationId && hasUnreadMessages) {
-      markAsRead(conversationId).catch((error) => {
-        console.error("Failed to mark messages as read:", error);
-      });
-    }
-    // Depend on conversationId and the memoized unread status
-  }, [conversationId, hasUnreadMessages, markAsRead]);
-
-  // Effect to mark incoming messages as read when chat is active
-  const prevMessagesLengthRef = useRef(messages.length);
-  useEffect(() => {
-    if (!conversationId || !currentUserId || !socket?.markMessageRead) {
-      return;
-    }
-
-    // Check only new messages since the last render
-    const newMessages = messages.slice(prevMessagesLengthRef.current);
-
-    newMessages.forEach((msg) => {
-      // If message is from the other user and not already marked 'read' (optional check)
-      if (msg.senderId !== currentUserId && msg.status !== "read") {
-        socket.markMessageRead({ messageId: msg._id, conversationId });
-      }
+  // --- Keep UI Hook ONLY for Refs/Scroll ---
+  const { messagesEndRef, messagesContainerRef, loadMoreRef, handleScroll } =
+    useChatUI({
+      messages,
+      currentUserId: currentUserId ? currentUserId : undefined, // Use ternary operator again
+      conversationId,
+      fetchNextPage,
+      hasNextPage,
     });
 
-    // Update the ref for the next render
-    prevMessagesLengthRef.current = messages.length;
-  }, [messages, conversationId, currentUserId, socket?.markMessageRead]); // Depend on messages and context function
+  // --- Effects ---
+  // Effects related to marking messages read were moved to ChatProvider
 
   // --- Render Logic ---
   if (error) {
@@ -173,32 +91,18 @@ export default function Chat({ userId }: ChatProps) {
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black text-white">
       <div className="absolute inset-0 flex flex-col">
-        {/* Chat Header and User Posts Display */}
+        {/* Chat Header - Props removed */}
         <ChatHeader
-          otherUser={otherUser}
-          isTyping={isTyping}
-          isLoadingPosts={isLoadingPosts}
-          userPosts={userPosts}
-          showPosts={showPosts}
-          onBackClick={() => router.push(`/chathistory`)}
-          onTogglePosts={handleTogglePosts}
-          onDeleteConversation={deleteMessages}
+          onBackClick={() => router.push(`/chathistory`)} // Keep navigation handler
+          onTogglePosts={handleTogglePosts} // Keep UI toggle handler
         />
         <div className="absolute top-36 left-0 right-0 z-10">
           {" "}
           {/* Adjust top based on header height */}
           <div className="container max-w-4xl mx-auto">
             <div className="mx-4">
-              <UserPostsDisplay
-                showPosts={showPosts}
-                isLoadingPosts={isLoadingPosts}
-                userPosts={userPosts}
-                onPostClick={(post) => {
-                  // Removed handlePostClick, directly set selected post
-                  setSelectedPost(post);
-                }}
-                isPostInDiscussion={isPostInDiscussion}
-              />
+              {/* User Posts Display - Props removed */}
+              <UserPostsDisplay />
             </div>
           </div>
         </div>
@@ -209,30 +113,15 @@ export default function Chat({ userId }: ChatProps) {
           {/* Adjust pt based on header height */}
           <div className="container max-w-4xl mx-auto h-full">
             <div className="h-full mx-4 bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-lg flex flex-col">
-              {/* Messages Area */}
+              {/* Messages Area - Props removed */}
               <MessageList
-                messages={messages}
-                currentUserId={currentUserId ?? undefined} // Fix: Ensure undefined instead of null
-                isFetchingNextPage={isFetchingNextPage}
-                loadMoreRef={loadMoreRef}
-                messagesEndRef={messagesEndRef}
-                messagesContainerRef={messagesContainerRef}
-                handleScroll={handleScroll}
-                myPosts={myPosts}
-                userPosts={userPosts}
-                handleDealComplete={handleDealComplete}
-                handleCancelDiscussion={handleCancelDiscussion}
-                isCurrentUserSeller={isCurrentUserSeller}
-                isPostCompleted={(postId: string) =>
-                  isPostCompleted(postId, messages)
-                } // Fix: Adapt signature
-                isLastDiscussionMessage={isLastDiscussionMessage}
-                isPostInDiscussion={isPostInDiscussion}
-                isPostFinalized={isPostFinalized}
-                isSending={isSending}
+                loadMoreRef={loadMoreRef} // Keep ref
+                messagesEndRef={messagesEndRef} // Keep ref
+                messagesContainerRef={messagesContainerRef} // Keep ref
+                handleScroll={handleScroll} // Keep scroll handler
               />
 
-              {/* Object Discussion Modal (Remains the same) */}
+              {/* Object Discussion Modal */}
               {(selectedPost || editingContent) && (
                 <ObjectDiscussion
                   post={
@@ -278,23 +167,12 @@ export default function Chat({ userId }: ChatProps) {
                     setSelectedPost(null);
                     setEditingContent(null);
                   }}
-                  onSubmit={handleDiscussionSubmit}
+                  onSubmit={handleDiscussionSubmit} // Use context function
                 />
               )}
 
-              {/* Message Input */}
-              <MessageInput
-                inputMessage={inputMessage}
-                isSendingMessage={isSendingMessage}
-                showMyPosts={showMyPosts}
-                myPosts={myPosts}
-                isLoadingMyPosts={isLoadingMyPosts}
-                handleMessageInput={handleMessageInput}
-                handleSubmit={handleSubmit}
-                setShowMyPosts={setShowMyPosts}
-                setSelectedPost={setSelectedPost}
-                isPostInDiscussion={isPostInDiscussion}
-              />
+              {/* Message Input - No props needed */}
+              <MessageInput />
             </div>
           </div>
         </div>

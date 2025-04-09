@@ -56,8 +56,13 @@
   - **File Uploads:** AWS S3 integration via `lib/s3.ts` used by `/api/history` and `/api/editprofile`.
   - **Utilities:** Context providers (`SocketContext`, `ExploreContext`), custom hooks, type definitions (`src/lib/types`).
   - **Analytics:** Vercel Analytics & Speed Insights integrated.
-  - **Context Refactoring:** "Post to Explore" feature in History page now uses `ExploreContext` to manage state and actions, reducing prop drilling.
+  - **Context Refactoring:**
+    - "Post to Explore" feature in History page now uses `ExploreContext`.
+    - Chat components (`Chat.tsx` and its children in `src/components/main/chat/`) now use `ChatContext` (`src/lib/context/ChatContext.tsx`) to manage state and eliminate prop drilling.
+  - **Deal Finalization Flow (Chat):** Modified the "Complete" button handler (`handleDealComplete` in `useObjectDiscussion`, now accessed via `useChatContext`) to update the message status via `PUT /api/chat/messages` instead of incorrectly finalizing the deal via `POST /api/chat/deal`.
 - **What's Left to Build:**
+  - **Rename Hook Function:** Rename `handleDealComplete` in `useObjectDiscussion` to `handleConfirmAgreement`.
+  - **Debug Message Status Update:** Fix the "Failed to update message status" runtime error.
   - Specific functionality of Around page (`/around`).
   - Share Card API/UI details (`/api/share-card`, `useShareCard`).
   - Transaction handling (if any beyond current dealing flow).
@@ -71,8 +76,13 @@
   - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
   - **[RESOLVED]** Chat Page React Query Error. Fixed by adding dummy `queryFn` and `staleTime: Infinity`.
   - **[RESOLVED]** Maximum update depth exceeded error on History page. Fixed by memoizing functions (`fetchUserProfile`, `fetchDealingItems`) in `useHistory` hook and updating `useEffect` dependencies in `History.tsx`.
+  - **Runtime Error:** "Failed to update message status" occurs when clicking the modified "Complete" button in chat (`ObjectDiscussionCard` -> `useChatContext.handleConfirmAgreement`). Backend API (`PUT /api/chat/messages`) or service (`messageService.updateMessageStatus`) is failing. Needs further investigation (logging).
+  - **Stale TS Error:** A persistent TypeScript error regarding `currentUserId` type mismatch in `Chat.tsx` (line 62) might be stale or indicate a deeper issue, despite the code appearing correct.
   - (Previous dealing issues resolved by implementing initiation logic and correcting GET API).
 - **Decision Log:** (Track significant decisions made over time and their rationale - Requires manual update)
+  - **Completed Chat Context Refactoring:** Refactored chat components to use `ChatContext`, reducing prop drilling.
+  - **Prioritized Chat Context Refactoring:** Decided to refactor chat components using Context API before renaming `handleDealComplete` or fully debugging the "Failed to update message status" error.
+  - **Corrected Chat Deal Completion Logic:** Changed the "Complete" button in chat (`ObjectDiscussionCard`) to update the message status (`PUT /api/chat/messages`) instead of finalizing the deal (`POST /api/chat/deal`).
   - **Reverted Dealing Card Style:** Based on user feedback ("too ugly"), reverted the `DealingItemCard.tsx` style to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) after attempts to make details always visible caused layout issues (image cropping).
   - **Fixed `useEffect` Dependencies in `History.tsx`:** Wrapped `fetchUserProfile` and `fetchDealingItems` in `useCallback` within the `useHistory` hook to provide stable references. Wrapped locally defined `updateContainerHeight` and `updatePostedHistories` in `useCallback`. Added these functions to the main `useEffect` dependency array to resolve the infinite loop error.
   - **Refactored `History.tsx`:** Broke down the large component into smaller sub-components (`HistoryProfileHeader`, `HistoryTabControls`, `HistorySavedItemsTab`, `HistoryPostedItemsTab`, `HistoryDealingItemsTab`, `HistoryItemCard`, `DealingItemCard`) for better maintainability.
@@ -102,4 +112,4 @@
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
   - **Refactored "Post to Explore" with Context:** Introduced `ExploreContext` to manage state/functions for posting items from the History page, simplifying prop drilling through `History.tsx`, `HistorySavedItemsTab.tsx`, `HistoryItemCard.tsx`, and `ToExplore.tsx`.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after context refactoring)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after chat context refactoring)._

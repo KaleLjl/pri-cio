@@ -2,55 +2,42 @@
 
 import React from "react";
 import { ChatMessage, ObjectDiscussionData } from "@/lib/types/chat";
-import { ExploreItem } from "@/lib/types/explore";
+// import { ExploreItem } from "@/lib/types/explore"; // No longer needed here
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
 import { CURRENCIES } from "@/components/main/createpost/CreatePost";
+import { useChatContext } from "@/lib/context/ChatContext"; // Import context hook
 
+// Remove props interface, except message and content
 interface ObjectDiscussionCardProps {
   message: ChatMessage; // Pass the whole message for context if needed
   content: ObjectDiscussionData;
-  myPosts: ExploreItem[];
-  userPosts: ExploreItem[];
-  currentUserId: string;
-  allMessages: ChatMessage[]; // Needed for context checks
-  handleDealComplete: (content: ObjectDiscussionData, senderId: string) => void;
-  handleCancelDiscussion: (
-    content: ObjectDiscussionData,
-    senderId: string
-  ) => void;
-  isCurrentUserSeller: (
-    postId: string,
-    myPosts: ExploreItem[],
-    userPosts: ExploreItem[]
-  ) => boolean;
-  isPostCompleted: (postId: string) => boolean; // This might need adjustment based on where the state lives
-  isLastDiscussionMessage: boolean; // Simplified prop, calculated in MessageItem
-  isPostInDiscussion: (postId: string) => boolean; // This might need adjustment
-  isPostFinalized: (postId: string, discussingId: string) => boolean; // Simplified prop
-  isSending: boolean;
 }
 
+// Remove props from function signature, except message and content
 export default function ObjectDiscussionCard({
   message,
   content,
-  myPosts,
-  userPosts,
-  currentUserId,
-  allMessages,
-  handleDealComplete,
-  handleCancelDiscussion,
-  isCurrentUserSeller,
-  isPostCompleted, // Consider if this check needs more context
-  isLastDiscussionMessage,
-  isPostInDiscussion, // Consider if this check needs more context
-  isPostFinalized,
-  isSending,
 }: ObjectDiscussionCardProps) {
-  const isSeller = isCurrentUserSeller(content.postId, myPosts, userPosts);
+  // Get values/functions from context
+  const {
+    currentUserId,
+    handleConfirmAgreement, // Use renamed function
+    handleCancelDiscussion,
+    isCurrentUserSeller,
+    // isPostCompleted, // Removed
+    isLastDiscussionMessage,
+    // isPostInDiscussion, // Removed
+    isPostFinalized,
+    isSending,
+  } = useChatContext();
+
+  // Calculate values previously passed as props
+  const isSeller = isCurrentUserSeller(content.postId); // Use context function
   const isFinalized = isPostFinalized(
     content.postId,
     content.discussingId || ""
-  );
+  ); // Use context function
+  const isLastMessage = isLastDiscussionMessage(message); // Use context function
 
   return (
     <div className="bg-gray-800 rounded-lg p-4 space-y-4">
@@ -111,24 +98,67 @@ export default function ObjectDiscussionCard({
             </p>
           </div>
           {/* Action Buttons */}
-          {content.status === "discussing" && isLastDiscussionMessage && (
-            <div className="mt-3 flex space-x-2">
-              {/* Deal button - only visible to the receiver */}
-              {message.senderId !== currentUserId && (
+          {content.status === "discussing" &&
+            isLastMessage && ( // Use calculated value
+              <div className="mt-3 flex space-x-2">
+                {/* Deal button - only visible to the receiver */}
+                {message.senderId !== currentUserId && ( // Use context value
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleConfirmAgreement(content, message._id); // Use context function
+                    }}
+                    disabled={isSending} // Use context value
+                    className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
+                      isSeller
+                        ? "bg-blue-500 hover:bg-blue-400"
+                        : "bg-orange-500 hover:bg-orange-400"
+                    } ${isSending ? "opacity-50 cursor-wait" : ""}`} // Use context value
+                  >
+                    {isSending ? ( // Use context value
+                      <span className="flex items-center">
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Processing...
+                      </span>
+                    ) : (
+                      "Complete" // This button text should ideally change to "Confirm" or "Accept"
+                    )}
+                  </button>
+                )}
+
+                {/* Cancel button - visible to both parties */}
                 <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    handleDealComplete(content, message.senderId);
+                    handleCancelDiscussion(content); // Use context function
                   }}
-                  disabled={isSending}
-                  className={`px-3 py-1 text-sm text-white rounded-lg transition-colors ${
-                    isSeller
-                      ? "bg-blue-500 hover:bg-blue-400"
-                      : "bg-orange-500 hover:bg-orange-400"
-                  } ${isSending ? "opacity-50 cursor-wait" : ""}`}
+                  disabled={isSending} // Use context value
+                  className={`px-3 py-1 text-sm text-white bg-red-500 hover:bg-red-400 rounded-lg transition-colors ${
+                    isSending ? "opacity-50 cursor-wait" : "" // Use context value
+                  }`}
                 >
-                  {isSending ? (
+                  {isSending ? ( // Use context value
                     <span className="flex items-center">
                       <svg
                         className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
@@ -153,53 +183,11 @@ export default function ObjectDiscussionCard({
                       Processing...
                     </span>
                   ) : (
-                    "Complete"
+                    "Cancel"
                   )}
                 </button>
-              )}
-
-              {/* Cancel button - visible to both parties */}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleCancelDiscussion(content, message.senderId);
-                }}
-                disabled={isSending}
-                className={`px-3 py-1 text-sm text-white bg-red-500 hover:bg-red-400 rounded-lg transition-colors ${
-                  isSending ? "opacity-50 cursor-wait" : ""
-                }`}
-              >
-                {isSending ? (
-                  <span className="flex items-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Processing...
-                  </span>
-                ) : (
-                  "Cancel"
-                )}
-              </button>
-            </div>
-          )}
+              </div>
+            )}
           {/* Status display */}
           {content.status !== "discussing" && (
             <div className="mt-2">
