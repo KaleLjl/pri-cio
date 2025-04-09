@@ -4,7 +4,13 @@ export interface ChatUser {
   avatarUrl?: string;
 }
 
-export type MessageStatus = "sending" | "sent" | "delivered" | "read" | "error";
+export type MessageStatus =
+  | "sending"
+  | "sent"
+  // | "delivered" // Removed delivered status
+  | "read"
+  | "error"
+  | "completed";
 
 export interface ObjectDiscussionData {
   type: "object_discussion";
@@ -72,7 +78,7 @@ export interface ConversationSettings {
   // Define specific settings fields if known, otherwise keep flexible
   notifications?: boolean;
   theme?: string;
-  [key: string]: any; // Allow arbitrary settings
+  [key: string]: unknown; // Use unknown instead of any
 }
 
 // Interface representing the schema stored in MongoDB

@@ -23,7 +23,8 @@ interface SocketContextType {
   updateMessageStatus: (
     conversationId: string,
     messageId: string,
-    status: "sending" | "sent" | "delivered" | "read" | "error"
+    status: "sending" | "sent" | "delivered" | "read" | "error",
+    newMessage?: ChatMessage // Add optional 4th argument
   ) => void;
   markConversationAsRead: (conversationId: string) => void; // Expose this for UI interaction
   markMessageRead: (data: {
@@ -110,19 +111,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         );
         if (cleanupNewConv) listenerCleanupRefs.current.push(cleanupNewConv);
 
-        const cleanupMsgDelivered = socketService.onMessageDelivered(
-          (messageId) => {
-            console.log(
-              "SocketProvider: Received message delivered",
-              messageId
-            );
-            // Need conversationId to update cache effectively
-            // This event might need adjustment or rely on handleNewMessage status updates
-            // cacheManager.updateMessageStatus(messageId, "delivered"); // Needs conversationId
-          }
-        );
-        if (cleanupMsgDelivered)
-          listenerCleanupRefs.current.push(cleanupMsgDelivered);
+        // Removed onMessageDelivered listener
 
         const cleanupMsgRead = socketService.onMessageRead((messageId) => {
           console.log("SocketProvider: Received message read", messageId);
@@ -290,11 +279,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       updateMessageStatus: (
         conversationId: string,
         messageId: string,
-        status: "sending" | "sent" | "delivered" | "read" | "error"
+        status: "sending" | "sent" | "delivered" | "read" | "error",
+        newMessage?: ChatMessage // Accept optional 4th argument
       ) => {
-        // This is primarily for updating the cache based on UI actions or API responses,
-        // not directly from raw socket events like 'delivered' or 'read' which lack conversationId.
-        cacheManager.updateMessageStatus(conversationId, messageId, status);
+        // Pass all arguments to the cache manager
+        cacheManager.updateMessageStatus(
+          conversationId,
+          messageId,
+          status,
+          newMessage
+        );
       },
       markConversationAsRead: (conversationId: string) => {
         // Update cache optimistically

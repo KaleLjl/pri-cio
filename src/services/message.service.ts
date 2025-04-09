@@ -119,7 +119,7 @@ export async function sendMessage(
     const conversationsCollection = db.collection("conversations");
     const messagesCollection = db.collection<MessageDBSchema>("messages");
     const usersCollection = db.collection("users");
-    const historiesCollection = db.collection("histories"); // Keep for potential future use? Or remove if truly unused now.
+    // const historiesCollection = db.collection("histories"); // Removed unused variable
     const dealingCollection = db.collection("dealing");
     const exploreCollection = db.collection("explore"); // Add explore collection
 
@@ -522,7 +522,8 @@ export async function updateMessageStatus(
   const validStatuses: MessageStatus[] = [
     "sending",
     "sent",
-    "delivered",
+    // "delivered", // Removed delivered status
+    "completed",
     "read",
     "error",
   ];

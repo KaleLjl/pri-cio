@@ -53,9 +53,7 @@ interface ChatContextType {
   // handleScroll, refs will likely stay in Chat.tsx or useChatUI
 
   // State/Functions from useMessageActions
-  sendMessage: (
-    content: string | ObjectDiscussionData
-  ) => Promise<ChatMessage | undefined>;
+  sendMessage: (content: string | ObjectDiscussionData) => Promise<ChatMessage>; // Match the return type from useMessageActions
   deleteMessages: () => Promise<void>;
   isSendingMessage: boolean;
   handleSubmit: (event: React.FormEvent<HTMLFormElement>) => void; // Add handleSubmit

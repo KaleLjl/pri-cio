@@ -34,7 +34,9 @@ io.on("connection", (socket) => {
     socket.join(conversationId);
     conversationRooms.get(conversationId)?.add(socket.id);
 
-    socket.to(conversationId).emit("user-joined", { userId, socketId: socket.id });
+    socket
+      .to(conversationId)
+      .emit("user-joined", { userId, socketId: socket.id });
   });
 
   socket.on("leave-room", (conversationId: string) => {
@@ -43,7 +45,9 @@ io.on("connection", (socket) => {
     if (conversationRooms.get(conversationId)?.size === 0) {
       conversationRooms.delete(conversationId);
     }
-    socket.to(conversationId).emit("user-left", { userId, socketId: socket.id });
+    socket
+      .to(conversationId)
+      .emit("user-left", { userId, socketId: socket.id });
   });
 
   socket.on("send-message", (message: ChatMessage) => {
@@ -53,14 +57,14 @@ io.on("connection", (socket) => {
     };
 
     io.in(message.conversationId).emit("new-message", broadcastMessage);
-    socket.to(message.conversationId).emit("message-delivered", message._id);
-    
+    // socket.to(message.conversationId).emit("message-delivered", message._id); // Removed emission
+
     // 发送新对话事件给接收者
     const receiverSocketId = activeUsers.get(message.receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("new-conversation", {
         conversationId: message.conversationId,
-        message: broadcastMessage
+        message: broadcastMessage,
       });
     }
   });
@@ -88,7 +92,8 @@ io.on("connection", (socket) => {
     io.emit("explore-posts-update", { userId });
   });
 
-  socket.on("disconnect", (reason) => {
+  socket.on("disconnect", () => {
+    // Remove unused parameter
     if (userId) {
       conversationRooms.forEach((members, roomId) => {
         if (members.has(socket.id)) {

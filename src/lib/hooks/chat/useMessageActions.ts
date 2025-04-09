@@ -1,8 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { v4 as uuidv4 } from 'uuid';
-import { ChatMessage, MessageContent } from '@/lib/types/chat';
-import { useContext } from 'react';
-import { SocketContext } from '@/lib/context/SocketContext';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { v4 as uuidv4 } from "uuid";
+import { ChatMessage, MessageContent } from "@/lib/types/chat";
+import { useContext } from "react";
+import { SocketContext } from "@/lib/context/SocketContext";
 
 interface UseMessageActionsProps {
   conversationId?: string;
@@ -11,9 +11,9 @@ interface UseMessageActionsProps {
   handleMessageSubmit: (e: React.FormEvent) => Promise<string | undefined>;
 }
 
-export function useMessageActions({ 
-  conversationId, 
-  currentUserId, 
+export function useMessageActions({
+  conversationId,
+  currentUserId,
   otherUserId,
   handleMessageSubmit,
 }: UseMessageActionsProps) {
@@ -24,12 +24,12 @@ export function useMessageActions({
   const sendMessageMutation = useMutation({
     mutationFn: async (content: MessageContent) => {
       if (!conversationId || !otherUserId) {
-        throw new Error('Missing required data');
+        throw new Error("Missing required data");
       }
 
-      const response = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId,
           content,
@@ -38,7 +38,7 @@ export function useMessageActions({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        throw new Error("Failed to send message");
       }
 
       return response.json();
@@ -53,7 +53,7 @@ export function useMessageActions({
         senderId: currentUserId,
         receiverId: otherUserId,
         createdAt: new Date().toISOString(),
-        status: 'sending',
+        status: "sending",
       };
 
       // 发送消息（SocketContext 会处理缓存更新）
@@ -61,20 +61,35 @@ export function useMessageActions({
 
       return { optimisticMessage };
     },
-    onSuccess: (newMessage, _, context) => {
+    onSuccess: (newMessage: ChatMessage, _, context) => {
+      // Add type for newMessage
       if (!context?.optimisticMessage) return;
-      
-      // 更新状态为已发送
-      socket.updateMessageStatus(context.optimisticMessage._id, 'sent');
-      
-      // 不需要再次发送消息，因为服务器已经确认
+
+      // Update message in cache with the confirmed data (including real _id)
+      if (conversationId) {
+        // Ensure conversationId exists
+        socket.updateMessageStatus(
+          conversationId, // Pass conversationId
+          context.optimisticMessage._id, // Find by optimistic ID
+          "sent", // Set status to sent
+          newMessage // Provide the confirmed message data
+        );
+      }
+      // No need to send again via socket
     },
     onError: (error, _, context) => {
       if (!context?.optimisticMessage) return;
 
-      // 更新错误状态
-      socket.updateMessageStatus(context.optimisticMessage._id, 'error');
-      console.error('Error sending message:', error);
+      // Update error status, passing conversationId
+      if (conversationId) {
+        // Ensure conversationId exists
+        socket.updateMessageStatus(
+          conversationId, // Pass conversationId
+          context.optimisticMessage._id, // Find by optimistic ID
+          "error" // Set status to error
+        );
+      }
+      console.error("Error sending message:", error);
     },
   });
 
@@ -82,22 +97,24 @@ export function useMessageActions({
   const deleteMessagesMutation = useMutation({
     mutationFn: async () => {
       if (!conversationId) {
-        throw new Error('No conversation ID');
+        throw new Error("No conversation ID");
       }
 
-      const response = await fetch('/api/chat/messages', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/chat/messages", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to delete messages');
+        throw new Error(errorData.error || "Failed to delete messages");
       }
     },
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['chat-messages', conversationId] });
+      queryClient.removeQueries({
+        queryKey: ["chat-messages", conversationId],
+      });
     },
   });
 
@@ -109,14 +126,11 @@ export function useMessageActions({
     }
   };
 
-  // 在发送对象讨论消息时
-  const getPrimaryImage = (images: Array<{id: string, url: string, isPrimary: boolean}>) => {
-    const primaryImage = images.find(img => img.isPrimary) || images[0];
-    return primaryImage?.url || '';
-  };
+  // Removed unused getPrimaryImage function
 
   return {
-    sendMessage: (content: MessageContent) => sendMessageMutation.mutateAsync(content),
+    sendMessage: (content: MessageContent) =>
+      sendMessageMutation.mutateAsync(content),
     deleteMessages: () => deleteMessagesMutation.mutateAsync(),
     handleSubmit,
     isSending: sendMessageMutation.isPending,
@@ -124,4 +138,4 @@ export function useMessageActions({
     sendError: sendMessageMutation.error,
     deleteError: deleteMessagesMutation.error,
   };
-} 
+}
