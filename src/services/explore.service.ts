@@ -7,6 +7,13 @@ import { UserProfile } from "@/lib/types/user";
 
 // --- Interfaces for Service Methods ---
 
+// Minimal interface for dealing entries relevant to this service
+interface DealingEntry {
+  historyId: string;
+  status: string;
+  // Other fields exist but are not needed here
+}
+
 interface GetExploreItemsParams {
   search?: string;
   userId?: string;
@@ -35,6 +42,7 @@ export class ExploreService {
   private exploreCollection!: Collection<ExploreItem>; // Definite assignment assertion
   private historiesCollection!: Collection<HistoryItem>; // Definite assignment assertion
   private usersCollection!: Collection<UserProfile>; // Definite assignment assertion
+  private dealingCollection!: Collection<DealingEntry>; // Add dealing collection
 
   constructor() {
     // Initialize client and db in an async method or ensure they are ready
@@ -49,6 +57,7 @@ export class ExploreService {
       this.exploreCollection = this.db.collection<ExploreItem>("explore");
       this.historiesCollection = this.db.collection<HistoryItem>("histories");
       this.usersCollection = this.db.collection<UserProfile>("users");
+      this.dealingCollection = this.db.collection<DealingEntry>("dealing"); // Initialize dealing collection
     }
   }
 
@@ -62,11 +71,24 @@ export class ExploreService {
   }: GetExploreItemsParams): Promise<ExploreItem[]> {
     await this.connectDb();
 
+    // 1. Fetch history IDs of all items that have an entry in the dealing collection
+    const dealingItems = await this.dealingCollection
+      .find({}) // Find all documents, regardless of status
+      .project({ historyId: 1, _id: 0 }) // Only get historyId
+      .toArray();
+    const dealingHistoryIds = dealingItems.map((deal) => deal.historyId);
+
+    // 2. Build the filter for explore items
     const filter: Filter<ExploreItem> = {}; // Use Filter type
     if (search) {
       filter.description = { $regex: search, $options: "i" };
     }
+    // Exclude items whose historyId is in the dealing list
+    if (dealingHistoryIds.length > 0) {
+      filter.historyId = { $nin: dealingHistoryIds };
+    }
 
+    // 3. Fetch explore posts using the filter
     const posts = await this.exploreCollection
       .find(filter)
       .sort({ createdAt: -1 })

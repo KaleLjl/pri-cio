@@ -12,7 +12,7 @@
     - Frontend hooks (`useProfilePage`, `useHistory`) updated to align with API changes (FormData for POST, correct GET endpoint).
     - Frontend components (`CurrentUserContext`, `Navigation`, `ChatHistory`) updated to handle API changes and authentication status more robustly.
   - **Explore Page (`/explore` & `/api/explore` & `ExploreService`):**
-    - `GET /api/explore`: API route calls `exploreService.getExploreItems`.
+    - `GET /api/explore`: API route calls `exploreService.getExploreItems`. **This method now filters out items that have _any_ corresponding entry in the `dealing` collection (regardless of status).**
     - `POST /api/explore`: API route calls `exploreService.publishItem`.
     - `DELETE /api/explore`: API route calls `exploreService.unpublishItem`.
     - Frontend (`Explore.tsx`, `useExplore` hook) displays items, handles filtering.
@@ -112,4 +112,4 @@
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
   - **Refactored "Post to Explore" with Context:** Introduced `ExploreContext` to manage state/functions for posting items from the History page, simplifying prop drilling through `History.tsx`, `HistorySavedItemsTab.tsx`, `HistoryItemCard.tsx`, and `ToExplore.tsx`.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after chat context refactoring)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after revising Explore logic)._

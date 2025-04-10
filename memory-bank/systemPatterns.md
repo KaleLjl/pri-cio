@@ -84,7 +84,7 @@
     - **Completion via History Code:** `/history` page (Seller) -> `DealingItemCard` -> `POST /api/chat/deal/verify-code`. This API route calls `dealService.verifyAndCompleteDeal(...)`, which validates the code and then calls `dealService.completeDeal(...)`.
     - **Cancellation from History:** `/history` page calls `PATCH /api/chat/deal`. This API route calls `dealService.updateDealingStatus(...)`.
   - **Data Fetching (General):** Frontend Components/Pages -> React Query Hooks (`useExplore`, `useHistory`, etc.) -> API Routes (`src/app/api/*`) -> MongoDB (`pri-cio` database) / External APIs (OpenAI, OpenCage).
-    - `explore` collection: Publicly listed items. Linked to `histories` via `historyId`. Contains embedded user profile subset.
+    - `explore` collection: Publicly listed items. Linked to `histories` via `historyId`. Contains embedded user profile subset. **Items are filtered in `ExploreService.getExploreItems` to exclude those with _any_ entry in the `dealing` collection (regardless of status).**
     - `histories` collection: Initial item records created by users. Linked to `explore` via `exploreId`. Stores deal completion details.
     - `users` collection: User profile data.
     - `conversations` collection: Metadata for chat conversations (participants, timestamps, settings, unread counts, soft-delete markers).
@@ -106,4 +106,4 @@
     - **Settings:** Frontend -> `PATCH /api/chat/conversations/settings` -> `ConversationService.updateConversationSettings` -> Updates `settings` field in `conversations`.
   - **Share Card Flow:** (Details still limited) Frontend (`useShareCard`) -> API call (`/api/share-card`?) -> Generates shareable card/link.
 
-_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after trade code feature implementation)._
+_This file documents the system architecture, key technical decisions, design patterns, component relationships, and critical implementation paths. (Updated after revising Explore logic)._

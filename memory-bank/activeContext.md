@@ -99,11 +99,12 @@
   - **Reviewed Auth Logic Consistency:** Confirmed that server-side checks are now standardized and client-side patterns are appropriate. No major redundancies found.
   - **Refactored `src/components/main/Chat.tsx`:** Broke down the large component into smaller sub-components (`ChatHeader`, `UserPostsDisplay`, `MessageList`, `MessageItem`, `ObjectDiscussionCard`, `MessageInput`, `MyPostsPopup`) located in `src/components/main/chat/`. Moved `getPrimaryImage` helper to `src/lib/utils/imageUtils.ts`.
   - Updated Memory Bank files (`systemPatterns.md`, `productContext.md`, `progress.md`) to reflect the refactoring progress and auth fix/standardization. (Self-update)
+  - **Modified Explore Logic:** Updated `ExploreService.getExploreItems` (`src/services/explore.service.ts`) to query the `dealing` collection for **all** items (regardless of status) and exclude their corresponding `historyId`s from the results returned by the `explore` collection query. This prevents any item that has entered the dealing process from appearing on the Explore page.
   - **Refactored `src/components/main/History.tsx`:** Broke down the large component into smaller sub-components (`HistoryProfileHeader`, `HistoryTabControls`, `HistorySavedItemsTab`, `HistoryPostedItemsTab`, `HistoryDealingItemsTab`, `HistoryItemCard`, `DealingItemCard`) located in `src/components/main/history/`. Updated the main `History.tsx` to use these components.
   - **Fixed `useEffect` Dependencies:** Wrapped functions (`fetchUserProfile`, `fetchDealingItems`) in `useHistory.ts` with `useCallback` and updated the dependency array in the main `useEffect` hook in `History.tsx` to resolve infinite loop ("Maximum update depth exceeded") error.
   - **Reverted Dealing Card UI:** (Previous) Reset the style of `DealingItemCard.tsx` to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) based on user feedback.
 - **Next Steps:**
-  - **Update Memory Bank:** Document chat context refactoring. (This step)
+  - **Update Memory Bank:** Document the Explore logic modification. (This step)
   - **Rename Hook Function:** Rename `handleDealComplete` in `useObjectDiscussion` to `handleConfirmAgreement` across relevant files (`useObjectDiscussion.ts`, `ChatContext.tsx`).
   - **Debug Message Status Update:** Investigate and fix the "Failed to update message status" runtime error.
   - **Test "Post to Explore" Modal:** Verify if the location modal now appears correctly after the context refactoring.
@@ -127,6 +128,7 @@
   - **Socket/Cache Management:** `SocketService` (singleton), `SocketContext`, `ChatCacheManager`.
   - MongoDB (`pri-cio` database) as the primary datastore with distinct collections for different data types (`users`, `histories`, `explore`, `conversations`, `messages`, `dealing`).
   - API routes delegate logic to the Service Layer, which handles database interactions.
+  - **Explore Filtering:** `ExploreService` now filters out items based on **any** entry in the `dealing` collection (regardless of status).
   - OpenAI integration for AI features (no direct DB interaction).
   - AWS S3 for file storage (avatars, item images), managed via Service Layer where applicable (e.g., `UserService`).
   - Clear distinction between item creation/history (`histories`) and published items (`explore`).
@@ -159,4 +161,4 @@
   - **Runtime Error:** "Failed to update message status" occurs when clicking the modified "Complete" button in chat (`ObjectDiscussionCard` -> `useChatContext.handleConfirmAgreement`). Backend API (`PUT /api/chat/messages`) or service (`messageService.updateMessageStatus`) is failing.
   - **Stale TS Error:** A persistent TypeScript error regarding `currentUserId` type mismatch in `Chat.tsx` (line 62) might be stale or indicate a deeper issue, despite the code appearing correct.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after chat context refactoring)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after revising Explore logic)._
