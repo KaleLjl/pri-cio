@@ -49,7 +49,9 @@
     - Triggers `POST /api/ai/chat` for AI analysis.
   - **History Page (`/history`):**
     - Fetches data via `GET /api/history` and `GET /api/chat/deal`.
-    - Client-side logic categorizes items into Saved, Posted, Dealing tabs.
+    - Client-side logic in `History.tsx` categorizes items into Saved, Posted, Dealing tabs.
+    - **'Posted Items' Filtering:** The `updatePostedHistories` function in `History.tsx` filters items to include only those with an `exploreId` AND are NOT present in the `dealingHistories` list.
+    - **Infinite Loop / Repeated API Call Fix:** Resolved issues (infinite loading, repeated API calls to `/api/users/me` and `/api/chat/deal`) by removing `updatePostedHistories`, `fetchUserProfile`, and `fetchDealingItems` from the main `useEffect` dependency array in `History.tsx`.
     - Allows deal completion/cancellation via `PATCH /api/chat/deal`.
     - **Trade Completion Code:** Implemented system where buyers see a code on pending deals, and sellers use it to verify and complete the transaction via `/api/chat/deal/verify-code`. Code auto-generated in `DealService.getDealingItemsForUser`. Frontend components (`DealingItemCard`, `HistoryDealingItemsTab`, `History.tsx`) and hook (`useHistory`) updated.
   - **Database:** MongoDB (`pri-cio` database) connection via `lib/mongodb.ts`. Collections: `users`, `histories`, `explore`, `conversations`, `messages`, `dealing` (plus NextAuth). `dealing` collection now includes `completionCode` and `codeGeneratedAt`.
@@ -75,7 +77,7 @@
   - **[RESOLVED]** Chat Page Loading Forever (Attempt 4). Fixed via multiple attempts involving `useChatData`, `useInitializeChat`, `ConversationService`, and `UserService` refactoring.
   - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
   - **[RESOLVED]** Chat Page React Query Error. Fixed by adding dummy `queryFn` and `staleTime: Infinity`.
-  - **[RESOLVED]** Maximum update depth exceeded error on History page. Fixed by memoizing functions (`fetchUserProfile`, `fetchDealingItems`) in `useHistory` hook and updating `useEffect` dependencies in `History.tsx`.
+  - **[RESOLVED]** Maximum update depth exceeded error / Infinite Loop / Repeated API Calls on History page. Fixed through multiple adjustments to the main `useEffect` dependency array in `History.tsx`, including removing `updatePostedHistories`, `fetchUserProfile`, and `fetchDealingItems` as dependencies.
   - **Runtime Error:** "Failed to update message status" occurs when clicking the modified "Complete" button in chat (`ObjectDiscussionCard` -> `useChatContext.handleConfirmAgreement`). Backend API (`PUT /api/chat/messages`) or service (`messageService.updateMessageStatus`) is failing. Needs further investigation (logging).
   - **Stale TS Error:** A persistent TypeScript error regarding `currentUserId` type mismatch in `Chat.tsx` (line 62) might be stale or indicate a deeper issue, despite the code appearing correct.
   - (Previous dealing issues resolved by implementing initiation logic and correcting GET API).
@@ -84,7 +86,7 @@
   - **Prioritized Chat Context Refactoring:** Decided to refactor chat components using Context API before renaming `handleDealComplete` or fully debugging the "Failed to update message status" error.
   - **Corrected Chat Deal Completion Logic:** Changed the "Complete" button in chat (`ObjectDiscussionCard`) to update the message status (`PUT /api/chat/messages`) instead of finalizing the deal (`POST /api/chat/deal`).
   - **Reverted Dealing Card Style:** Based on user feedback ("too ugly"), reverted the `DealingItemCard.tsx` style to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) after attempts to make details always visible caused layout issues (image cropping).
-  - **Fixed `useEffect` Dependencies in `History.tsx`:** Wrapped `fetchUserProfile` and `fetchDealingItems` in `useCallback` within the `useHistory` hook to provide stable references. Wrapped locally defined `updateContainerHeight` and `updatePostedHistories` in `useCallback`. Added these functions to the main `useEffect` dependency array to resolve the infinite loop error.
+  - **Fixed `useEffect` Dependencies in `History.tsx` (Multiple Fixes):** Resolved "Maximum update depth exceeded" error and multiple infinite loop/repeated API call issues by refining the main `useEffect` dependency array in `History.tsx` over several iterations. Removed `updatePostedHistories`, `fetchUserProfile`, and `fetchDealingItems` as dependencies to prevent loops caused by changing function references.
   - **Refactored `History.tsx`:** Broke down the large component into smaller sub-components (`HistoryProfileHeader`, `HistoryTabControls`, `HistorySavedItemsTab`, `HistoryPostedItemsTab`, `HistoryDealingItemsTab`, `HistoryItemCard`, `DealingItemCard`) for better maintainability.
   - **Fixed Unread Count Bug (Final Attempt):** Identified stale data fetch on navigation back to `/chathistory` as the likely cause. Increased `staleTime` in `useChatHistory` query options and removed immediate invalidation from `ChatHistory.tsx` to rely more on the real-time updated client cache.
   - **Fixed Unread Count Bug (Initial Attempt):** Removed redundant cache update from `useChatHistory.markAsRead`. (Insufficient on its own).
@@ -111,5 +113,7 @@
   - Updated frontend hooks (`useProfilePage`, `useHistory`) and components (`CurrentUserContext`, `Navigation`, `ChatHistory`) to align with `UserService` API refactoring and improve auth handling.
   - Refactored `Chat.tsx` into smaller sub-components for better maintainability.
   - **Refactored "Post to Explore" with Context:** Introduced `ExploreContext` to manage state/functions for posting items from the History page, simplifying prop drilling through `History.tsx`, `HistorySavedItemsTab.tsx`, `HistoryItemCard.tsx`, and `ToExplore.tsx`.
+  - **Updated History Page Filtering:** Modified `History.tsx` to exclude items being dealt with from the 'Posted Items' tab.
+  - **Fixed History Page Infinite Loop / Repeated API Calls:** Removed `updatePostedHistories`, `fetchUserProfile`, and `fetchDealingItems` from the main `useEffect` dependency array in `History.tsx` to resolve infinite loading and repeated API call issues.
 
-_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after revising Explore logic)._
+_This file tracks what works, what's left to build, the current status, known issues, and the evolution of project decisions. (Updated after fixing repeated API calls on History page)._

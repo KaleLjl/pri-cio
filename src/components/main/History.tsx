@@ -97,30 +97,39 @@ export default function History({ histories: initialHistories }: HistoryProps) {
   }, [activeTab]);
 
   const updatePostedHistories = useCallback(() => {
-    const posted = histories.filter((history) => history.exploreId);
+    // Create a Set of dealing history IDs for efficient lookup
+    const dealingIds = new Set(dealingHistories.map((deal) => deal._id));
+    // Filter histories: must have exploreId AND must NOT be in dealingIds
+    const posted = histories.filter(
+      (history) => history.exploreId && !dealingIds.has(history._id)
+    );
     setPostedHistories(posted);
-  }, [histories]);
+  }, [histories, dealingHistories]); // Add dealingHistories dependency
 
+  // Effect for fetching initial data based on user session
   useEffect(() => {
     fetchUserProfile();
-    const heightTimer = setTimeout(updateContainerHeight, 100);
-    window.addEventListener("resize", updateContainerHeight);
-    updatePostedHistories();
     fetchDealingItems();
+  }, [fetchUserProfile, fetchDealingItems]); // Dependencies are the memoized functions
 
+  // Effect for updating derived state (postedHistories)
+  useEffect(() => {
+    updatePostedHistories();
+  }, [updatePostedHistories]); // Dependency is the memoized function
+
+  // Effect for UI updates (height and resize listener)
+  useEffect(() => {
+    // Update height initially and on tab change
+    const heightTimer = setTimeout(updateContainerHeight, 100); // Delay slightly for content render
+    // Add resize listener
+    window.addEventListener("resize", updateContainerHeight);
+
+    // Cleanup function
     return () => {
-      window.removeEventListener("resize", updateContainerHeight);
       clearTimeout(heightTimer);
+      window.removeEventListener("resize", updateContainerHeight);
     };
-  }, [
-    session?.user?.email, // Keep session dependency if fetchUserProfile relies on it implicitly
-    activeTab,
-    histories,
-    fetchDealingItems,
-    fetchUserProfile,
-    updateContainerHeight,
-    updatePostedHistories,
-  ]);
+  }, [activeTab, updateContainerHeight]); // Dependencies: activeTab and the memoized update function
 
   const [actionInProgress, setActionInProgress] = useState<{
     [key: string]: string;

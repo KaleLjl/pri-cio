@@ -1,7 +1,10 @@
 \*\*\*\*# Active Context
 
-- **Current Focus:** Updating Memory Bank. Next: Rename `handleDealComplete` hook function.
+- **Current Focus:** Updating Memory Bank (`progress.md`). Next: Rename `handleDealComplete` hook function.
 - **Recent Changes:**
+  - **Fixed History Page Repeated API Calls:** Resolved constant calls to `/api/users/me` and `/api/chat/deal` by removing `fetchUserProfile` and `fetchDealingItems` from the main `useEffect` dependency array in `History.tsx`. This prevents the effect from re-running unnecessarily due to the function references.
+  - **Fixed History Page Infinite Loop (Previous):** Resolved an infinite loading issue in the 'Dealing' tab of `History.tsx` by removing `updatePostedHistories` from the main `useEffect` dependency array. This broke a dependency cycle introduced by the previous filtering change.
+  - **Updated History Page Filtering:** (Previous) Modified `src/components/main/History.tsx` to filter items present in the `dealingHistories` array out of the `postedHistories` state, ensuring items being dealt with do not appear in the 'Posted Items' tab.
   - **Refactored Chat Components with Context API:**
     - Created `ChatContext` (`src/lib/context/ChatContext.tsx`) and `ChatProvider`.
     - Integrated chat-related hooks (`useInitializeChat`, `useChatData`, `useMessageActions`, `useChatUI`, `useObjectDiscussion`, `useChatHistory`) into the provider.
@@ -28,7 +31,7 @@
     - Updated `DealingItemCard.tsx` to display the code for buyers and show a verification input/button for sellers.
     - Updated `useHistory` hook with `verifyCompletionCode` function to call the verification API.
     - Updated `History.tsx` and `HistoryDealingItemsTab.tsx` to pass down the verification handler.
-  - **Fixed `useEffect` Dependencies in `History.tsx`:** Resolved "Maximum update depth exceeded" error by wrapping functions (`fetchUserProfile`, `fetchDealingItems`) in `useCallback` within the `useHistory` hook and updating the main `useEffect` dependency array.
+  - **Fixed `useEffect` Dependencies in `History.tsx` (Multiple Fixes):** Resolved "Maximum update depth exceeded" error and multiple infinite loop issues by refining the main `useEffect` dependency array in `History.tsx` over several iterations. Removed `updatePostedHistories`, `fetchUserProfile`, and `fetchDealingItems` as dependencies to prevent loops caused by changing function references.
   - **Reverted Dealing Card UI:** Reset the style of `DealingItemCard.tsx` to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) based on user feedback regarding aesthetics and layout issues.
   - **Fixed Unread Count Bug (Final Attempt):**
     - Identified that the bug likely occurred due to stale data being fetched by `useQuery` in `useChatHistory` immediately upon navigating back to `/chathistory` (due to default `refetchOnMount: true` and immediate invalidation in `ChatHistory.tsx`), overwriting the correct client-side cache updated in real-time.
@@ -104,7 +107,7 @@
   - **Fixed `useEffect` Dependencies:** Wrapped functions (`fetchUserProfile`, `fetchDealingItems`) in `useHistory.ts` with `useCallback` and updated the dependency array in the main `useEffect` hook in `History.tsx` to resolve infinite loop ("Maximum update depth exceeded") error.
   - **Reverted Dealing Card UI:** (Previous) Reset the style of `DealingItemCard.tsx` to match `HistoryItemCard.tsx` (fixed height, details overlay on hover) based on user feedback.
 - **Next Steps:**
-  - **Update Memory Bank:** Document the Explore logic modification. (This step)
+  - **Update Memory Bank:** Document the fix for repeated API calls in `progress.md`. (This step)
   - **Rename Hook Function:** Rename `handleDealComplete` in `useObjectDiscussion` to `handleConfirmAgreement` across relevant files (`useObjectDiscussion.ts`, `ChatContext.tsx`).
   - **Debug Message Status Update:** Investigate and fix the "Failed to update message status" runtime error.
   - **Test "Post to Explore" Modal:** Verify if the location modal now appears correctly after the context refactoring.
@@ -128,7 +131,8 @@
   - **Socket/Cache Management:** `SocketService` (singleton), `SocketContext`, `ChatCacheManager`.
   - MongoDB (`pri-cio` database) as the primary datastore with distinct collections for different data types (`users`, `histories`, `explore`, `conversations`, `messages`, `dealing`).
   - API routes delegate logic to the Service Layer, which handles database interactions.
-  - **Explore Filtering:** `ExploreService` now filters out items based on **any** entry in the `dealing` collection (regardless of status).
+  - **Explore Filtering:** `ExploreService` filters out items based on **any** entry in the `dealing` collection (regardless of status).
+  - **History Page Filtering:** `History.tsx` component filters items based on `exploreId` and absence in `dealingHistories` for the 'Posted Items' tab.
   - OpenAI integration for AI features (no direct DB interaction).
   - AWS S3 for file storage (avatars, item images), managed via Service Layer where applicable (e.g., `UserService`).
   - Clear distinction between item creation/history (`histories`) and published items (`explore`).
@@ -149,6 +153,7 @@
   - Refactoring with Context API (`ExploreContext`) significantly reduced prop drilling for the "Post to Explore" feature in the History page components.
   - `replace_in_file` can be unreliable with auto-formatting; `write_to_file` is a necessary fallback but requires careful re-application of changes.
   - Previous learnings about NextAuth JWT, Service Layer, etc., remain relevant.
+  - Filtering logic for History page tabs resides in the main `History.tsx` component, not the individual tab components.
 - **Known Issues:**
   - **"Post to Explore" Modal Bug:** The original issue (modal not appearing) needs re-testing after the context refactoring.
   - **Socket Connection Failure:** Socket connection doesn't establish reliably on direct chat page load. (Next investigation target)
@@ -157,8 +162,8 @@
   - **[RESOLVED]** React Query error on chat page: `No queryFn was passed...` for query key `["chat-typing-status", userId]`. Fixed by adding dummy `queryFn` and `staleTime: Infinity`.
   - **[RESOLVED]** Chat Page Loading Forever. Fixed via multiple attempts involving `useChatData`, `useInitializeChat`, `ConversationService`, and `UserService` refactoring.
   - **[RESOLVED]** ChatHistory Authentication. Fixed by adding JWT callbacks in `lib/auth.ts`.
-  - **[RESOLVED]** Maximum update depth exceeded error on History page. Fixed by wrapping functions in `useCallback` within `useHistory` hook and updating `useEffect` dependencies in `History.tsx`.
+  - **[RESOLVED]** Maximum update depth exceeded error / Infinite Loop / Repeated API Calls on History page. Fixed through multiple adjustments to the main `useEffect` dependency array in `History.tsx`, including removing `updatePostedHistories`, `fetchUserProfile`, and `fetchDealingItems` as dependencies.
   - **Runtime Error:** "Failed to update message status" occurs when clicking the modified "Complete" button in chat (`ObjectDiscussionCard` -> `useChatContext.handleConfirmAgreement`). Backend API (`PUT /api/chat/messages`) or service (`messageService.updateMessageStatus`) is failing.
   - **Stale TS Error:** A persistent TypeScript error regarding `currentUserId` type mismatch in `Chat.tsx` (line 62) might be stale or indicate a deeper issue, despite the code appearing correct.
 
-_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after revising Explore logic)._
+_This file tracks the current state of work, recent changes, immediate next steps, active decisions, important patterns, and project insights. (Updated after fixing repeated API calls on History page)._
